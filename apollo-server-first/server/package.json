@@ -1,0 +1,17 @@
+{
+  "name": "first-apollo-graphql",
+  "version": "1.0.0",
+  "description": "Apollo is a platform for building a unified supsergraph using GraphQL. Apollo is meant to handle Authentication, Pagination, State Management\r - Apollo Client - state management library to manage both local and remote data with GraphQL (fetch, cache, modify application data)\r - Apollo Server - open source GraphQL server compatible with any GraphQL client like Apollo Client and has a self-documenting GraphQL API\r - Apollo Studio - cloud-hosted collection of tools to measure graph's performance\r - Apollo Federation - divide functionality across multiple GraphQL services into subgraphs and a GraphQL gateway (both the gateway and subgraphs are a GraphQL server).",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apollo-server": "^3.9.0",
+    "graphql": "^16.5.0"
+  }
+}
