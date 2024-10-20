@@ -1,4 +1,4 @@
-## June 21st, 2022 9:06 PM
+## Created on June 21st, 2022 9:06 PM
 
 # First Apollo GraphQL
 Followed these articles to implement a server and client on Heroku

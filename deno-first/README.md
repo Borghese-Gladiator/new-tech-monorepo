@@ -1,3 +1,5 @@
+## Created on Sep 26th, 2024
+
 # First Deno Project
 Deno 2 was just released and it now supports node_modules! Therefore, I'm taking another look at using Deno. (ty Fireship for re-introducing it to me: [https://www.youtube.com/watch?v=pcC4Dr6Wj2Q](https://www.youtube.com/watch?v=pcC4Dr6Wj2Q))
 

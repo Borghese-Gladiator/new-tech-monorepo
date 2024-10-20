@@ -1,4 +1,4 @@
-## June 26th, 2022 5:03 PM
+## Created on June 26th, 2022 5:03 PM
 
 # Full Stack DApp
 Built full stack DApp with Vite, React, TailwindCSS, Hardhat.js with Solidity

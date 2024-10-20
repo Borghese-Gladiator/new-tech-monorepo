@@ -1,4 +1,4 @@
-## Aug 13, 2023
+## Created on Aug 13th, 2023
 
 # Svelte
 

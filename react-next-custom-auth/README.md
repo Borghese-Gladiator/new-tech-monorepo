@@ -1,4 +1,4 @@
-## May 11 2023
+## Created on May 11 2023
 
 # Next Custom Auth in TypeScript
 This project was a quick PoC for me to write some clean authentication code so I could easily add it to my other project.

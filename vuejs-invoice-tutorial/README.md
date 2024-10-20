@@ -1,4 +1,4 @@
-## Created on Jul 8 2022
+## Created on Jul 8th, 2022
 
 # invoice-vuejs-tutorial
 Followed tutorial to build Vue3 + TailwindCSS + Firebase Realtime Database app

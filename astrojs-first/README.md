@@ -1,4 +1,4 @@
-## December 7th, 2023 1:11 AM
+## Created on December 7th, 2023 1:11 AM
 
 # First Astro.js
 Previously I worked with Gatsby, but Astro is the most famous now since it can ship with minimal JavaScript which can speed up time to render significantly.

@@ -1,3 +1,5 @@
+## Created on Oct 1st, 2024
+
 # Fast API Hugging Face
 Hugging Face is a platform for machine learning community to collaborate on models, datasets, and applications. Hugging Face Transformers is an open-source library that provides access to thousands of pre-trained Transformer models. The Hugging Face Hub is a platform with over 900k models, 200k datasets, and 300k demos.
 
