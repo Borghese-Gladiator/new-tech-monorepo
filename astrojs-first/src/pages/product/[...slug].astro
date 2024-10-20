@@ -1,0 +1,40 @@
+---
+import type { InferGetStaticParamsType, InferGetStaticPropsType, GetStaticPaths } from 'astro';
+import { getCollection } from "astro:content";
+
+import ProductLayout from "@/layouts/ProductLayout.astro";
+
+export const getStaticPaths = (async () => {
+  const products = await getCollection("product");
+  return products.map((product) => {
+    return {
+      params: { slug: product.slug },
+      props: product,
+    };
+  });
+}) satisfies GetStaticPaths;
+
+type Params = InferGetStaticParamsType<typeof getStaticPaths>;
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { slug } = Astro.params as Params;
+const { data: { name, description, pubDate, heroImage }} = Astro.props as Props;
+
+---
+
+<ProductLayout>
+  <div class="product-details">
+    <div class="hero-image">
+      {heroImage && <img width={1020} height={510} src={heroImage} alt="" />}
+    </div>
+    <div>
+      <h1>{name}</h1>
+      <h5 class="date">
+        {pubDate.toLocaleDateString('en-us', { weekday:"long", year:"numeric", month:"short", day:"numeric"})}
+      </h5>
+      <p>
+        Sample description: {description}
+      </p>
+    </div>
+  </div>
+</ProductLayout>

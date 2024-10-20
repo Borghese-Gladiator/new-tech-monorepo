@@ -1,0 +1,67 @@
+---
+import { getCollection } from 'astro:content';
+
+import Layout from '@/layouts/Layout.astro';
+
+// TODO(12/07): figure out typing of getCollection
+const products: any = await getCollection('product');
+products.sort(
+	(a: AstroProduct, b: AstroProduct) => a.data.pubDate.valueOf() - b.data.pubDate.valueOf()
+);
+
+---
+<Layout title="Products - First Astro Project">
+  <main>
+    <h1>Products List</h1>
+    <section>
+      <div class="card-container">
+        {products.map((product: AstroProduct) => (
+          <div class="card">
+            <a href={`/product/${product.slug}/`}>
+              <h3>{product.data.name}</h3>
+              <p class="date">
+                {product.data.pubDate.toLocaleDateString('en-us', { weekday:"long", year:"numeric", month:"short", day:"numeric"})}
+              </p>
+            </a>
+          </div>
+        ))}
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<style>
+/* ChatGPT generated CSS for responsive cards */
+.card-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.card {
+  flex: 1 0 calc(100% - 20px);
+  max-width: calc(33.33% - 20px); /* Default: 3 cards per row */
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.card img {
+  width: 100%;
+  border-radius: 6px;
+}
+
+@media screen and (max-width: 768px) {
+  .card {
+    max-width: calc(50% - 20px); /* 2 cards per row on smaller screens */
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .card {
+    max-width: calc(100% - 20px); /* 1 card per row on extra small screens */
+  }
+}
+
+</style>
