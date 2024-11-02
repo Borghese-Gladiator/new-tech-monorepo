@@ -1,0 +1,2 @@
+# ignore FAISS vector store files
+/document_index
