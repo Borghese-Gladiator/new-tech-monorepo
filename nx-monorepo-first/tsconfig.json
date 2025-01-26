@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./todo-frontend-e2e"
+    },
+    {
+      "path": "./todo-frontend"
+    },
+    {
+      "path": "./todo-backend-e2e"
+    },
+    {
+      "path": "./todo-backend"
+    },
+    {
+      "path": "./shared-utils"
+    }
+  ]
+}

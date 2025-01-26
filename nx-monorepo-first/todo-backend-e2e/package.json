@@ -1,0 +1,27 @@
+{
+  "name": "@nx-monorepo-first/todo-backend-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "todo-backend-e2e",
+    "projectType": "application",
+    "implicitDependencies": [
+      "todo-backend"
+    ],
+    "targets": {
+      "e2e": {
+        "executor": "@nx/jest:jest",
+        "outputs": [
+          "{workspaceRoot}/coverage/{e2eProjectRoot}"
+        ],
+        "options": {
+          "jestConfig": "todo-backend-e2e/jest.config.ts",
+          "passWithNoTests": true
+        },
+        "dependsOn": [
+          "todo-backend:build"
+        ]
+      }
+    }
+  }
+}
