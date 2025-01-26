@@ -30,7 +30,53 @@ NX is a powerful build system and development tool designed to help teams manage
 - add JS library shared utilities
   - `npm install --save-dev @nx/js`
   - `npx nx generate @nx/js:library shared-utils`
+---
+- todo-frontend - implemented TodoList to call backend
+- todo-backend - implemented `/api/todos` to return constants
+  - `npm i cors`
+  - `npm i --save-dev @types/cors`
+  - NOTE: `yarn` will not work (because the root directory uses `package-lock.json`?)
 
+NOTE: `npm install --save-dev @nx/storybook` is for older versions. Use `nx add @nx/storybook` instead.
+
+## Thoughts
+NOTE: I wouldn't use this for prod based on errors I'm getting, cuz I get build errors from small changes + can't configure easy stuff like adding a local library.
+
+ERROR: When you install packages inside the subfolder, they bubble up and are added to the parent `package-lock.json` and the child `package.json`. When I added `cors` to todo-backend and used it in `main.ts`, it immediately caused unclear build errors in todo-backend.
+```
+PS C:\Users\Timot\Documents\GitHub\new-tech-monorepo\nx-monorepo-first\todo-backend> npx nx serve todo-backend
+
+ NX   Running target serve for project todo-backend and 1 task it depends on:
+
+—————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+
+> nx run todo-backend:build:production
+
+✘ [ERROR] Could not resolve "todo-backend/src/main.ts"
+ NX   Build failed with 1 error:
+error: Could not resolve "todo-backend/src/main.ts"
+Pass --verbose to see the stacktrace.
+
+—————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+
+ NX   Running target serve for project todo-backend and 1 task it depends on failed
+
+Failed tasks:
+
+- todo-backend:build:production
+
+Hint: run the command with --verbose for more details.
+```
+SOLUTION: `npm install` directly inside NX Monorepo root. Though this is only a drawback for the DEV environment now that I think about it. The DEV environment will have a bloated `node_modules` while building for PROD will properly package each part separately (if they properly remove modules when building).
+
+> Answer: It doesn't effect the size of the compiled code because an app will only include the code it uses thanks to webpack bundling and tree shaking. So there is no risk of D3 showing up in a bundle for an app that doesn't use it. In actuality you could have every npm package listed in your package.json and it wouldn't effect your bundle size. -> https://stackoverflow.com/questions/52761592/include-a-package-for-some-libs-in-nrwl-nx-workspace?rq=4
+
+nrwl/nx is 100% intended to use only one package.json file. Don't try to break it up if you are using nx.
+
+ERROR: Can't load my JavaScript library `shared-utils` into the todo-frontend and todo-backend. I have to fiddle around with `tsconfig.json` and have no idea what I'm doing. I would much rather some sort of CLI command....
+```
+```
+SOLUTION: ??? => I give up, no idea how to configure JSON to pass the types
 
 ## Features
 1. **Monorepo Support**:
