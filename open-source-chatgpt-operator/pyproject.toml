@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "open-source-chatgpt-operator"
+version = "0.1.0"
+description = ""
+authors = ["shinobi_sandwich <timothy_shee@hotmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+browser-use = "^0.1.30"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
