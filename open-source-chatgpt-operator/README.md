@@ -1,3 +1,4 @@
+**01/31/2025**
 BrowserUse does not work that well and has problems locally with Ollama
 
 Does NOT Work that Well
@@ -8,8 +9,8 @@ Problems with Ollama
 - > https://github.com/browser-use/browser-use/issues?q=sort%3Aupdated-desc%20is%3Aissue%20state%3Aopen
 
 
-# Open Source ChatGPT Operator
-ChatGPT Operator is an AI agent to perform tasks for you using a browser. It costs like $200/month
+#  BrowserSource - Open Source ChatGPT Operator
+ChatGPT Operator is an AI agent to perform tasks for you using a browser. It costs like $200/month. BrowserUse is the alternative open source version.
 
 > https://apidog.com/blog/how-to-use-deepseek-r1-to-build-an-open-source-chatgpt-operator-alternative/
 
