@@ -1,0 +1,4 @@
+FAISS (Facebook AI Similarity Search) is a library for efficient similarity search and clustering.
+It is widely used for fast nearest-neighbor search in high-dimensional vector spaces.
+FAISS supports both CPU and GPU acceleration for large-scale searches.
+It provides various indexing methods such as `IndexFlatL2`, `IndexIVFFlat`, and `HNSW`.

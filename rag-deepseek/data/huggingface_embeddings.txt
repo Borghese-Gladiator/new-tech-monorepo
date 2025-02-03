@@ -1,0 +1,4 @@
+Hugging Face Embeddings provide pre-trained models for generating text embeddings.
+These embeddings convert text into numerical vectors that capture semantic meaning.
+They are commonly used in NLP applications like search, retrieval, and recommendation systems.
+Popular models for embeddings include BERT, RoBERTa, and Sentence Transformers.

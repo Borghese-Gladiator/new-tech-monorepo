@@ -1,0 +1,4 @@
+DeepSeek R1 is an open-weight language model with 1.5 billion parameters. 
+It is designed for efficiency and accuracy in natural language tasks.
+The model excels in text generation, retrieval-augmented generation (RAG), and question-answering tasks.
+DeepSeek R1 is optimized for

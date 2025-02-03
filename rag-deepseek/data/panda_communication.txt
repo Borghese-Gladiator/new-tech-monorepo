@@ -1,0 +1,4 @@
+Pandas communicate using scent markings rather than vocalizations.
+They have scent glands near their tails and rub against trees to mark territory.
+Their scent contains information about age, gender, and reproductive status.
+Although pandas can vocalize, they primarily rely on scent for long-distance communication.

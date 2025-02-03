@@ -1,0 +1,4 @@
+Retrieval-Augmented Generation (RAG) is a technique that enhances text generation by incorporating external knowledge.
+It retrieves relevant documents before generating a response to improve accuracy and relevance.
+RAG is widely used in AI chatbots, document summarization, and Q&A systems.
+This approach reduces hallucination by grounding responses in factual information.
