@@ -1,14 +1,20 @@
-from pathlib import Path
+import calendar
 import os
-import pandas as pd
+from pathlib import Path
 from pprint import pprint
+
+import pandas as pd
 
 #=================
 #  CONSTANTS
 #=================
 dir_path: Path = Path("C:\\Users\\Timot\\Downloads\\workday_payslips\\workday_payslips")
-output_csv_path = 'output.csv'
+output_csv_path = 'output_paystubs.csv'
+agg_output_csv_path = 'output_agg_paystubs.csv'
 
+#=================
+#  UTILS
+#=================
 def find_all_label_positions(df: pd.DataFrame, key: str) -> list[tuple[int, int]]:
     """
     Finds all instances of the key in the DataFrame and returns their (row, column) indices.
@@ -42,7 +48,10 @@ def extract_tag_column(df: pd.DataFrame, tag: str, row_offset: int = 1) -> str |
         return df.iat[target_row, col_index] if target_row < df.shape[0] else None
     return None
 
-def aggregate_payslip_data(directory: Path, output_csv: str):
+#=================
+#  MAIN
+#=================
+def build_paystub_list_df(directory: Path) -> pd.DataFrame:
     all_data = []
     
     for file in os.listdir(directory):
@@ -90,11 +99,113 @@ def aggregate_payslip_data(directory: Path, output_csv: str):
             except Exception as e:
                 print(f"Error processing '{file_path}': {e}")
     
-    if all_data:
-        aggregated_df = pd.DataFrame(all_data)
-        aggregated_df.to_csv(output_csv, index=False, encoding='utf-8')
-        print(f"Aggregated CSV saved to '{output_csv}'")
-    else:
-        print("No valid payslip data found.")
+    return pd.DataFrame(all_data)
 
-aggregate_payslip_data(dir_path, output_csv_path)
+
+def build_paystub_stats_df(paystub_list_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Builds df with values per month
+    - Gross Pay
+    - Net Pay
+    - Taxes
+    - Insurance
+    - 401(k) Total
+    - HSA Total
+    - ESPP Total
+
+    The current paystubs are biweekly and go between months, this code prorates the values by the month using the number of days in that month
+    """
+    # Convert 'Pay Period Begin' and 'Pay Period End' to datetime
+    paystub_list_df['Pay Period Begin'] = pd.to_datetime(paystub_list_df['General - Pay Period Begin'])
+    paystub_list_df['Pay Period End'] = pd.to_datetime(paystub_list_df['General - Pay Period End'])
+    
+    # Initialize columns for the amounts
+    paystub_list_df['Gross Pay'] = 0
+    paystub_list_df['Net Pay'] = 0
+    paystub_list_df['Taxes'] = 0
+    paystub_list_df['Insurance'] = 0
+    paystub_list_df['401(k) Employee'] = 0
+    paystub_list_df['HSA Employee'] = 0
+    paystub_list_df['401(k) Employer Match'] = 0
+    paystub_list_df['HSA Employer Match'] = 0
+    paystub_list_df['ESPP Total'] = 0
+    
+    # Iterate through each row to calculate amounts
+    for idx, row in paystub_list_df.iterrows():
+        # Calculate the number of days in the pay period
+        days_in_period = (row['Pay Period End'] - row['Pay Period Begin']).days + 1  # Include the end day
+        # Extract the start and end month
+        start_month = row['Pay Period Begin'].month
+        end_month = row['Pay Period End'].month
+
+        if start_month == end_month:  # Same month means add to month if present
+            paystub_list_df.at[idx, 'Gross Pay'] += row['General - Gross Pay']
+            paystub_list_df.at[idx, 'Net Pay'] += row['General - Net Pay']
+            paystub_list_df.at[idx, 'Taxes'] += row['Taxes - Employee Taxes']
+            paystub_list_df.at[idx, 'Insurance'] += row['Insurance - Medical']
+            paystub_list_df.at[idx, '401(k) Employee'] += row['Tax-Advantaged Accounts - 401(k) employee']
+            paystub_list_df.at[idx, 'HSA Employee'] += row['Tax-Advantaged Accounts - HSA employee']
+            paystub_list_df.at[idx, '401(k) Employer Match'] += row['Tax-Advantaged Accounts (Employer) - 401(k) employer']
+            paystub_list_df.at[idx, 'HSA Employer Match'] += row['Tax-Advantaged Accounts (Employer) - HSA employer']
+            paystub_list_df.at[idx, 'ESPP Total'] += row['Tax-Advantaged Accounts - ESPP']
+            continue
+        
+        # Calculate the days in each month for prorating
+        start_day_of_month = row['Pay Period Begin'].day
+        end_day_of_month = row['Pay Period End'].day
+        days_in_start_month = calendar.monthrange(row['Pay Period Begin'].year, start_month)[1] - start_day_of_month + 1
+        days_in_end_month = end_day_of_month
+        
+        # Prorate for the start month
+        prorate_rate = days_in_start_month / days_in_period
+
+        paystub_list_df.at[idx, 'Gross Pay'] += row['General - Gross Pay'] * prorate_rate
+        paystub_list_df.at[idx, 'Net Pay'] += row['General - Net Pay'] * prorate_rate
+        paystub_list_df.at[idx, 'Taxes'] += row['Taxes - Employee Taxes'] * prorate_rate
+        paystub_list_df.at[idx, 'Insurance'] += row['Insurance - Medical'] * prorate_rate
+        paystub_list_df.at[idx, '401(k) Employee'] += row['Tax-Advantaged Accounts - 401(k) employee'] * prorate_rate
+        paystub_list_df.at[idx, 'HSA Employee'] += row['Tax-Advantaged Accounts - HSA employee'] * prorate_rate
+        paystub_list_df.at[idx, '401(k) Employer Match'] += row['Tax-Advantaged Accounts (Employer) - 401(k) employer'] * prorate_rate
+        paystub_list_df.at[idx, 'HSA Employer Match'] += row['Tax-Advantaged Accounts (Employer) - HSA employer'] * prorate_rate
+        paystub_list_df.at[idx, 'ESPP Total'] += row['Tax-Advantaged Accounts - ESPP'] * prorate_rate
+        
+        # Prorate for the end month
+        prorate_rate = days_in_end_month / days_in_period
+        paystub_list_df.at[idx, 'Gross Pay'] += row['General - Gross Pay'] * prorate_rate
+        paystub_list_df.at[idx, 'Net Pay'] += row['General - Net Pay'] * prorate_rate
+        paystub_list_df.at[idx, 'Taxes'] += row['Taxes - Employee Taxes'] * prorate_rate
+        paystub_list_df.at[idx, 'Insurance'] += row['Insurance - Medical'] * prorate_rate
+        paystub_list_df.at[idx, '401(k) Employee'] += row['Tax-Advantaged Accounts - 401(k) employee'] * prorate_rate
+        paystub_list_df.at[idx, 'HSA Employee'] += row['Tax-Advantaged Accounts - HSA employee'] * prorate_rate
+        paystub_list_df.at[idx, '401(k) Employer Match'] += row['Tax-Advantaged Accounts (Employer) - 401(k) employer'] * prorate_rate
+        paystub_list_df.at[idx, 'HSA Employer Match'] += row['Tax-Advantaged Accounts (Employer) - HSA employer'] * prorate_rate
+        paystub_list_df.at[idx, 'ESPP Total'] += row['Tax-Advantaged Accounts - ESPP'] * prorate_rate
+    
+    # Now, group by month and aggregate the values
+    paystub_list_df['Month'] = paystub_list_df['Pay Period Begin'].dt.to_period('M')
+    stats_df = paystub_list_df.groupby('Month').agg({
+        'Gross Pay': 'sum',
+        'Net Pay': 'sum',
+        'Taxes': 'sum',
+        'Insurance': 'sum',
+        '401(k) Employee': 'sum',
+        'HSA Employee': 'sum',
+        '401(k) Employer Match': 'sum',
+        'HSA Employer Match': 'sum',
+        'ESPP Total': 'sum'
+    }).reset_index()
+
+    # Round the specified columns to 2 decimal places
+    stats_df[['Gross Pay', 'Net Pay', 'Taxes', 'Insurance', '401(k) Employee', 'HSA Employee', '401(k) Employer Match', 'HSA Employer Match', 'ESPP Total']] = stats_df[['Gross Pay', 'Net Pay', 'Taxes', 'Insurance', '401(k) Employee', 'HSA Employee', '401(k) Employer Match', 'HSA Employer Match', 'ESPP Total']].round(2)
+
+    return stats_df
+
+
+
+paystub_list_df: pd.DataFrame = build_paystub_list_df(dir_path)
+paystub_list_df.to_csv(output_csv_path, index=False, encoding='utf-8')
+print(f"Paystubs CSV saved to '{output_csv_path}'")
+
+build_paystub_stats_df(paystub_list_df).to_csv(agg_output_csv_path, index=False, encoding='utf-8')
+print(f"Aggregated Paystubs CSV saved to '{agg_output_csv_path}'")
+
