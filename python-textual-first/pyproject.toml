@@ -1,0 +1,19 @@
+[project]
+name = "python-textual-first"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Your Name",email = "you@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0.0"
+dependencies = ["textual (>=2.1.2,<3.0.0)"]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+textual-dev = "^1.7.0"
+
