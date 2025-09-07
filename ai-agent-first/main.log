@@ -1,0 +1,70 @@
+Example 1 (math):
+C:\Users\Timot\Documents\GitHub\new-tech-monorepo\ai-agent-first\main.py:62: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "ts": datetime.utcnow().isoformat() + "Z",
+2025-09-06 20:28:31.835 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'calc: 13**2 + 7', 'observation': None}
+2025-09-06 20:28:31.835 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:05.853 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "185", "reason": "Arithmetic computation."}'}
+2025-09-06 20:29:05.854 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'final', 'answer': '185', 'reason': 'Arithmetic computation.'}}
+2025-09-06 20:29:05.855 | INFO     | __main__:trace_event:69 - {'answer': '185'}
+185
+
+Example 2 (todo):
+2025-09-06 20:29:05.855 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'todo: add: buy oat milk', 'observation': None}
+2025-09-06 20:29:05.855 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:09.932 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "tool", "tool": "todo", "input": "add: buy oat milk", "reason": "Add task to list."}'}
+2025-09-06 20:29:09.932 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add: buy oat milk', 'reason': 'Add task to list.'}}
+2025-09-06 20:29:09.945 | INFO     | __main__:trace_event:69 - {'tool': 'todo', 'elapsed': 0.0132, 'result': 'Added todo: buy oat milk'}
+2025-09-06 20:29:09.948 | INFO     | __main__:trace_event:69 - {'step': 2, 'goal': 'todo: add: buy oat milk', 'observation': 'Added todo: buy oat milk'}
+2025-09-06 20:29:09.948 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "Added to-do item: Buy oat milk.", "reason": "Todo list updated."}'}
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'step': 2, 'plan': {'action': 'final', 'answer': 'Added to-do item: Buy oat milk.', 'reason': 'Todo list updated.'}}
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'answer': 'Added to-do item: Buy oat milk.'}
+Added to-do item: Buy oat milk.
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'todo: list', 'observation': None}
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "tool", "tool": "todo", "input": "list", "reason": "Show current todo items."}'}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'list', 'reason': 'Show current todo items.'}}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Todos:\n- buy oat milk'}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'step': 2, 'goal': 'todo: list', 'observation': 'Todos:\n- buy oat milk'}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:22.163 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "[\\n  {\\n    \\"task\\": \\"buy oat milk\\"\\n  }\\n]", "reason": "Todo list retrieved."}'}
+2025-09-06 20:29:22.165 | INFO     | __main__:trace_event:69 - {'step': 2, 'plan': {'action': 'final', 'answer': '[\n  {\n    "task": "buy oat milk"\n  }\n]', 'reason': 'Todo list retrieved.'}}
+2025-09-06 20:29:22.165 | INFO     | __main__:trace_event:69 - {'answer': '[\n  {\n    "task": "buy oat milk"\n  }\n]'}
+[
+  {
+    "task": "buy oat milk"
+  }
+]
+
+Example 3 (memory):
+2025-09-06 20:29:22.165 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'remember: favorite_color=green', 'observation': None}
+2025-09-06 20:29:22.165 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:26.002 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "tool", "tool": "memory", "input": "favorite_color=green", "reason": "Store a fact."}'}
+2025-09-06 20:29:26.004 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'tool', 'tool': 'memory', 'input': 'favorite_color=green', 'reason': 'Store a fact.'}}
+2025-09-06 20:29:26.005 | INFO     | __main__:trace_event:69 - {'tool': 'memory', 'elapsed': 0.001, 'result': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 20:29:26.005 | INFO     | __main__:trace_event:69 - {'step': 2, 'goal': 'remember: favorite_color=green', 'observation': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 20:29:26.005 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "Usage: \'remember: k=v\' | \'recall: k\' | \'dump\'", "reason": "Tool usage reminder"}'}
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'step': 2, 'plan': {'action': 'final', 'answer': "Usage: 'remember: k=v' | 'recall: k' | 'dump'", 'reason': 'Tool usage reminder'}}
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'answer': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+Usage: 'remember: k=v' | 'recall: k' | 'dump'
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'recall: favorite_color', 'observation': None}
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:33.855 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "None", "reason": "No stored fact."}'}
+2025-09-06 20:29:33.855 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'final', 'answer': 'None', 'reason': 'No stored fact.'}}
+2025-09-06 20:29:33.855 | INFO     | __main__:trace_event:69 - {'answer': 'None'}
+None
+2025-09-06 20:29:33.858 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'dump', 'observation': None}
+2025-09-06 20:29:33.858 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "snack=banana", "reason": "Recall a fact."}'}
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'final', 'answer': 'snack=banana', 'reason': 'Recall a fact.'}}
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'answer': 'snack=banana'}
+snack=banana
+
+Example 4 (open):
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'What can you do?', 'observation': None}
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:41.669 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "Use calculator for math, memory to remember/recall facts, and todo to manage a list.", "reason": "Specific tool capabilities."}'}
+2025-09-06 20:29:41.670 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'final', 'answer': 'Use calculator for math, memory to remember/recall facts, and todo to manage a list.', 'reason': 'Specific tool capabilities.'}}
+2025-09-06 20:29:41.670 | INFO     | __main__:trace_event:69 - {'answer': 'Use calculator for math, memory to remember/recall facts, and todo to manage a list.'}
+Use calculator for math, memory to remember/recall facts, and todo to manage a list.

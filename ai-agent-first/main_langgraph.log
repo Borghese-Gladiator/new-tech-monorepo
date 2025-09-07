@@ -1,0 +1,176 @@
+2025-09-06 20:28:31.835 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'calc: 13**2 + 7', 'observation': None}
+2025-09-06 20:28:31.835 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:05.853 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "185", "reason": "Arithmetic computation."}'}
+2025-09-06 20:29:05.854 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'final', 'answer': '185', 'reason': 'Arithmetic computation.'}}
+2025-09-06 20:29:05.855 | INFO     | __main__:trace_event:69 - {'answer': '185'}
+2025-09-06 20:29:05.855 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'todo: add: buy oat milk', 'observation': None}
+2025-09-06 20:29:05.855 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:09.932 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "tool", "tool": "todo", "input": "add: buy oat milk", "reason": "Add task to list."}'}
+2025-09-06 20:29:09.932 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add: buy oat milk', 'reason': 'Add task to list.'}}
+2025-09-06 20:29:09.945 | INFO     | __main__:trace_event:69 - {'tool': 'todo', 'elapsed': 0.0132, 'result': 'Added todo: buy oat milk'}
+2025-09-06 20:29:09.948 | INFO     | __main__:trace_event:69 - {'step': 2, 'goal': 'todo: add: buy oat milk', 'observation': 'Added todo: buy oat milk'}
+2025-09-06 20:29:09.948 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "Added to-do item: Buy oat milk.", "reason": "Todo list updated."}'}
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'step': 2, 'plan': {'action': 'final', 'answer': 'Added to-do item: Buy oat milk.', 'reason': 'Todo list updated.'}}
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'answer': 'Added to-do item: Buy oat milk.'}
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'todo: list', 'observation': None}
+2025-09-06 20:29:13.777 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "tool", "tool": "todo", "input": "list", "reason": "Show current todo items."}'}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'list', 'reason': 'Show current todo items.'}}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Todos:\n- buy oat milk'}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'step': 2, 'goal': 'todo: list', 'observation': 'Todos:\n- buy oat milk'}
+2025-09-06 20:29:17.256 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:22.163 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "[\\n  {\\n    \\"task\\": \\"buy oat milk\\"\\n  }\\n]", "reason": "Todo list retrieved."}'}
+2025-09-06 20:29:22.165 | INFO     | __main__:trace_event:69 - {'step': 2, 'plan': {'action': 'final', 'answer': '[\n  {\n    "task": "buy oat milk"\n  }\n]', 'reason': 'Todo list retrieved.'}}
+2025-09-06 20:29:22.165 | INFO     | __main__:trace_event:69 - {'answer': '[\n  {\n    "task": "buy oat milk"\n  }\n]'}
+2025-09-06 20:29:22.165 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'remember: favorite_color=green', 'observation': None}
+2025-09-06 20:29:22.165 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:26.002 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "tool", "tool": "memory", "input": "favorite_color=green", "reason": "Store a fact."}'}
+2025-09-06 20:29:26.004 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'tool', 'tool': 'memory', 'input': 'favorite_color=green', 'reason': 'Store a fact.'}}
+2025-09-06 20:29:26.005 | INFO     | __main__:trace_event:69 - {'tool': 'memory', 'elapsed': 0.001, 'result': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 20:29:26.005 | INFO     | __main__:trace_event:69 - {'step': 2, 'goal': 'remember: favorite_color=green', 'observation': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 20:29:26.005 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "Usage: \'remember: k=v\' | \'recall: k\' | \'dump\'", "reason": "Tool usage reminder"}'}
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'step': 2, 'plan': {'action': 'final', 'answer': "Usage: 'remember: k=v' | 'recall: k' | 'dump'", 'reason': 'Tool usage reminder'}}
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'answer': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'recall: favorite_color', 'observation': None}
+2025-09-06 20:29:31.071 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:33.855 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "None", "reason": "No stored fact."}'}
+2025-09-06 20:29:33.855 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'final', 'answer': 'None', 'reason': 'No stored fact.'}}
+2025-09-06 20:29:33.855 | INFO     | __main__:trace_event:69 - {'answer': 'None'}
+2025-09-06 20:29:33.858 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'dump', 'observation': None}
+2025-09-06 20:29:33.858 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "snack=banana", "reason": "Recall a fact."}'}
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'final', 'answer': 'snack=banana', 'reason': 'Recall a fact.'}}
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'answer': 'snack=banana'}
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'step': 1, 'goal': 'What can you do?', 'observation': None}
+2025-09-06 20:29:36.995 | INFO     | __main__:trace_event:69 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 20:29:41.669 | INFO     | __main__:trace_event:69 - {'raw': '{"action": "final", "answer": "Use calculator for math, memory to remember/recall facts, and todo to manage a list.", "reason": "Specific tool capabilities."}'}
+2025-09-06 20:29:41.670 | INFO     | __main__:trace_event:69 - {'step': 1, 'plan': {'action': 'final', 'answer': 'Use calculator for math, memory to remember/recall facts, and todo to manage a list.', 'reason': 'Specific tool capabilities.'}}
+2025-09-06 20:29:41.670 | INFO     | __main__:trace_event:69 - {'answer': 'Use calculator for math, memory to remember/recall facts, and todo to manage a list.'}
+2025-09-06 21:37:06.850 | INFO     | __main__:trace_event:52 - {'goal': 'calc: 13**2 + 7'}
+2025-09-06 21:37:06.883 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:37:26.886 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "final", "answer": "190", "reason": "Calculation complete."}'}
+2025-09-06 21:37:26.886 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'final', 'answer': '190', 'reason': 'Calculation complete.'}}
+2025-09-06 21:37:26.886 | INFO     | __main__:trace_event:52 - {'answer': '190'}
+2025-09-06 21:37:26.886 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:37:29.286 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "final", "answer": "184", "reason": "Math calculation"}'}
+2025-09-06 21:37:29.286 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'final', 'answer': '184', 'reason': 'Math calculation'}}
+2025-09-06 21:37:29.286 | INFO     | __main__:trace_event:52 - {'answer': '184'}
+2025-09-06 21:37:29.289 | INFO     | __main__:trace_event:52 - {'goal': 'todo: add: buy oat milk'}
+2025-09-06 21:37:29.291 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:37:33.243 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "add: buy oat milk", "reason": "Add task."}'}
+2025-09-06 21:37:33.243 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add: buy oat milk', 'reason': 'Add task.'}}
+2025-09-06 21:37:33.246 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0005, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:33.248 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:37:37.422 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "add: buy oat milk", "reason": "Add task."}'}
+2025-09-06 21:37:37.423 | INFO     | __main__:trace_event:52 - {'step': 2, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add: buy oat milk', 'reason': 'Add task.'}}
+2025-09-06 21:37:37.425 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.001, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:37.427 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:37:41.104 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "add: buy oat milk", "reason": "Add task."}'}
+2025-09-06 21:37:41.105 | INFO     | __main__:trace_event:52 - {'step': 3, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add: buy oat milk', 'reason': 'Add task.'}}
+2025-09-06 21:37:41.107 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:41.108 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:37:44.775 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "add: buy oat milk", "reason": "Add task."}'}
+2025-09-06 21:37:44.776 | INFO     | __main__:trace_event:52 - {'step': 4, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add: buy oat milk', 'reason': 'Add task.'}}
+2025-09-06 21:37:44.777 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:44.779 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:37:48.466 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "add: buy oat milk", "reason": "Add task."}'}
+2025-09-06 21:37:48.466 | INFO     | __main__:trace_event:52 - {'step': 5, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add: buy oat milk', 'reason': 'Add task.'}}
+2025-09-06 21:37:48.466 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:48.470 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:37:52.047 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "add: buy oat milk", "reason": "Add task."}'}
+2025-09-06 21:37:52.047 | INFO     | __main__:trace_event:52 - {'step': 6, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add: buy oat milk', 'reason': 'Add task.'}}
+2025-09-06 21:37:52.048 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.051 | INFO     | __main__:trace_event:52 - {'goal': 'todo: add: buy oat milk', 'last_observation': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.051 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.051 | INFO     | __main__:trace_event:52 - {'goal': 'todo: add: buy oat milk', 'last_observation': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.056 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.004, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.056 | INFO     | __main__:trace_event:52 - {'goal': 'todo: add: buy oat milk', 'last_observation': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.056 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.056 | INFO     | __main__:trace_event:52 - {'goal': 'todo: add: buy oat milk', 'last_observation': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.056 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.061 | INFO     | __main__:trace_event:52 - {'goal': 'todo: add: buy oat milk', 'last_observation': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.063 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.063 | INFO     | __main__:trace_event:52 - {'goal': 'todo: add: buy oat milk', 'last_observation': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.065 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0018, 'result': 'Added todo: buy oat milk'}
+2025-09-06 21:37:52.065 | INFO     | __main__:trace_event:52 - {'goal': 'todo: add: buy oat milk', 'last_observation': 'Added todo: buy oat milk'}
+2025-09-06 21:43:32.507 | INFO     | __main__:trace_event:52 - {'goal': 'calc: 13**2 + 7'}
+2025-09-06 21:43:32.513 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:43:54.887 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "final", "answer": "196", "reason": "Computed value."}'}
+2025-09-06 21:43:54.888 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'final', 'answer': '196', 'reason': 'Computed value.'}}
+2025-09-06 21:43:54.891 | INFO     | __main__:trace_event:52 - {'answer': '196'}
+2025-09-06 21:43:54.892 | INFO     | __main__:trace_event:52 - {'goal': 'todo: add: buy oat milk'}
+2025-09-06 21:43:54.893 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:44:59.275 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "final", "answer": "[buy oat milk]", "reason": "Todo added."}'}
+2025-09-06 21:44:59.284 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'final', 'answer': '[buy oat milk]', 'reason': 'Todo added.'}}
+2025-09-06 21:44:59.295 | INFO     | __main__:trace_event:52 - {'answer': '[buy oat milk]'}
+2025-09-06 21:44:59.299 | INFO     | __main__:trace_event:52 - {'goal': 'todo: list'}
+2025-09-06 21:44:59.304 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:02.135 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "final", "answer": "[ ]", "reason": "Empty todo list."}'}
+2025-09-06 21:45:02.136 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'final', 'answer': '[ ]', 'reason': 'Empty todo list.'}}
+2025-09-06 21:45:02.138 | INFO     | __main__:trace_event:52 - {'answer': '[ ]'}
+2025-09-06 21:45:02.140 | INFO     | __main__:trace_event:52 - {'goal': 'remember: favorite_color=green'}
+2025-09-06 21:45:02.141 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:05.916 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "memory", "input": "favorite_color=green", "reason": "Store fact."}'}
+2025-09-06 21:45:05.919 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'tool', 'tool': 'memory', 'input': 'favorite_color=green', 'reason': 'Store fact.'}}
+2025-09-06 21:45:05.953 | INFO     | __main__:trace_event:52 - {'tool': 'memory', 'elapsed': 0.0216, 'result': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 21:45:05.955 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:10.217 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "memory", "input": "favorite_color=green", "reason": "Store fact."}'}
+2025-09-06 21:45:10.219 | INFO     | __main__:trace_event:52 - {'step': 2, 'plan': {'action': 'tool', 'tool': 'memory', 'input': 'favorite_color=green', 'reason': 'Store fact.'}}
+2025-09-06 21:45:10.221 | INFO     | __main__:trace_event:52 - {'tool': 'memory', 'elapsed': 0.0, 'result': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 21:45:10.223 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:13.583 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "memory", "input": "favorite_color=green", "reason": "Store fact."}'}
+2025-09-06 21:45:13.583 | INFO     | __main__:trace_event:52 - {'step': 3, 'plan': {'action': 'tool', 'tool': 'memory', 'input': 'favorite_color=green', 'reason': 'Store fact.'}}
+2025-09-06 21:45:13.585 | INFO     | __main__:trace_event:52 - {'tool': 'memory', 'elapsed': 0.0, 'result': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 21:45:13.585 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:16.945 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "memory", "input": "favorite_color=green", "reason": "Store fact."}'}
+2025-09-06 21:45:16.945 | INFO     | __main__:trace_event:52 - {'step': 4, 'plan': {'action': 'tool', 'tool': 'memory', 'input': 'favorite_color=green', 'reason': 'Store fact.'}}
+2025-09-06 21:45:16.945 | INFO     | __main__:trace_event:52 - {'tool': 'memory', 'elapsed': 0.0, 'result': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 21:45:16.945 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:20.340 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "memory", "input": "favorite_color=green", "reason": "Store fact."}'}
+2025-09-06 21:45:20.340 | INFO     | __main__:trace_event:52 - {'step': 5, 'plan': {'action': 'tool', 'tool': 'memory', 'input': 'favorite_color=green', 'reason': 'Store fact.'}}
+2025-09-06 21:45:20.342 | INFO     | __main__:trace_event:52 - {'tool': 'memory', 'elapsed': 0.0, 'result': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 21:45:20.343 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:23.962 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "memory", "input": "favorite_color=green", "reason": "Store fact."}'}
+2025-09-06 21:45:23.963 | INFO     | __main__:trace_event:52 - {'step': 6, 'plan': {'action': 'tool', 'tool': 'memory', 'input': 'favorite_color=green', 'reason': 'Store fact.'}}
+2025-09-06 21:45:23.965 | INFO     | __main__:trace_event:52 - {'tool': 'memory', 'elapsed': 0.0006, 'result': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 21:45:23.966 | INFO     | __main__:trace_event:52 - {'goal': 'remember: favorite_color=green', 'last_observation': "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 21:45:23.967 | INFO     | __main__:trace_event:52 - {'answer': "Stopped after 6 steps. Last observation: Usage: 'remember: k=v' | 'recall: k' | 'dump'"}
+2025-09-06 21:45:23.968 | INFO     | __main__:trace_event:52 - {'goal': 'recall: favorite_color'}
+2025-09-06 21:45:23.970 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:26.978 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "final", "answer": "None", "reason": "No stored fact."}'}
+2025-09-06 21:45:26.978 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'final', 'answer': 'None', 'reason': 'No stored fact.'}}
+2025-09-06 21:45:26.978 | INFO     | __main__:trace_event:52 - {'answer': 'None'}
+2025-09-06 21:45:26.978 | INFO     | __main__:trace_event:52 - {'goal': 'dump'}
+2025-09-06 21:45:26.983 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:30.261 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "dump", "reason": "List tasks."}'}
+2025-09-06 21:45:30.262 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'dump', 'reason': 'List tasks.'}}
+2025-09-06 21:45:30.265 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0011, 'result': "Usage: 'add: <item>' | 'list' | 'clear'"}
+2025-09-06 21:45:30.266 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:34.462 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "list", "reason": "Show todo list."}'}
+2025-09-06 21:45:34.462 | INFO     | __main__:trace_event:52 - {'step': 2, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'list', 'reason': 'Show todo list.'}}
+2025-09-06 21:45:34.464 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.001, 'result': 'No todos.'}
+2025-09-06 21:45:34.465 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:37.976 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "add dump", "reason": "Add task."}'}
+2025-09-06 21:45:37.977 | INFO     | __main__:trace_event:52 - {'step': 3, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add dump', 'reason': 'Add task.'}}
+2025-09-06 21:45:37.979 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0011, 'result': "Usage: 'add: <item>' | 'list' | 'clear'"}
+2025-09-06 21:45:37.981 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:41.807 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "list", "reason": "Show todo list."}'}
+2025-09-06 21:45:41.807 | INFO     | __main__:trace_event:52 - {'step': 4, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'list', 'reason': 'Show todo list.'}}
+2025-09-06 21:45:41.807 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': 'No todos.'}
+2025-09-06 21:45:41.807 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:45.244 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "add dump", "reason": "Add task."}'}
+2025-09-06 21:45:45.245 | INFO     | __main__:trace_event:52 - {'step': 5, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'add dump', 'reason': 'Add task.'}}
+2025-09-06 21:45:45.246 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.0, 'result': "Usage: 'add: <item>' | 'list' | 'clear'"}
+2025-09-06 21:45:45.247 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:49.238 | INFO     | __main__:trace_event:52 - {'raw': '{"action": "tool", "tool": "todo", "input": "list", "reason": "Display todo list."}'}
+2025-09-06 21:45:49.239 | INFO     | __main__:trace_event:52 - {'step': 6, 'plan': {'action': 'tool', 'tool': 'todo', 'input': 'list', 'reason': 'Display todo list.'}}
+2025-09-06 21:45:49.240 | INFO     | __main__:trace_event:52 - {'tool': 'todo', 'elapsed': 0.001, 'result': 'No todos.'}
+2025-09-06 21:45:49.241 | INFO     | __main__:trace_event:52 - {'goal': 'dump', 'last_observation': 'No todos.'}
+2025-09-06 21:45:49.244 | INFO     | __main__:trace_event:52 - {'answer': 'Stopped after 6 steps. Last observation: No todos.'}
+2025-09-06 21:45:49.245 | INFO     | __main__:trace_event:52 - {'goal': 'What can you do?'}
+2025-09-06 21:45:49.246 | INFO     | __main__:trace_event:52 - {'model': 'llama3.1', 'messages_len': 8}
+2025-09-06 21:45:53.901 | INFO     | __main__:trace_event:52 - {'raw': '{"action":"final","answer":"Use calculator to perform arithmetic and math functions, memory to recall stored facts, todo to manage a simple todo list.","reason":"Specific answer"}'}
+2025-09-06 21:45:53.902 | INFO     | __main__:trace_event:52 - {'step': 1, 'plan': {'action': 'final', 'answer': 'Use calculator to perform arithmetic and math functions, memory to recall stored facts, todo to manage a simple todo list.', 'reason': 'Specific answer'}}
+2025-09-06 21:45:53.903 | INFO     | __main__:trace_event:52 - {'answer': 'Use calculator to perform arithmetic and math functions, memory to recall stored facts, todo to manage a simple todo list.'}

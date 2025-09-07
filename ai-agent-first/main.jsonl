@@ -1,0 +1,50 @@
+{"ts": "2025-09-07T00:28:31.835963Z", "event": "agent_step_begin", "payload": {"step": 1, "goal": "calc: 13**2 + 7", "observation": null}}
+{"ts": "2025-09-07T00:28:31.835963Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:05.852621Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"final\", \"answer\": \"185\", \"reason\": \"Arithmetic computation.\"}"}}
+{"ts": "2025-09-07T00:29:05.853832Z", "event": "agent_plan", "payload": {"step": 1, "plan": {"action": "final", "answer": "185", "reason": "Arithmetic computation."}}}
+{"ts": "2025-09-07T00:29:05.854842Z", "event": "agent_final", "payload": {"answer": "185"}}
+{"ts": "2025-09-07T00:29:05.855356Z", "event": "agent_step_begin", "payload": {"step": 1, "goal": "todo: add: buy oat milk", "observation": null}}
+{"ts": "2025-09-07T00:29:05.855887Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:09.932388Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"tool\", \"tool\": \"todo\", \"input\": \"add: buy oat milk\", \"reason\": \"Add task to list.\"}"}}
+{"ts": "2025-09-07T00:29:09.932388Z", "event": "agent_plan", "payload": {"step": 1, "plan": {"action": "tool", "tool": "todo", "input": "add: buy oat milk", "reason": "Add task to list."}}}
+{"ts": "2025-09-07T00:29:09.945625Z", "event": "agent_tool_result", "payload": {"tool": "todo", "elapsed": 0.0132, "result": "Added todo: buy oat milk"}}
+{"ts": "2025-09-07T00:29:09.948326Z", "event": "agent_step_begin", "payload": {"step": 2, "goal": "todo: add: buy oat milk", "observation": "Added todo: buy oat milk"}}
+{"ts": "2025-09-07T00:29:09.948326Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:13.777176Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"final\", \"answer\": \"Added to-do item: Buy oat milk.\", \"reason\": \"Todo list updated.\"}"}}
+{"ts": "2025-09-07T00:29:13.777176Z", "event": "agent_plan", "payload": {"step": 2, "plan": {"action": "final", "answer": "Added to-do item: Buy oat milk.", "reason": "Todo list updated."}}}
+{"ts": "2025-09-07T00:29:13.777176Z", "event": "agent_final", "payload": {"answer": "Added to-do item: Buy oat milk."}}
+{"ts": "2025-09-07T00:29:13.777176Z", "event": "agent_step_begin", "payload": {"step": 1, "goal": "todo: list", "observation": null}}
+{"ts": "2025-09-07T00:29:13.777176Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:17.256953Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"tool\", \"tool\": \"todo\", \"input\": \"list\", \"reason\": \"Show current todo items.\"}"}}
+{"ts": "2025-09-07T00:29:17.256953Z", "event": "agent_plan", "payload": {"step": 1, "plan": {"action": "tool", "tool": "todo", "input": "list", "reason": "Show current todo items."}}}
+{"ts": "2025-09-07T00:29:17.256953Z", "event": "agent_tool_result", "payload": {"tool": "todo", "elapsed": 0.0, "result": "Todos:\n- buy oat milk"}}
+{"ts": "2025-09-07T00:29:17.256953Z", "event": "agent_step_begin", "payload": {"step": 2, "goal": "todo: list", "observation": "Todos:\n- buy oat milk"}}
+{"ts": "2025-09-07T00:29:17.256953Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:22.163937Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"final\", \"answer\": \"[\\n  {\\n    \\\"task\\\": \\\"buy oat milk\\\"\\n  }\\n]\", \"reason\": \"Todo list retrieved.\"}"}}
+{"ts": "2025-09-07T00:29:22.164951Z", "event": "agent_plan", "payload": {"step": 2, "plan": {"action": "final", "answer": "[\n  {\n    \"task\": \"buy oat milk\"\n  }\n]", "reason": "Todo list retrieved."}}}
+{"ts": "2025-09-07T00:29:22.165462Z", "event": "agent_final", "payload": {"answer": "[\n  {\n    \"task\": \"buy oat milk\"\n  }\n]"}}
+{"ts": "2025-09-07T00:29:22.165462Z", "event": "agent_step_begin", "payload": {"step": 1, "goal": "remember: favorite_color=green", "observation": null}}
+{"ts": "2025-09-07T00:29:22.165462Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:26.002974Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"tool\", \"tool\": \"memory\", \"input\": \"favorite_color=green\", \"reason\": \"Store a fact.\"}"}}
+{"ts": "2025-09-07T00:29:26.002974Z", "event": "agent_plan", "payload": {"step": 1, "plan": {"action": "tool", "tool": "memory", "input": "favorite_color=green", "reason": "Store a fact."}}}
+{"ts": "2025-09-07T00:29:26.005519Z", "event": "agent_tool_result", "payload": {"tool": "memory", "elapsed": 0.001, "result": "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}}
+{"ts": "2025-09-07T00:29:26.005519Z", "event": "agent_step_begin", "payload": {"step": 2, "goal": "remember: favorite_color=green", "observation": "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}}
+{"ts": "2025-09-07T00:29:26.005519Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:31.071383Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"final\", \"answer\": \"Usage: 'remember: k=v' | 'recall: k' | 'dump'\", \"reason\": \"Tool usage reminder\"}"}}
+{"ts": "2025-09-07T00:29:31.071383Z", "event": "agent_plan", "payload": {"step": 2, "plan": {"action": "final", "answer": "Usage: 'remember: k=v' | 'recall: k' | 'dump'", "reason": "Tool usage reminder"}}}
+{"ts": "2025-09-07T00:29:31.071383Z", "event": "agent_final", "payload": {"answer": "Usage: 'remember: k=v' | 'recall: k' | 'dump'"}}
+{"ts": "2025-09-07T00:29:31.071383Z", "event": "agent_step_begin", "payload": {"step": 1, "goal": "recall: favorite_color", "observation": null}}
+{"ts": "2025-09-07T00:29:31.071383Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:33.855814Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"final\", \"answer\": \"None\", \"reason\": \"No stored fact.\"}"}}
+{"ts": "2025-09-07T00:29:33.855814Z", "event": "agent_plan", "payload": {"step": 1, "plan": {"action": "final", "answer": "None", "reason": "No stored fact."}}}
+{"ts": "2025-09-07T00:29:33.855814Z", "event": "agent_final", "payload": {"answer": "None"}}
+{"ts": "2025-09-07T00:29:33.855814Z", "event": "agent_step_begin", "payload": {"step": 1, "goal": "dump", "observation": null}}
+{"ts": "2025-09-07T00:29:33.858088Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:36.993154Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"final\", \"answer\": \"snack=banana\", \"reason\": \"Recall a fact.\"}"}}
+{"ts": "2025-09-07T00:29:36.995640Z", "event": "agent_plan", "payload": {"step": 1, "plan": {"action": "final", "answer": "snack=banana", "reason": "Recall a fact."}}}
+{"ts": "2025-09-07T00:29:36.995640Z", "event": "agent_final", "payload": {"answer": "snack=banana"}}
+{"ts": "2025-09-07T00:29:36.995640Z", "event": "agent_step_begin", "payload": {"step": 1, "goal": "What can you do?", "observation": null}}
+{"ts": "2025-09-07T00:29:36.995640Z", "event": "llm_request", "payload": {"model": "llama3.1", "messages_len": 8}}
+{"ts": "2025-09-07T00:29:41.669829Z", "event": "llm_raw_response", "payload": {"raw": "{\"action\": \"final\", \"answer\": \"Use calculator for math, memory to remember/recall facts, and todo to manage a list.\", \"reason\": \"Specific tool capabilities.\"}"}}
+{"ts": "2025-09-07T00:29:41.670845Z", "event": "agent_plan", "payload": {"step": 1, "plan": {"action": "final", "answer": "Use calculator for math, memory to remember/recall facts, and todo to manage a list.", "reason": "Specific tool capabilities."}}}
+{"ts": "2025-09-07T00:29:41.670845Z", "event": "agent_final", "payload": {"answer": "Use calculator for math, memory to remember/recall facts, and todo to manage a list."}}
