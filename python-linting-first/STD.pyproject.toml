@@ -1,0 +1,27 @@
+# MINIMUM: Black + Ruff + pytest coverage on the diff via diff-cover.
+# STANDARD: above AND mypy types, bandit (code security), pip-audit (deps vulns), and a secrets scan.
+
+# pip install --upgrade pre-commit pytest pytest-cov coverage diff-cover ruff black mypy bandit pip-audit
+# pre-commit install
+
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E","F","I","UP","B","PIE"]
+ignore = ["E501"]  # if black handles wrapping
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+strict_optional = true
+disallow_untyped_defs = true
+
+[tool.coverage.run]
+branch = true
+source = ["."]

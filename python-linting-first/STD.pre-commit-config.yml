@@ -1,0 +1,45 @@
+repos:
+  # Formatting & lint
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks: [{ id: black }]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  # Types
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        additional_dependencies: []
+  # Secrets (fast)
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        args: ["protect", "--staged", "--redact"]
+  # Code security
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ["-q", "-r", "app", "-x", "tests"]
+  # Dependency vulnerabilities (warn-only here)
+  - repo: local
+    hooks:
+      - id: pip-audit
+        name: pip-audit (warn only)
+        entry: bash -c 'pip-audit || true'
+        language: system
+        pass_filenames: false
+  # Diff coverage gate
+  - repo: local
+    hooks:
+      - id: py-diff-coverage
+        name: Diff coverage (pytest + diff-cover)
+        entry: bash scripts/py_diff_cov.sh
+        language: system
+        pass_filenames: false

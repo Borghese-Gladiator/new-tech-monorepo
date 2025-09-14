@@ -1,0 +1,24 @@
+# Black + Ruff + pytest coverage on the diff via diff-cover.
+
+# COMMAND
+# pip install --upgrade pre-commit pytest pytest-cov coverage diff-cover ruff black
+# pre-commit install
+
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks: [{ id: black }]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]     # auto-fix lint
+      - id: ruff-format   # fast formatter (keeps black for now)
+  - repo: local
+    hooks:
+      - id: py-diff-coverage
+        name: Diff coverage (pytest + diff-cover)
+        entry: bash scripts/py_diff_cov.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]

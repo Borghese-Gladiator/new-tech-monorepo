@@ -1,0 +1,88 @@
+# STANDARD checks and below CI check via GitHub Action
+
+name: ci
+on: [pull_request]
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    env:
+      PY_VERSION: "3.11"
+      DIFF_FAIL_UNDER: "80"   # overall diff coverage floor
+      ALLOW_DROP: "0.002"     # allow 0.2% absolute drop in repo-wide coverage (tweak/0 to be strict)
+
+    steps:
+      - name: Checkout HEAD (PR)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: head
+          ref: ${{ github.sha }}
+
+      - name: Checkout BASE (target branch)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: base
+          ref: ${{ github.base_ref }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VERSION }}
+
+      - name: Install deps
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-cov coverage diff-cover ruff black mypy bandit pip-audit
+
+      # ---------- BASE ----------
+      - name: Test (BASE) with coverage
+        working-directory: base
+        run: |
+          ruff check . --force-exclude || true
+          pytest --cov=. --cov-report=xml --cov-report=term-missing
+          cp coverage.xml "${GITHUB_WORKSPACE}/base_coverage.xml"
+
+      # ---------- HEAD ----------
+      - name: Test (HEAD) with coverage
+        working-directory: head
+        run: |
+          ruff check . --force-exclude || true
+          pytest --cov=. --cov-report=xml --cov-report=term-missing
+          cp coverage.xml "${GITHUB_WORKSPACE}/head_coverage.xml"
+
+      # ---------- DIFF COVERAGE GATE ----------
+      - name: Diff coverage ≥ ${{ env.DIFF_FAIL_UNDER }}%
+        working-directory: head
+        run: |
+          # Compare HEAD against BASE branch for changed lines
+          diff-cover coverage.xml \
+            --compare-branch=origin/${{ github.base_ref }} \
+            --fail-under="${DIFF_FAIL_UNDER}"
+
+      # ---------- BASELINE (NO DECREASE) GATE ----------
+      - name: Enforce "no decrease" in repo-wide coverage
+        env:
+          ALLOW_DROP: ${{ env.ALLOW_DROP }}
+        run: |
+          python - <<'PY'
+          import os, xml.etree.ElementTree as ET, sys
+          def read_cov(path: str) -> float:
+              # Cobertura: prefer line-rate; fallback to lines-covered/lines-valid
+              root = ET.parse(path).getroot()
+              a = root.attrib
+              if "line-rate" in a:
+                  return float(a["line-rate"])
+              lc, lv = a.get("lines-covered"), a.get("lines-valid")
+              if lc is not None and lv is not None and int(lv) > 0:
+                  return int(lc) / int(lv)
+              raise RuntimeError(f"Could not read coverage from {path}")
+          base = read_cov("base_coverage.xml")
+          head = read_cov("head_coverage.xml")
+          allow_drop = float(os.environ.get("ALLOW_DROP", "0.0"))
+          drop = base - head
+          print(f"Base coverage: {base:.4%}")
+          print(f"Head coverage: {head:.4%}")
+
+stages: [pre-push]  # add this to speed things up in CI if running per commit takes too long
