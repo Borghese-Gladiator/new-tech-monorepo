@@ -1,3 +1,121 @@
+# First RedwoodJS
+Redwood is the full-stack web framework designed to help you grow from side project to startup. It comes with lots of pre-installed packages and configuration that makes it easy to build full-stack web applications.
+
+Opinionated libraries that come by default
+- GraphQL
+- Prisma
+- Jest
+- Storybook
+- vite
+- Babel
+- Typescript
+
+
+## Steps
+[Official Tutorial](https://docs.redwoodjs.com/docs/tutorial/chapter1/file-structure)
+NOTE: stopped here: https://docs.redwoodjs.com/docs/tutorial/chapter2/getting-dynamic
+
+- `yarn create redwood-app js-redwood-first` - old monorepo code made this fail with wrong node version
+- `npx -y create-redwood-app@latest js-redwood-first`
+- `yarn install`
+  - error
+    ```
+    error This project's package.json defines "packageManager": "yarn@4.6.0". However the current global version of Yarn is 1.22.22.
+
+    Presence of the "packageManager" field indicates that the project is meant to be used with Corepack, a tool included by default with all official Node.js distributions starting from 16.9 and 14.19.
+    Corepack must currently be enabled by running corepack enable in your terminal. For more information, check out https://yarnpkg.com/corepack.
+    ```
+  - `corepack enable`
+- `yarn run rw dev`
+- `yarn rw generate page home /`
+- `yarn rw generate page about`
+- `yarn rw generate layout blog`
+
+## Notes
+
+Redwood commands
+```
+Commands:
+  rw build [side..]          Build for production
+  rw check                   Get structural diagnostics for a Redwood project
+                             (experimental)               [aliases: diagnostics]
+  rw console                 Launch an interactive Redwood shell (experimental)
+                                                                    [aliases: c]
+  rw deploy <target>         Deploy your Redwood project
+  rw destroy <type>          Rollback changes made by the generate command
+                                                                    [aliases: d]
+  rw dev [side..]            Start development servers for api, and web
+  rw exec [name]             Run scripts generated with yarn generate script
+  rw experimental <command>  Run or setup experimental features   [aliases: exp]
+  rw generate <type>         Generate boilerplate code and type definitions
+                                                                    [aliases: g]
+  rw info                    Print your system environment information
+  rw jobs                    Starts the RedwoodJob runner to process background
+                             jobs
+  rw lint [path..]           Lint your files
+  rw prerender               Prerender pages of your Redwood app at build time
+                                                               [aliases: render]
+  rw prisma [commands..]     Run Prisma CLI with experimental features
+  rw record <command>        Setup RedwoodRecord for your project. Caches a JSON
+                             version of your data model and adds
+                             api/src/models/index.js with some config.
+  rw serve [side]            Start a server for serving both the api and web
+                             sides
+  rw setup <command>         Initialize project config and install packages
+  rw studio                  Run the Redwood development studio
+  rw test [filter..]         Run Jest tests. Defaults to watch mode
+  rw ts-to-js                [DEPRECATED]
+                             Convert a TypeScript project to JavaScript
+  rw type-check [sides..]    Run a TypeScript compiler check on your project
+                                                              [aliases: tsc, tc]
+  rw upgrade                 Upgrade all @redwoodjs packages via interactive CLI
+  rw storybook               Launch Storybook: a tool for building UI components
+                             and pages in isolation                [aliases: sb]
+  rw data-migrate <command>  Migrate the data in your database
+                                                      [aliases: dataMigrate, dm]
+
+Options:
+      --cwd             Working directory to use (where `redwood.toml` is
+                        located)
+      --load-env-files  Load additional .env files. Values defined in files
+                        specified later override earlier ones.           [array]
+      --telemetry       Whether to send anonymous usage telemetry to RedwoodJS
+                                                                       [boolean]
+      --version         Show version number                            [boolean]
+  -h, --help            Show help                                      [boolean]
+
+Examples:
+  yarn rw exec migrateUsers                 Run a script, also loading env vars
+  --load-env-files stripe nakama            from '.env.stripe' and '.env.nakama'
+  yarn rw g page home /                     Create a page component named 'Home'
+                                            at path '/'
+
+Not enough non-option arguments: got 0, need at least 1
+```
+
+RedwoodJS has everything for Day 0. For Day 100, you add the other components yourself
+
+For example:
+- Structured logging - `@redwood/logger`
+- Error Monitoring - they use Sentry
+- Background jobs / cron / queues
+
+#### Missing Features
+Redwood is in active development and missing:
+- React Server Components and a new transparent, non-GraphQL API
+- SSR/Streaming
+- Realtime and GraphQL Subscriptions
+- Redwood Studio for getting runtime insights into your project
+- Mailer
+
+They are also missing:
+- OpenTelemetry - only an experiemtanal integration
+
+
+<details>
+<summary>Default README</summary>
+
+
 # README
 
 Welcome to [RedwoodJS](https://redwoodjs.com)!
@@ -120,3 +238,5 @@ The best way to learn Redwood is by going through the comprehensive [tutorial](h
 
 - Stay updated: read [Forum announcements](https://community.redwoodjs.com/c/announcements/5), follow us on [Twitter](https://twitter.com/redwoodjs), and subscribe to the [newsletter](https://redwoodjs.com/newsletter)
 - [Learn how to contribute](https://redwoodjs.com/docs/contributing)
+
+</details>
