@@ -1,0 +1,37 @@
+# MP3 Analyzer Configuration
+
+# Input/Output paths
+input_markdown: ./data/playlist.md
+download_dir: ./data/audio_raw
+audio_out_dir: ./outputs/audio
+fig_dir: ./outputs/figures
+features_csv: ./outputs/audio_features.csv
+failed_log: ./outputs/failed_inputs.txt
+manifest_path: ./data/track_manifest.parquet
+run_log: ./outputs/run.log
+
+# Audio processing
+file_pattern: "*.mp3"
+max_items: 100
+target_lufs: -14.0  # LUFS target for loudness normalization (optional)
+mp3_bitrate: 320  # kbps
+
+# API settings
+yt_search_filter: "songs"  # or "videos"
+target_playlist_name: "Normalized Mix"  # Date will be auto-appended
+
+# Search/matching
+fuzzy_threshold: 80  # Minimum fuzzy match score (0-100)
+max_search_candidates: 5
+
+# Feature extraction
+sample_rate: null  # null = use native sample rate
+n_mfcc: 13
+spectral_rolloff_pct: 0.85
+spectral_contrast_bands: 7
+chroma_bins: 12
+tonnetz_dims: 6
+
+# Visualization
+figure_dpi: 150
+tempo_bins: 30
