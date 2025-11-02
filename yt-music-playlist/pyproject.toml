@@ -1,0 +1,18 @@
+[project]
+name = "yt-music-playlist"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "rapidfuzz>=3.14.1",
+    "ruff>=0.14.1",
+    "spotipy>=2.25.1",
+    "yt-dlp>=2025.10.14",
+    "ytmusicapi>=1.11.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
