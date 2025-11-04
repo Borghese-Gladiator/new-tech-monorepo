@@ -370,6 +370,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "colorama" },
     { name = "fakeredis" },
     { name = "pytest" },
 ]
@@ -385,6 +386,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "colorama", specifier = ">=0.4.6" },
     { name = "fakeredis", specifier = ">=2.32.0" },
     { name = "pytest", specifier = ">=8.4.2" },
 ]
