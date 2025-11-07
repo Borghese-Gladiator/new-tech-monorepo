@@ -28,19 +28,19 @@ test:  ## Run tests with pytest
 	poetry run pytest -v
 
 run:  ## Run the full pipeline (ingest, download, analyze, playlists)
-	poetry run python -m src.cli all
+	poetry run run-all
 
 ingest:  ## Parse markdown and search for tracks
-	poetry run python -m src.cli ingest
+	poetry run ingest
 
 download:  ## Download audio files
-	poetry run python -m src.cli download
+	poetry run download
 
 analyze:  ## Extract features and generate visualizations
-	poetry run python -m src.cli analyze
+	poetry run analyze
 
 playlists:  ## Create/update playlists on Spotify and YouTube Music
-	poetry run python -m src.cli playlists
+	poetry run playlists
 
 clean:  ## Clean up generated files and caches
 	rm -rf outputs/
@@ -53,11 +53,11 @@ clean:  ## Clean up generated files and caches
 	find . -type f -name '*.pyc' -delete
 
 format:  ## Format code with black
-	poetry run black src/ tests/
+	poetry run black src/ scripts/ tests/
 
 lint:  ## Run linters (ruff and mypy)
-	poetry run ruff check src/ tests/
-	poetry run mypy src/
+	poetry run ruff check src/ scripts/ tests/
+	poetry run mypy src/ scripts/
 
 check:  ## Run format, lint, and test
 	$(MAKE) format

@@ -119,25 +119,25 @@ This will:
 - Generate visualizations
 - Create playlists on both platforms
 
-### Individual Commands
+### Individual Scripts
 
-Run specific stages of the pipeline:
+Run specific stages of the pipeline using poetry scripts:
 
 ```bash
 # Parse markdown and search for tracks
-poetry run python -m src.cli ingest
+poetry run ingest
 
 # Download audio files
-poetry run python -m src.cli download
+poetry run download
 
 # Extract features and generate visualizations
-poetry run python -m src.cli analyze
+poetry run analyze
 
 # Create/update playlists
-poetry run python -m src.cli playlists
+poetry run playlists
 
 # Run everything
-poetry run python -m src.cli all
+poetry run run-all
 ```
 
 Or use the Makefile shortcuts:
@@ -150,17 +150,31 @@ make playlists   # Create playlists
 make run         # Full pipeline
 ```
 
-### Command Options
+You can also run scripts directly:
+
+```bash
+# Run individual scripts directly
+python scripts/ingest.py
+python scripts/download.py
+python scripts/analyze.py
+python scripts/playlists.py
+python scripts/run_all.py
+```
+
+### Script Options
 
 ```bash
 # Force re-processing
-poetry run python -m src.cli all --force
+poetry run run-all --force
+python scripts/run_all.py --force
 
 # Clear existing playlists before adding tracks
-poetry run python -m src.cli playlists --clear
+poetry run playlists --clear
+python scripts/playlists.py --clear
 
 # Use custom config file
-poetry run python -m src.cli all --config custom_settings.yaml
+poetry run ingest --config custom_settings.yaml
+python scripts/ingest.py --config custom_settings.yaml
 ```
 
 ## Markdown Format
@@ -275,7 +289,6 @@ tempo_bins: 30
 ```
 mp3-analyzer/
 ├── src/
-│   ├── cli.py                 # Main CLI entry point
 │   ├── md_parser.py           # Markdown parser
 │   ├── search_match.py        # Track search & matching
 │   ├── downloader.py          # Audio download (yt-dlp)
@@ -284,6 +297,12 @@ mp3-analyzer/
 │   ├── playlist_spotify.py    # Spotify playlist management
 │   ├── playlist_ytmusic.py    # YouTube Music playlist management
 │   └── utils.py               # Utilities (logging, normalization)
+├── scripts/
+│   ├── ingest.py              # Parse markdown and search tracks
+│   ├── download.py            # Download audio files
+│   ├── analyze.py             # Extract features and visualize
+│   ├── playlists.py           # Create playlists
+│   └── run_all.py             # Run full pipeline
 ├── tests/
 │   ├── test_md_parser.py      # Parser tests
 │   ├── test_dedupe.py         # Deduplication tests
