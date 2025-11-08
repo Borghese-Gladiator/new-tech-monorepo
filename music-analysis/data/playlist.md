@@ -1,41 +1,2466 @@
-# Sample Playlist
+# 2023
+- #1 [夏目友人帳 - 花火の夜の章 - [ 作業用BGM, 夏目友人帳ピアノカバー, サントラ, Natsume Yuujinchou Piano Cover, OST ]](https://www.youtube.com/watch?v=waueeyH3pck)
+- #2 [夏目友人帳 - 花火の夜の章 - [ 作業用BGM, 夏目友人帳ピアノカバー, サントラ, Natsume Yuujinchou Piano Cover, OST ]](https://www.youtube.com/watch?v=UMI86Nnpsuk)
+- [THE ULTIMATE 200 ANIME SONGS PIANO MEDLEY [with lyrics]](https://www.youtube.com/watch?v=p77-glF--GA)
+- Mika Nakashima - Boku Ga Shinou To Omottanowa
+- aLIEz - Aldnoah. Zero ED2』を進めします
+- 茄子蛋EggPlantEgg - 浪子回頭 Back Here Again (Official Music Video)
 
-This is an example playlist with various track formats.
+# 2024
+- 203soundworks (Akie秋絵) - Ama no Zaku 天ノ弱 => https://www.youtube.com/watch?v=EoxRhxsTmNg
+- 4na - BURU
+- 7!! - Orange
+- A-Channel - Morning Arch - https://music.youtube.com/watch?v=s7dmQYcvyAE&si=carY3tN8OaXbokZY
+- A-ha - Take On Me
+- A-Lin - 給我一個理由忘記
+- A-Wall - Loverboy
+- AAA - さよならの前に Sayonara no Mae Ni
+- AAA - 恋音と雨空 Koi Oto to Amazora
+- ABBA - Gimme! Gimme! Gimme
+- AC/DC - Back in Black
+- AC/DC - Highway to Hell
+- AC/DC - Thunderstruck
+- Adele - Make You Feel My Love
+- Adele - Someone Like You
+- Ado - Backlight / 逆光（UTA from ONE PIECE FILM RED）
+- Ado - I'm invincible / 私は最強 (UTA from ONE PIECE FILM RED)
+- Ado - Kitto Coaster / きっとコースター
+- Ado - New Genesis / 新時代 (UTA from ONE PIECE FILM RED)
+- Ado - Odo
+- Ado - ギラギラ
+- Ado - ボッカデラベリタ
+- Ado COVER - Overdose 歌いました
+- Aerosmith - Dream On
+- Against the Current - Legends Never Die
+- Ai Tomioka - グッバイバイ - Good bye-bye
+- Aimer - After Rain
+- Aimer - I beg you
+- Aimer - Koi wa Ameagari no You ni ED - Ref:rain
+- Aimer - Last Stardust
+- Aimer - March of Time
+- Aimer - Ref:rain (Koi wa Ameagari no You ni ED)
+- Aimer - Resonantia
+- Aimer - Torches
+- Aimer - Words
+- Aimer - Zankyosanka
+- Aimer - 悲しみはオーロラに
+- Aimyon - Till I Know What Love Is (I'm Never Gonna Die)
+- Aimyon あいみょん - Marigold
+- Aimyon あいみょん - Till I Know What Love Is (I'm Never Gonna Die)
+- Aimyon あいみょん - 愛を伝えたいだとか
+- Akaseakari - Koi no Yukue
+- Akatsuki no Yona (Akiko Shikata) - ED2 暁 Dawn
+- Akatsuki no Yona (Kunihiko Ryo) - OP1 Akatsuki no Yona
+- Akie COVER - 天ノ弱
+- Akino - 創聖のアクエリオン
+- Akuma Nihmune - Pizza in the Cosmos
+- Akuma Nihmune - Plants
+- Akuma Nihmune - Sweater Lovin'
+- Aldnoah Zero - aLIEz
+- Alessandra Mussolini - Tokyo Fantasy
+- Alex Goot & Against The Current (COVER - Justin Bieber) - Beauty And A Beat
+- Alex Goot & Against The Current (COVER - Justin Bieber) - Let Me Love You
+- Alex Goot & Against The Current (COVER - Zed d) - Find You
+- Alex Goot & Against The Current (COVER - Zed) - Find You
+- Alexandr Misko COVER - Careless Whisper
+- ALI - LOST IN PARADISE (Jujutsu Kaisen Ending Theme Song) (feat. AKLO)
+- Alohaii - Embrace
+- Amazarashi - kyoukaisen
+- Amazarashi - Play Goodbye
+- Amazarashi - Sora Ni Utaeba
+- Amy ⭐︎ - Song i made instead of revising for a math exam
+- Andrea Bocelli - Bésame Mucho
+- Angel Beats - Girls Dead Monster - Alchemy
+- Angel Beats - Girls Dead Monster - Little Braver
+- Angel Beats - Girls Dead Monster - Marina Nakamura - Crow Song
+- Angel Beats - Girls Dead Monster - Rain Song
+- Angel Beats - Ichiban no Takaramono (Yui)
+- Angel Beats - My Soul, Your Beats
+- AnnenMayKantereit x Giant Rooks COVER - Tom's Diner
+- Anri - BOOGIE WOOGIE MAINLAND
+- Anri - CAT'S EYE
+- Anri - Driving My Love
+- Anri - Good Bye Boogie Dance
+- Anri - Lady Sunshine
+- Anri - Last Summer Whisper
+- Anri - Remember Summer Days
+- Anri - Shyness Boy
+- Anri - SUMMER CANDLES
+- Anri - Surprise of Summer
+- Anri - WINDY SUMMER
+- Anzenchitai - Kienai Yoru
+- Anzenchitai - Koi no Yokan
+- Anzenchitai - Mayonakasugino Koi
+- Anzenchitai - Melody
+- Anzenchitai - Tsukini Nureta Futari
+- Anzenchitai - Wine Red No Kokoro
+- Aoharu x Kikanjuu (トイ☆ガンガン 前野智昭･松岡禎丞･小松未可子) - The Bravest Destiny
+- Aoi Teshima - Asu e no Tegami (Drama Version)
+- Aoi Teshima - Asu e no Tegami(Drama Version)
+- Aoi Teshima - Tadaima
+- AQUAPLUS - Kimigatame
+- Arctic Monkeys - 505
+- Arekun あれくん - それはまるで映画みたいな恋だった。
+- Arknights - DJ OKAWARI feat. Ai Ninomiya - Speed of Light
+- Arknights - Rad Cat - Ain't Seen Nothing Like This
+- Asaka - Natsuyume noisy
+- Asaka - Natsuyume Noisy
+- ASIAN KUNG-FU GENERATION - A Flower Named You
+- ASIAN KUNG-FU GENERATION - After Dark
+- ASIAN KUNG-FU GENERATION - Haruka Kanata
+- ASIAN KUNG-FU GENERATION - Re:Re:
+- ASIAN KUNG-FU GENERATION - Rewrite
+- ASIAN KUNG-FU GENERATION - Rewrite / リライト
+- ASU - スロウリー / Slowly
+- asu COVER - ねむるまち
+- asu 明透 COVER - ねむるまち
+- Atarayo - Summer haze
+- Atarayo あたらよ - Haruru
+- Atarayo あたらよ - 嘘つき
+- Atarayo あたらよ - 夏霞
+- AUO feat. MORISAKI WIN - DAY1
+- Avicii - Hey Brother
+- Avicii - Levels
+- Avicii - The Nights
+- Avicii - Waiting for Love
+- Avicii - Wake Me Up
+- Avicii - Wake Me Up  => https://www.youtube.com/watch?v=5y_KJAg8bHI
+- Ayano Tsuji - Kaze Ni Naru
+- Ayase - Shinezma
+- Ayase - シネマ
+- Ayase - 夜撫でるメノウ
+- Ayumu Imazu - BANDAGE - https://www.youtube.com/watch?v=jplam6G0PMU
+- Ayumu Imazu - Superstar
+- B'z - いつかのメリクリスマス
+- Back number - 003
+- Back Number - 003
+- Back number - Emerald
+- Back Number - Emerald
+- Back number - Hanataba
+- Back Number - Hanataba
+- back number - Happy End
+- Back Number - Happy End  => https://www.youtube.com/watch?v=jChbEX6vYBU
+- Back Number - Koi
+- Back Number - Motto
+- Back Number - Nichiyoubi
+- Back Number - Secret Kiss
+- Back Number - Setagaya Love Story
+- Back Number - Sister
+- Back Number - Super Star Ni Nattara
+- Back Number - Takaneno Hanakosan
+- Back Number - Tegami
+- back number - Tsunaida Tekara / 繋いだ手から
+- Back Number - Watagashi
+- Back Number - 怪盗 - Phantom thief
+- Back Number - 瞬き
+- Back Number - 花束 - Hanataba
+- Backstreet Boys - I Want It That Way
+- Bag Raiders (Ant Man) - Shooting Stars  => https://www.youtube.com/watch?v=t3fRCmsnm3k
+- Bag Raiders - Shooting Stars
+- Bao the Whale - Bishounen
+- Bao the Whale - Citrus Love
+- Bao the Whale - Love Me Not
+- Bao The Whale COVER - Bubblegum K.K. Cover
+- Bao The Whale COVER - Kamisama Hajimemashita OP
+- Bao The Whale COVER - Kokoronashi
+- Bao the Whale COVER - Say So (Japanese Version)
+- Bao The Whale COVER - The Best For You
+- Beatles - Here Comes the Sun
+- Belle - Millenium Parade - U
+- Ben King - Stand By Me
+- Benson Boone - Beautiful Things
+- Beyonce - Hello
+- Beyonce - Single Ladies
+- BEYOND - 对面的女孩看过来
+- BEYOND - 海闊天空 (Sky)
+- Bill Withers - Just the Two of Us
+- Billie Eilish - BIRDS OF A FEATHER
+- Billie Eilish - Lovely
+- Billy Joel - Piano Man
+- Billy Joel - We Didn't Start the Fire
+- Black Eyed Peas - I Gotta Feeling
+- Black Eyed Peas - Time of My Life
+- BLUE ENCOUNT - Polaris
+- Blue Exorcist - Rookiez Is Punk'd - In My World
+- Blue Exorcist - UVERworld - Core Pride
+- Bob Dylan - Blowin' in the Wind
+- Bob Seger & The Silver Bullet Band - Old Time Rock & Roll
+- Bobby Caldwell - What You Won't Do for Love
+- Bocchi the Rock (kessoku band) - Blue Spring and Western Sky
+- Bocchi the Rock (kessoku band) - Bundle up your dreams / 夢を束ねて
+- Bocchi the Rock (kessoku band) - Guitar, Loneliness and Blue Planet ギターと孤独と蒼い惑星
+- Bocchi the Rock (kessoku band) - Hitoribocchi Tokyo
+- Bocchi the Rock (kessoku band) - If I could be a constellation
+- Bocchi the Rock (kessoku band) - Into the Light
+- Bocchi the Rock (kessoku band) - Milky Way
+- Bocchi the Rock (kessoku band) - Never Forget
+- Bocchi the Rock (kessoku band) - Re:Re:
+- Bocchi the Rock (kessoku band) - Rockn Roll, Morning Light Falls On You => https://youtu.be/E5O0mCrUdAM
+- Bocchi the Rock (kessoku band) - That Band
+- Bocchi the Rock (kessoku band) - UNITE
+- Bocchi the Rock (kessoku band) ED1 - Distortion!!
+- Bocchi the Rock (kessoku band) ED2 - KaraKara
+- Bocchi the Rock (kessoku band) ED3 - What Is Wrong With Me
+- Bocchi the Rock (kessoku band) OP1 - Seisyun Complex
+- Bocchi the Rock YAHO - Watashi Dake Yuerei ワタシダケユウレイ
+- Bolbbalgan4 (볼빨간 사춘기) - "Galaxy (우주를 줄게)"
+- Bon Jovi - It's My Life
+- Bon Jovi - Livin' On a Prayer
+- Bon Jovi - You Give Love A Bad Name
+- Boney M - Rasputin
+- Bonnie Taylor - Holding Out for a Hero
+- Bonnie Tylor - Holding Out for a Hero
+- BRADIO - Flyers
+- BRADIO - Golden Liar
+- Bradley Cooper - Maybe It's Time
+- Brandy Senki - Coming-of-age Story
+- Brandy Senki ブランデー戦記 - Coming-of-age Story
+- Brandy Senki ブランデー戦記 - Musica
+- Bruno Mars - 24K Magic
+- Bruno Mars - Grenade
+- Bruno Mars - Just The Way You Are
+- Bruno Mars - Talking to the Moon
+- Bubbly Summer - 202 (ft. Izumi Makura)
+- BUMP OF CHICKEN - Hello World (Kekkai Sensen OP) => https://www.youtube.com/watch?v=rOU4YiuaxAM
+- BUMP OF CHICKEN - SOUVENEIR
+- BUMP OF CHICKEN - Tentaikansoku
+- BUMP OF CHICKEN - アンサー
+- Bungo Stray Dogs (SCREEN mode) - Reason Living
+- Bungo Stray Dogs - ラックライフ - 名前を呼ぶよ
+- Carl Douglas - Kung Fu Fighting
+- Cepheid - Chronos
+- Chainsmokers - Closer
+- Chainsmokers - Don't Let Me Down
+- Chappell Roan - Good Luck, Babe!
+- Charlotte ED - Aoi Tada - 灼け落ちない翼  => https://www.youtube.com/watch?v=OJKQBr9exx4
+- Charlotte OP - Lia - Bravely You  => https://www.youtube.com/watch?v=WhRsyIGN-cA
+- Chevon シェボン - サクラループ
+- Chiai Fujikawa - Aino Uta
+- Chiai Fujikawa - Atashiga Tonarini Iru Uchini
+- Chiai Fujikawa - オレンジ
+- CHiCO with HoneyWorks - 世界は恋に落ちている
+- Chihiro Onitsuka 鬼束ちひろ - 月光 / Gekkou
+- Chilli Beans - Tremolo
+- Chris Hart - I Love You
+- Chris Hart COVER - Love Story Wa Totsuzenni
+- Christina Grimmie - Just a Dream (feat. Kurt Hugo Schneider & Sam Tsui)
+- Chuck Berry - Johnny B. Goode
+- Cindy - Watashitachi o Shinjite Ite
+- ClariS - ALIVE
+- ClariS - Connect / コネクト
+- ClariS - Koisekai
+- Clean Bandit - Rather Be (feat. Jess Glynne)
+- Clean Bandit - Symphony (feat. Zara Larsson)
+- Code Geass - Flow - Colors
+- Cody Lee(李) - Dancing Lights
+- Cody Lee(李) - おどる ひかり
+- Cody Lee(李) - 我愛你
+- COEDS - I Wanna Dance with You (All Night Long)
+- Coldplay - Viva La Vida
+- Counting Crows - Accidentally In Love
+- Counting Crows - Accidentally In Love (From "Shrek 2" Soundtrack)
+- Cowboy Bebop - Seatbelts - Tank!
+- Creedence Clearwater Revival - Bad Moon Rising
+- Creedence Clearwater Revival - Fortunate Son
+- Creedence Clearwater Revival - Have You Ever Seen The Rain
+- Creepy Nuts - Baka Majime
+- Creepy Nuts - Daten
+- Creepy Nuts - Losstime
+- Creepy Nuts - Yofukashi no Uta
+- Crispin - Go Back Home (Official Audio)
+- Cyberpunk: Edge Runners - I Really Wanna Stay At Your House => https://youtu.be/KvMY1uzSC1E
+- cYsmix feat. Emmy - Tear Rain
+- DA PUMP - U.S.A.
+- DAOKO × Kenshi Yonezu - 花火 Fireworks
+- Darius Rucker - Wagon Wheel
+- Darker than Black - Tsukiakari no Michishirube / ツキアカリのミチシルベ => https://www.youtube.com/watch?v=sSLtqAr32rA
+- Darling in the FranXX - Nakashima Mika - Kiss of Death
+- Daryl Hall and John Oates - You Make My Dreams Come True
+- Davina Michelle COVER - All of Me
+- DAZBEE COVER - 踊り子 Odoriko
+- Dean Martin - Let It Snow! Let It Snow! Let It Snow!
+- Deep Purple - Smoke on the Water
+- Delutaya - KOKORO RAIN_STOP
+- Delutaya COVER - Futariboshi
+- Delutaya COVER - HAPPY SYNTHESIZER
+- Delutaya COVER - Koshitantan
+- Delutaya COVER - SUMMERTIME RECORD
+- Diana Boncheva - Beethoven Virus
+- Digimon OP - Butterfly
+- Dish - NEKO
+- DISH - Neko / 猫
+- Disney (Aladdin) - A Whole New World
+- Disney (Frozen) - For the First Time in Forever
+- Disney (Frozen) - Let It Go
+- Disney (Little Mermaid) - Kiss the Girl
+- Disney (Little Mermaid) - Under the Sea
+- Disney (Moana) - How Far I'll Go
+- Disney (Mulan) - Be a Man
+- Disney (Pocahontas) - Color of the Wind
+- Disney (Pocahontas) - Colors of the Wind
+- DOES - 曇天 - A Cloudy Sky
+- Dolly Parton - 9 to 5
+- Dolly Parton - Jolene
+- Don McLean - American Pie  => https://www.youtube.com/watch?v=ngDJIjbAvz4
+- Doul - Be Me
+- Dream - Get Over
+- Dua Lipa - Dance The Night (From Barbie The Album)
+- Dua Lipa - Houdini
+- Dua Lipa - Levitating
+- Eagles - Hotel California
+- Earth, Wind, and Fire - September
+- Ed Sheeran - Bad Habits
+- Ed Sheeran - Beautiful People
+- Ed Sheeran - Castle on the Hill
+- Ed Sheeran - Galway Girl
+- Ed Sheeran - I Don't Care
+- Ed Sheeran - Perfect
+- Ed Sheeran - Shivers
+- Ed Sheeran - The A Team
+- Edomae Elf ED (Akari Nanawo) - Kien Romance
+- Edomae Elf OP (Cody Lee) - Odoru Hikari
+- Edward Maya - Stereo Love
+- EGOIST - Namae No Nai Kaibutsu
+- Eiichi Ohtaki - Shiawase Na Ketsumatsu
+- Eir Aoi - アイリス - Iris
+- Electric Light Orchestra - Mr. Blue Sky
+- Elton John - I'm Still Standing
+- Elvis Presley - Can't Help Falling In Love
+- Eri Sasaki 佐々木恵梨 - ふゆびより
+- Eric Clapton - Tears in Heaven
+- Etsuko Yakushimaru - Boys, come back to me 少年よ我に帰れ
+- Eurythmics, Annie Lennox, Dave Stewart - Sweet Dreams (Are Made Of These)
+- Evangelion - 残酷な天使のテーゼ
+- Eve (Jujutsu Kaisen) - 廻廻奇譚 Kaikai Kitan
+- Eve - Ao No Waltz (蒼のワルツ)
+- Eve - Boukenroku
+- Eve - Heikousen
+- Eve - Outsider
+- Eve - Tokyo Ghetto /トーキョーゲットー
+- Eve - あの娘シークレット
+- Eve - お気に召すまま As You Like It
+- Eve - 心海/ Sea of heart
+- Eve COVER - いかないで/ Ikanaide
+- Eve COVER - 太陽系デスコ/ Solar Disco
+- Every Little Thing - fragile
+- Evolving Playlist
+- EXILE - Ti Amo
+- Eye - ドメスティック・ドラスティック
+- FIFTY FIFTY - Cupid
+- Fire Force - Mrs. GREEN APPLE - インフェルノ Inferno
+- Frank Sinatra - Come Fly With Me
+- Frank Sinatra - I Love You Baby
+- Frank Sinatra - Moonlight Serenade
+- Frankie Valli and the Four Seasons - Can't Take My Eyes Off You  => https://www.youtube.com/watch?v=DYwQy_9JPtQ
+- Frankie Valli and the Four Seasons - Sherry  => https://www.youtube.com/watch?v=jMcWldfg28s
+- FripSide - black bullet
+- FripSide - only my railgun
+- Fujii Kaze - Damn
+- Fujii Kaze - Garden / ガーデン
+- Fujii Kaze - Hana
+- Fujii Kaze - Kirari
+- Fujii Kaze - Lonely Rhapsody
+- Fujii Kaze - Matsuri
+- Fujii Kaze - Nan-Nan
+- Fujii Kaze - Shinunoga E-wa 死ぬのがいいわ
+- Fujii Kaze - Workin' Hard
+- Fujita Maiko - ねぇ
+- Fujita Maiko - 駆け引き
+- Full Metal Alchemist - SUKIMASWITCH - Golden Time Rubber
+- Full Metal Alchemist - メッリサ
+- Galileo Galilei - Aoi Shiori 青い栞
+- Garnet Crow - Kimi to Iu Hikaru
+- Gekkan Shoujo Nozaki-kun OP - Kimi ja Nakya Dame Mitai
+- Gintama ED1 - Captain Straydum - Fuusen Gamu
+- Gintama ED10 - plingmin - This world is Yours
+- Gintama ED11 - ghostnote - I, Ai, Ai
+- Gintama ED12 - Shigi - Kagayaita
+- Gintama ED13 - PENGUIN - Asa ANSWER
+- Gintama ED14 - Takahashi Hitomi x BEAT CRUSADERS - Wo Ai Ni
+- Gintama ED15 - ONE☆DRAFT - Wonderful Days
+- Gintama ED16 - Qwai - Sayonara no Sora
+- Gintama ED17 - SPYAIR - Samurai Heart (Some Like It Hot!)
+- Gintama ED18 - Prague - Balance Doll
+- Gintama ED19 - Kuroneko Chelsea - Anagura
+- Gintama ED19 - Kuroneko Chelsea - Anaguraimei
+- Gintama ED20 - Good Coming - Nakama
+- Gintama ED21 - monobright - Moonwalk
+- Gintama ED22 - PAGE - Expect
+- Gintama ED23 - Negoto - DESTINY
+- Gintama ED24 - Aqua Timez - Saigou Made II
+- Gintama ED25 - THREE LIGHTS DOWN KINGS - Glorious Days
+- Gintama ED26 - Swimy - Acchi Muite
+- Gintama ED27 - RIZE - Silver
+- Gintama ED28 - Ayumikurikamaki - Hankou Se
+- Gintama ED28 - Ayumikurikamaki - Hankou Seimei
+- Gintama ED29 - BURNOUT SYNDROMES - Hana Ichi Monme
+- Gintama ED3 - redballoon - Yuki no Tsubasa
+- Gintama ED30 - CHiCO with HoneyWorks - Hikari Shoumeiron
+- Gintama ED4 - Takahashi Hitomi - Candy Line
+- Gintama ED5 - DOES - Shuura
+- Gintama ED6 - Snowkel - Kiseki
+- Gintama ED7 - KELUN - SIGNAL
+- Gintama ED8 - THE RODEO CARBURETTOR - Speed of Flow
+- Gintama ED9 - POSSIBILITY - sanagi
+- Gintama OP1 - Tommy heavenly6 - Pray
+- Gintama OP10 - ecosystem - Dilemma
+- Gintama OP11 - FLiP - Wonderland
+- Gintama OP12 - AMOYAMO - LET’S GO OUT
+- Gintama OP13 - SPYAIR - Sakura Mitsutsuki
+- Gintama OP14 - BLUE ENCOUNT - DAYxDAY
+- Gintama OP15 - CHiCO with HoneyWorks - Pride Kakumei
+- Gintama OP16 - OKAMOTO'S - Beautiful Days
+- Gintama OP17 - DOES - Know Know Know
+- Gintama OP18 - ЯeaL - Kagerou
+- Gintama OP19 - BLUE ENCOUNT
+- Gintama OP19 - BLUE ENCOUNT - VS
+- Gintama OP2 - YO-KING - Tooi Nioi
+- Gintama OP20 - DISH// - Katte ni MY SOUL
+- Gintama OP21 - SPYAIR - I Wanna Be
+- Gintama OP3 - redballoon - Giniro no Sora
+- Gintama OP4 - Hearts Grow - Kasanaru Kage
+- Gintama OP5 - DOES - Donten
+- Gintama OP6 - monobright - Anata MAGIC
+- Gintama OP7 - Base Ball Bear - Stairway Generation
+- Gintama OP8 - Prague - Light Infection
+- Gintama OP9 - Serial TV drama - Togenkyo Alien
+- Girl_dm COVER - I really want to stay at your house
+- Glenn Lewis - Fall Again
+- Glim Spanky - 真夏の夜の夢 - A Midsummer Night's Dream
+- Gloria Gaynor COVER - I Love You Baby
+- Goose House - Hikaru Nara => https://www.youtube.com/watch?v=cWtgGTCAjYY
+- Gosick OP (Shoujy) - ディスティン・イストワール
+- Gosick OP (yoshiki*lisa) - Destin Histoire ディスティン・イストワール
+- Gotye - Somebody That I Used To Know
+- GRANRODEO - Can Do
+- GRANRODEO - The Other self
+- GRANRODEO - 変幻自在のマジカルスター
+- Greatest Showman - A Million Dreams
+- Greatest Showman - Anne-Marie & James Arthur - Rewrite the Stars
+- Greatest Showman - Come Alive
+- Greatest Showman - From Now On
+- Greatest Showman - Never Enough
+- Greatest Showman - The Greatest Show
+- GReeeeN - キセキ
+- Green Day - Boulevard of Broken Dreams  => https://www.youtube.com/watch?v=c9e6Wn5GvH4
+- Green Day - Wake Me Up When September Ends
+- Guilty Crown (supercell) - My Dearest
+- Guilty Crown - supercell - My Dearest
+- Guilty Crown ED (EGOIST) - Departures Blessing
+- Guilty Crown ED - Departures Blessing
+- Guilty Crown OP - The Everlasting Guilty Crown
+- Gundam - INVOKE
+- Guns N Roses - Paradise City
+- Guns N Roses - Sweet Child of Mine
+- Guns N' Roses - Sweet Child O' Mine
+- Gym Class Heroes - Stereo Heart
+- halca - Kimi No Tonari
+- Hanatan - Tell Your World
+- Hanazawa Kana - I Wonder Why なぜだろう
+- Hardcastle - Does Somebody Love You
+- Hardcastle - Mundane
+- Harry Styles - As It Was
+- Haruhi Suzumiya ED - Aya Hirano, Minori Chihara and Yūko Gotō - ハレ晴レユカイ
+- Harumaki Gohan - Reunion
+- Hero Academia - Go, Plus Ultra
+- Hideaki Tokunaga - Koibito
+- Hideaki Tokunaga - Saigo No Iiwake
+- Hideaki Tokunaga - Yasashii Kiss O Shite
+- HIDEHARU - Proposal
+- Hikaru no Go - Bokura no Bouken
+- Hikaru no Go - Kokoro
+- Hikaru no Go - Majiwaru Michi
+- Hikaru no Go - Shukuteki
+- Hikaru no Go - Tomadoi
+- Hikaru Utada - BADモード
+- Hikaru Utada - One Last Kiss
+- HIRAIDAI 平井大 - Stand By Me, Stand By You
+- HIRAIDAI 平井大 - Todokanaikara
+- Hiromi Iwasaki - Street Dancer
+- Hitomi Shimatani - ANGELUS
+- Hitomi Takahashi - Candy Line
+- Hitsujibungaku - more than words
+- Hizuki Yui COVER - DAYBREAK FRONTLINE
+- Hololive (0期生) COVER - ray
+- Hololive (Aqua X Towa X Suisei) COVER - 快晴
+- Hololive (Ayame) - 宵の余、良い
+- Hololive (Ayame) COVER - グッバイ宣言
+- Hololive (AZKI) いのち (2024 ver.)
+- Hololive (Baelz) - Mind Craft
+- Hololive (Baelz) - Ride
+- Hololive (Baelz) - 好きだから / Suki Dakara
+- Hololive (Baelz) COVER - 好きだから / Suki Dakara
+- Hololive (Calli x Kobo) - Midnight Mayoi
+- Hololive (Calli x Suisei) COVER - GETCHA!
+- Hololive (Calli) - End of a life
+- Hololive (Calli) COVER - 世界のつづき https://www.youtube.com/watch?v=XmoOgPsSPTI
+- Hololive (Calliope Mori) - End of a life
+- Hololive (Calliope) - End of a life
+- Hololive (Calliope) COVER - 世界のつづき https://www.youtube.com/watch?v=XmoOgPsSPTI
+- Hololive (DEV_IS) COVER - ないものねだり
+- Hololive (English) - Breaking Dimensions
+- Hololive (Fubuki) COVER - コールボーイ
+- Hololive (Fubuki) COVER - 鬼の宴
+- Hololive (Gawr Gura) COVER - Kyoufuu All Back
+- Hololive (Gawr Gura) COVER - When I'm Gone
+- Hololive (Gawr Gura) COVER KARAOKE - Morning Glory => PTSD Shrimp
+- Hololive (Gura) COVER - Kyoufuu All Back
+- Hololive (Gura) COVER - When I'm Gone
+- Hololive (Gura) COVER KARAOKE - Morning Glory
+- Hololive (Gura) COVER KARAOKE - Morning Glory => PTSD Shrimp
+- Hololive (Gura) COVER KARAOKE - When I'm Gone
+- Hololive (Hajime) - todorokihajime_ED
+- Hololive (Hajime) COVER - BANDAGE
+- Hololive (Hajime) COVER - 踊り子
+- Hololive (Hakos Baelz) - Mind Craft
+- Hololive (Hakos) - 好きだから / Suki Dakara
+- Hololive (HoloAdvent) - Rebellion
+- Hololive (Ina X Nabi) COVER - kimi no toriko summertime  => https://www.youtube.com/watch?v=Ucwpn-JQqmI
+- Hololive (Ina) - VIOLET
+- Hololive (Ina) COVER - おどれ！VRダンス！
+- Hololive (Ina) COVER - 群青/Gunjou
+- Hololive (Ina・Nabi) COVER - kimi no toriko summertime  => https://www.youtube.com/watch?v=Ucwpn-JQqmI
+- Hololive (IRyS) - Caesura of Despair
+- Hololive (IRyS) - Gravity
+- Hololive (IRyS) - HERE COMES HOPE
+- Hololive (IRyS) - Till the end of me
+- Hololive (Kanade) COVER - Departures あなたにおくるアイの歌
+- Hololive (Kanade) COVER - セプテンバーさん
+- Hololive (Kanade) COVER - 奏
+- Hololive (Kanade) COVER - 快晴
+- Hololive (Kanata X Nene) COVER - 至上主義アドトラック
+- Hololive (Kanata X Suisei) COVER - 月陽-ツキアカリ
+- Hololive (Kanata・Nene) COVER - 至上主義アドトラック
+- Hololive (Kanata・Suisei) COVER - 月陽-ツキアカリ
+- Hololive (Kiara & Ina) COVER - い〜やい〜やい〜や Whatever whatever whatever
+- Hololive (Kiara X Ina) COVER - い〜やい〜やい〜や Whatever whatever whatever
+- Hololive (Kiara・Ina) COVER - い〜やい〜やい〜や Whatever whatever whatever
+- Hololive (Kobo) - HELP!!
+- Hololive (Kobo) COVER - HELP!!
+- Hololive (Kobo) COVER - Overdose
+- Hololive (Kobo) – Entah...
+- Hololive (Kronii) COVER - Fly Me To The Moon - https://www.youtube.com/watch?v=CEWQXuQxEIU
+- Hololive (Marine X Kobo) COVER - Overdose
+- Hololive (Marine) COVER - オトナブルー
+- Hololive (MiComet) - Sugar Rush シュガーラッシュ
+- Hololive (MiComet) COVER - アイドル
+- Hololive (miComet) COVER - アイドル
+- Hololive (Mika Melatika) COVER - 寄り酔い Tipsy
+- Hololive (Miko X Suisei) - Sugar Rush シュガーラッシュ
+- Hololive (Miko X Suisei) COVER - アイドル
+- Hololive (Mio) - Shoushin Ryokou 小心旅行
+- Hololive (Moona Hoshinova) - High Tide
+- Hololive (Moona Hoshinova) - Perisai Jitu
+- Hololive (Moona X Suisei) COVER - Saikai
+- Hololive (Moona) - High Tide
+- Hololive (Moona) - Perisai Jitu
+- Hololive (Moona) - Taut Hati
+- Hololive (Moona・Suisei) COVER - Saikai
+- Hololive (Mori Calliope x 星街すいせい) COVER - GETCHA!
+- Hololive (Nerissa) - Say My Name
+- Hololive (Nerissa) COVER - 雪の華
+- Hololive (NoPeLaBo) - BLUE CLAPPER
+- Hololive (Okayu X Korone) COVER - Fuwa Fuwa Time ふわふわ時間
+- Hololive (Okayu X Korone) COVER - If... - https://www.youtube.com/watch?v=wVOHaMd3utA
+- Hololive (Okayu) - 惑星ループ
+- Hololive (Okayu) - 毒杯スワロウ   => https://youtu.be/BNI2FBQQIag
+- Hololive (Okayu) COVER - さよならテンダー
+- Hololive (Okayu) 彗星ハネムーン - https://www.youtube.com/watch?v=2jW7L0GsMmU
+- Hololive (Okayu・Korone) COVER - Fuwa Fuwa Time ふわふわ時間
+- Hololive (Okayu・Korone) COVER - If... - https://www.youtube.com/watch?v=wVOHaMd3utA
+- Hololive (Raden) - twinkle night
+- Hololive (Raora) COVER - ECHO
+- Hololive (ReGLOSS) - feelingradation / フィーリングラデーション
+- Hololive (ReGLOSS) - Shunkan Heartbeat
+- Hololive (ReGLOSS) - 夜咄ディセイブ/歌ってみた【轟はじめ/ReGLOSS】
+- Hololive (ReGLOSS) - 星座になれたら / 結束バンド covered by ReGLOSS 【歌ってみた / hololive DEV_IS】
+- Hololive (ReGLOSS) - 泡沫メイビー
+- Hololive (ReGLOSS) COVER - Friday Night フライデー・ナイト
+- Hololive (ReGLOSS) COVER - Sunny 晴る
+- Hololive (ReGLOSS) COVER - ないものねだり
+- Hololive (Roboco) - リルビ
+- Hololive (Rushia) COVER - Ghost in a Flower
+- Hololive (Rushia) COVER - Goodbye Sengen
+- Hololive (Shion) - メイジ・オブ・ヴァイオレット
+- Hololive (Shion) COVER - Overdose
+- Hololive (Shion・Gura) COVER - 白金ディスコ
+- Hololive (Shiori) COVER - Kyoufuu All Back 強風オールバック
+- Hololive (Sora) - 好き、泣いちゃいそう
+- Hololive (Sora・Suisei・Subaru・Polka・Koyori・Chloe) COVER - 怪物
+- Hololive (Suisei) - GET THE CROWN
+- Hololive (Suisei) - XION
+- Hololive (Suisei) - ビビデバ - BIBBIDIBA
+- Hololive (Suisei) - 灼熱にて純情(wii-wii-woo)
+- Hololive (Suisei) - 青のすみか
+- Hololive (Suisei) COVER - Cry Baby  => https://www.youtube.com/watch?v=7wbd6ffvXm8
+- Hololive (Suisei) COVER - XION
+- Hololive (Suisei) COVER - 少女レイ
+- Hololive (Suisei) COVER - 幽霊東京
+- Hololive (Suisei) COVER - 彗星ハネムーン => https://www.youtube.com/watch?v=zEUNMi1nz0I
+- Hololive (Suisei) 彗星ハネムーン - https://www.youtube.com/watch?v=zEUNMi1nz0I
+- Hololive (Suisei・3rd Gen) - Saga Jihen
+- Hololive (Towa) - FACT
+- Hololive (Towa) - インテグラル / Startend (cover)
+- Hololive (Towa) - ライメイ
+- Hololive (Towa) COVER - Palette
+- Hololive (Towa) COVER - 晩餐歌
+- Hololive (Towa・Aki) - Rose of the lamp
+- Hololive (Towa・Kanata・Flare) - STARDUST SONG =>  https://youtu.be/LiJBEm9v5Nw
+- Hololive (黒上フブキ) COVER - 鬼の宴
+- Hololive - 青春アーカイブ
+- Hololive DEV_IS COVER - スターマイン / Da-iCE
+- HoneyComeBear - 走馬灯 / Somato
+- HoneyComeBear - 走馬灯 / Soumatou
+- HoneyWorks ft. 夏川椎菜 - ファンサ
+- Honkai Impact 3 (Hanser for Bronya) - Cyberangel
+- Honkai Impact 3 (Hanser/Bronya) - Cyberangel
+- Honkai Impact 3 (Kiana) - Nightglow
+- Honkai Impact 3 (蔡健雅 for Kiana) - Nightglow
+- Hoshino Gen - Koi  => https://www.youtube.com/watch?v=jhOVibLEDhA
+- Hoshino Gen - Pop Virus
+- Hoshino Gen - SUN
+- Hoshino Gen - 喜劇 Comedy  => https://www.youtube.com/watch?v=URR_Nv-6MZs
+- HOWL BE QUIET - fantasia
+- Hozier - Too Sweet
+- Ikimonogakari - Koiuta
+- Ikimonogakari - Sakura
+- Ikimonogakari いきものがかり - Sentimental Boyfriend
+- Ikimonogakari いきものがかり - Shiroi Diary
+- Imase - Have a nice day
+- imase - Have a nice day
+- Imase - I say bye
+- Imase - Nagisa
+- Imase - Night Dancer
+- Imase - 僕らだ
+- Initial D - Crazy for Love
+- Initial D - Deja Vu
+- Initial D - Running in the 90s
+- Iso Piano PIANO COVER - I LOVE YOU
+- Israel Kamakawiwo'ole - Somewhere Over the Rainbow
+- Jack Stauber - Buttercup
+- Jacky Cheung - Ta Lai Ting Wo De Yan Chang Hui
+- James Arthur - Say You Won't Let Go
+- James Brown & The Famous Flames - It's A Man's, Man's, Man's World
+- James Brown - I Got Ants In My Pants (And I Want To Dance) (Remix)
+- James Brown - This Is A Mans Mans Mans World
+- James Li COVER - Sunny II  => https://www.youtube.com/watch?v=svGq1L5R88w&ab_channel=%E8%8A%92%E6%9E%9CTV%E9%9F%B3%E4%B9%90MangoTVMusic
+- Jason Mraz - I'm Yours
+- Jason Mraz - Living in the Moment
+- Jennifer Lopez - On The Floor
+- Joe Hisaishi (Castle in the Sky) - Kimi wo Nosete 君をのせて
+- Joe Inoue - CLOSER
+- John Denver - Take Me Home, Country Roads
+- John Legend - All of Me
+- John Lennon - Imagine
+- Joint Beauty - 東京Friday Night (feat. Kana Hanazawa & Mori Calliope)
+- Jojo - Coda - BLOODY STREAM
+- Jojo - Sono Chi no Sadame
+- Jojo - Yugo Kanno - il vento d'oro
+- Joseph Williams - Can You Feel the Love Tonight
+- Josh Turner - Your Man
+- José Feliciano - Feliz Navidad
+- Journey - Don't Stop Believing
+- Journey - Separate Ways (Worlds Apart)
+- Jun Maeda (Air OP) - Tori no Uta => https://www.youtube.com/watch?v=04Q9LtP7nUM
+- Jun Maeda (Clannad ED) - Dango Daikazoku
+- Junko Ohashi - Telephone Number
+- Junko Yagami - 黄昏のBAY CITY
+- JVKE - golden hour (piano cover)
+- K-On - Cagayake Girls
+- K-On - Don't Say "Lazy"
+- K-On - Fuwa Fuwa Time
+- K-On - My Love is a Stapler
+- K/DA - POP/STARS (ft. Madison Beer, (G)I-DLE, Jaira Burns)
+- Kamisama Hajimemashita OP - Toshokan Hanae
+- KANA-BOON - Silhouette
+- Kanaria ver. - King
+- KANKAN - suima
+- KANKAN 缶缶 - 睡魔
+- Kano - Yoake to Hotaru
+- KANSAS - Carry on Wayward Son
+- Katy Perry - Roar
+- Katy Perry - Teenage Dream
+- Katy Perry - The One That Got Away
+- Katy Perry Feat. Snoop Dogg - California Girls  => https://www.youtube.com/watch?v=S-fe9T28VLM
+- Kazumasa Oda - Love Story Wa Totsuzenni
+- Keane - Somewhere Only We Know
+- Kenshi Yonezu - Flamingo
+- Kenshi Yonezu - Tsuki Wo Miteita - Moongazing
+- Kenshi Yonezu - ピースサイン
+- Kie Kitano - Hazakura 葉桜  => https://www.youtube.com/watch?v=kQfqxMtF-GM
+- Kill Me Baby - ふたりのきもちのほんとのひみつ  => https://www.youtube.com/watch?v=slazi2PpYUo&ab_channel=KumaTsume
+- King Gnu - Ame Sansan
+- Kingmin Kun - MR.CLEVER
+- Kiro Akiyama - Caffeine
+- Kitri - Hikare Inochi
+- Kitri - ヒカレイノチ
+- Kobakuro コブクロ - Kimi To Iu Nano Tsubasa 君という名の翼
+- Kobakuro コブクロ - Tsubomi 蕾
+- Kobasolo & Lefty Hand Cream COVER -『No.1』
+- KOBUKURO コブクロ - akaiito (Album Mix) / 赤い糸(Album mix)
+- KOBUKURO コブクロ - Kimi To Iu Nano Tsubasa 君という名の翼
+- KOBUKURO コブクロ - Tsubomi 蕾
+- Kohmi Hirose - promise
+- Kohmi Hirose - ゲレンデがとけるほど恋したい
+- Kohmi Hirose - ゲレンデがとけるほど恋したい（WHAT AN EXCITING MIX！）
+- KOKIA - 本当の音
+- Konosuba ED - Chiisana Boukensha
+- Konosuba Move: Kurenai Densetsu OP - Machico - 1 Milli Symphony
+- Konosuba Movie: Kurenai Densetsu OP - Machico - 1 Milli Symphony
+- Kool & The Gang - Celebration
+- Kotaro Oshio - Time of Cherry Blossoms
+- Kotaro Oshio - Twilight
+- Kousuke Atari - Natsuyuusora
+- Kray COVER - Asu no Yozora Shoukaihan
+- Kuba Oms - My Love  => https://youtu.be/V3OPDTwH9os
+- Kuroko no Basket S1ED1 (ヒャダイン) -  Start it right away
+- Kuroko no Basket S2E2 - Fantastic Tune
+- Kyo Hanabasami - Daisy
+- Kyo Hanabasami - Starry
+- Lady Gaga - Bad Romance
+- Laufrey - From the Start
+- Lauren Aquilina - You Can Be King Again
+- League of Legends - Rise
+- LET ME KNOW - Ai to Highball / 偽愛とハイボール
+- Lewis Capaldi - Someone You Loved
+- Lia - 一番の宝物  => https://www.youtube.com/watch?v=7lH7csKBnzY&ab_channel=1stPLACE
+- Lil Nas X - Old Town Road
+- Lil Nas X - Old Town Road (Remix) (feat. Billy Ray Cyrus)
+- Ling Tosite Sigure (Tokyo Ghoul) - Unravel
+- Ling Tosite Sigure - Abnormalize
+- Ling Tosite Sigure - Enigmatic Feeling
+- Linked Horizon - Guren No Yumiya (Attack on Titan)
+- Linked Horizon - Shinzou wo Sasageyo  (Attack on Titan)
+- Linkin Park - Lost => https://youtu.be/7NK_JOkuSVY
+- Linkin Park - Numb
+- LiSA - Akeboshi
+- LiSA - Oath Sign
+- LiSA - Shirogane
+- LiSA - Shirushi
+- LiSA - 紅蓮華
+- LiSA and Uru - Saikai
+- Lone Alpha - Seasons (feat. Shiki Miyoshino)
+- Louis Armstrong - Hello, Dolly!
+- Louis Armstrong - La vie en rose (Single Version)
+- Louis Armstrong - Mack the Knife
+- Love Live - Snow Halation
+- Lucia COVER - さよなら、僕のヒーロー - 傘村トータ
+- Luck Life - Kiseki
+- Luck Life - Lily
+- Lukas Graham - 7 Years
+- Luke Bryan - I Don't Want This Night To End
+- Lupin III - Theme From Lupin Ⅲ '78（2002 Version Yuji Ohno）=> https://www.youtube.com/watch?v=KvCtS0sgUy0
+- Lynyrd Skynyrd - Sweet Home Alabama
+- Lyolite - リオライト
+- Macross - Walkure - Ikenai Borderline
+- Macross - いけないボーダーライン
+- Mafumafu まふまふ COVER - ヴァンパイア
+- Mahou Shoujo Madoka★Magica OP (ClariS) - Connect
+- Maneskin - Beggin'
+- Maroon 5 - Daylight  => https://www.youtube.com/watch?v=DrSJKj1S_fE
+- Maroon 5 - Move Like Jagger
+- Maroon 5 - Payphone
+- Maroon 5 - She Will Be Loved
+- Maroon 5 - Sugar
+- Marvin Gaye and Tammi Terrell - Ain't No Mountain High Enough
+- Masaharu Fukuyama - Kazokuninarouyo
+- Masaharu Fukuyama - Sakurazaka
+- Masaharu Fukuyama 福山雅治 - Hatsukoi
+- Masaharu Fukuyama 福山雅治 - Saiai 最愛
+- Masaki Suda - Hoshi wo aogu
+- Masaki Suda - Kokyu
+- Masaki Suda - Madou Ito 惑う糸
+- Masaki Suda - Rurou no Katashiro
+- Masaki Suda - Sayonara Elegy
+- Masaki Suda - ロングホープ・フィリア
+- Masayoshi Yamazaki - Ajisai
+- Masayoshi Yamazaki - One More Time, One More Chance
+- Masayoshi Yamazaki 山崎まさよし - One More Time,One More Chance
+- Matsuri - Anata ga inakutemo
+- MC Hammer - U Can't Touch This
+- Meiko Nakahara - Fantasy
+- Meiko Nakahara - Fantasy (1982)
+- Memai Siren 眩暈SIREN - 偽物の宴
+- Metal Gear - Cynthia Harrell - Snake Eater
+- Metallica - Enter Sandman
+- MGS - Cynthia Harrell - Snake Eater
+- Michael Buble - It's Beginning To Look a Lot Like Christmas
+- Michael Bublé - White Christmas
+- Michael Jackson - Beat It
+- Michael Jackson - Billie Jean
+- Michael Jackson - Dirty Diana
+- Michael Jackson - I Just Can't Stop Loving You
+- Michael Jackson - Love Never Felt So Good
+- Michael Jackson - Remember the Time
+- Michael Jackson - Rock With You
+- Michael Jackson - Smooth Criminal
+- Michael Jackson - The Way You Make Me Feel
+- Michael Jackson - You Are Not Alone
+- Midnight Grand Orchestra - Midnight Mission
+- Miki Matsubara - 真夜中のドア〜Stay With Me+
+- Miley Cyrus - Party in the USA
+- MIMiNARI - Nemurenai (feat. Tomori Kusunoki)
+- Minami - RUDE LOSE DANCE
+- MINMI - 四季ノ唄
+- Miori Celesta COVER - Stay with Me
+- Miori Celesta COVER - Vampire ヴァンパイア
+- Miori Celesta COVER - ヴァンパイア
+- Mirage Dive - ray
+- Mirage dive - ray
+- Monkees - I'm A Believer
+- Mosawo もさを - ぎゅっと
+- Mosawo もさを- Koiiro
+- Motohiro Hata - Himawari No Yakusoku
+- Mountain - Mississippi Queen
+- Mr. Children - Hanabi
+- Mr. Children - Innocent World
+- Mr. Children - Shirushi
+- Mr. Children - 名もなき詩
+- Ms. OOJA - Baby Dont Know Why
+- Ms.OOJA COVER -真夜中のドア／Stay With Me
+- MUCC - Nirvana / ニルヴァーナ
+- My Little Lover - Shiroi Kaito
+- Nachoneko COVER - てねてね
+- Nanawoakari ナナヲアカリ - Kien Romance 奇縁ロマンス
+- Nat King Cole - The Christmas Song (Merry Christmas To You)
+- Natasha Bedingfield - Unwritten
+- Nathan Evans - Wellerman - Sea Shanty
+- Natori - Friday Night
+- Natori - Overdose
+- Natori - Zettai Reido
+- Natori - 猿芝居 sarushibai => https://youtu.be/bjYG08Cdix4
+- Neil Young - World on a String  => https://www.youtube.com/watch?v=EiEeTlyDmpc
+- Nick Howe COVER - Someone You Loved
+- Nickelback - Gotta be Somebody
+- Nightcore - Cady Groves - Little Girl Capable of Murder  => https://www.youtube.com/watch?v=23cWJ1Em0f8
+- Nightcore - How To Be A Heartbreaker
+- Nightcore - MARINA - How to be a Heartbreaker  => https://www.youtube.com/watch?v=O6NvsM49N6w
+- Nightcore - Remember When
+- Nightcore - Take A Hint (feat. Elizabeth Gillies & Victoria Justice)
+- Nightcore - The Cab - Angel with a Shotgun  => https://www.youtube.com/watch?v=cvaIgq5j2Q8
+- Nijisanji (Ange) COVER - Overdose
+- Nijisanji (Elira) COVER - Shoujo Rei
+- Nijisanji (Enna) COVER - Love Space
+- Nijisanji (Inui) COVER - 気まぐれロマンティック
+- Nijisanji (Inui) COVER - 青春コンプレックス
+- Nijisanji (LazuLight) - Diamond City Lights
+- Nijisanji (LazuLight) COVER - Virtual to LIVE
+- Nijisanji (Mika Melatika) COVER - 寄り酔い Tipsy
+- Nijisanji (Millie) COVER - Sana Aku Na Lang
+- Nijisanji (Pomu) COVER - Ikanaide
+- Nijisanji (Ryushen)  - Jokes
+- Nijisanji (Toko Inui) - らしさ
+- Nijisanji (Toko Inui) - 晴る
+- Nijisanji (Toko) COVER - 青春コンプレックス
+- Nijisanji (とこ/尊楓/リゼ/るる) COVER - 一度だけの恋なら
+- Nishino Kana - Wishing  => https://youtu.be/JggfoYT3kII
+- No Game No Life (Ai Kayano) - Oracion
+- No Game No Life (Konomi Suzuki) - This Game
+- No Me Queda Más (Selena) - https://www.youtube.com/watch?v=RYzL3-JHw7k&ab_channel=MiguelJPR
+- NOAH - Bcrux
+- nonoc (Spy Classroom) - Tomoshibi
+- Noragami - THE ORAL CIGARETTES - Kyoran Hey Kids
+- Norah Jones - Come Away with Me
+- Nqrse - ジオラマ
+- NSYNC - Bye Bye Bye
+- NXCRE - Usurper
+- Official髭男dism - Cry Baby
+- Official髭男dism - Stand By You
+- Official髭男dism - イエスタデイ
+- Official髭男dism - 宿命
+- One Direction - That's What Makes You Beautiful
+- OneRepublic - Counting Stars
+- OneRepublic - Nobody (from Kaiju No. 8)
+- OneRepublic - RUNAWAY
+- Orangestar - Surges
+- OreGairu (早見沙織 Hayami Saori & 東山奈央 Nao Tōyama) S1OP1 - Hello Alone
+- OreGairu (早見沙織 Hayami Saori & 東山奈央 Nao Tōyama) S1OP2 - Everyday World エブリデイワールド
+- OreGairu (早見沙織 Hayami Saori) - Crescendo To You 君にクレッシェンド
+- OreGairu (早見沙織 Hayami Saori) - Diamond no Jundo ダイアモンドの純度
+- OreGairu (早見沙織 Hayami Saori) - 雪解けに咲いた花
+- OreGairu (柚木涼香 Suzuka Yuzuki) - いつか君が大人になるまで
+- OreGairu (柚木涼香 Suzuka Yuzuki) - 泣いてなんかない｡～煙草が目に､､､～
+- OreGairu (江口拓也 Takuya Eguchi & 近藤隆 Takashi Kondō) - If You Want Real 本物が欲しければ
+- Overdose - Houshou Marine (宝鐘マリン) ft. Kobo Kanaeru (こぼ・かなえる) - (なとり) #宝鐘マリン生誕祭2024
+- Owl City - Fireflies
+- Owl City - Vanilla Twilight
+- Panic! At the Disco - High Hopes
+- Passenger - Let Her Go
+- Paul Anka - Put Your Head On My Shoulder
+- Persona - Dancing All Night Opening
+- Persona - Specialist
+- Phase Connect (Jelly) - Luminary
+- Phase Connect (Runie) - AposTASTY
+- Phase Connect (Shiina) - 君に夢中 Kimi ni Muchuu
+- PhaseConnect (Shiina) - 君に夢中 Kimi ni Muchuu
+- Phil Collins - In the Air Tonight
+- Pierce the Veil COVER - Just the Way You Are
+- Plain White T's - Hey There Delilah
+- Player - Baby Come Back
+- PSYQUI - センチメンタルハートボーイ(ft. Such)
+- Queen - Another One Bites the Dust
+- Queen - Bicycle Race
+- Queen - Bohemian Rhapsody
+- Queen - Radio Gaga
+- Radiohead - Creep
+- RADWIMPS - Grand Escape
+- RADWIMPS - Nandemonaiya
+- RADWIMPS - Sparkling
+- Rainych - Say So (Japanese Version)
+- RAN - Saling Merindu
+- Rascal Flatts - Life is a Highway
+- Redbone - Come and Get Your Love
+- REI - Shirayukihime
+- Remioromen - KONAYUKI / 粉雪
+- REOL - Hikibase => https://www.youtube.com/watch?v=UC_qla6FQwM
+- REOL - No title
+- Rick Astley - Never Gonna Give You Up
+- Rie Fu - Tsuki Akari
+- Rie Takahashi (Re:Zero ED2 ) - Stay Alive
+- Rihanna - Only Girl (In The World)
+- Riyandi Kusuma PIANO COVER - golden hour
+- RoadTrip TV COVER - Solo
+- Rob zombie - Dragula
+- Robin Schulz - Sugar (feat. Francesco Yates)
+- Rocky Orchestra - Gonna Fly Now
+- Rokudenashi - As you don't know
+- Rokudenashi - Eureka
+- Ronghao Li - 一百 (百事可乐品牌主题曲) - Everything (Co-Created with Pepsi)
+- Roy Orbison - Oh, Pretty Woman
+- Russell Dickerson - Every Little Thing
+- Ruth B. - Lost Boy
+- Ryokuoushoku Shakai - Mela!
+- Ryuki - boku no yoko de nemu kimi ga
+- Sailor Moon - Moonlight Densetsu
+- Saji - Statice
+- Sakanaction - Shin Takarajima / 新宝島
+- Sakanaction - 新宝島
+- Sakura - いきものがかり
+- Sam Smith - I'm Not The Only One
+- Sam Smith - Stay With Me
+- Sam Tsui & Christina Grimmie COVER - Just A Dream
+- Samurai Champloo - Shiki no Uta
+- Satoshi Gogo - Haru
+- Satoshi Gogo - Moon Shade (Secret Garden ver.)
+- SCANDAL - Shunkan Sentimental
+- Scatman John - Scatman (ski-ba-bop-ba-dop-bop)
+- SEASIDE CIRCUIT - 海にしずむ月
+- SEKAI NO OWARI - Habit
+- SEKAI NO OWARI - Rain
+- SEKAI NO OWARI - Saraba
+- SEKAI NO OWARI - サラバ
+- Selena - No Me Queda Más - https://www.youtube.com/watch?v=RYzL3-JHw7k&ab_channel=MiguelJPR
+- Selena Gomez - Wolves
+- Sen Masao - 北国の春 Kita Guni no Haru
+- SEREBRO - Mimimi
+- Shakira - Waka Waka This is for Africa
+- Shawn Mendes - There's Nothing Holdin' Me Back
+- Shayne Orok and Ali Orok - Anyone Else
+- Shayne Orok COVER - Shinunoga E-Wa
+- Sheena Ringo - Marunouchi Sadistic / 丸ノ内サディスティック
+- Sherry - Adesso e Fortuna -Honoo to Eien-
+- Sherry - Kaze no Fantasia
+- ShibayanRecords 【東方ボーカル】 - Fall In The Dark
+- Shounan no Kaze 湘南乃風 - Yumemonogatari
+- Shounen Kaze 湘南乃風- Grand Blue
+- Shrek - All Star - I'm a Believer
+- Shrek - All Star - Smash Mouth
+- SID - Uso
+- Sixpence None The Richer - Kiss Me
+- Smash Mouth - All Star
+- Snow Patrol  - Chasing Cars
+- Soraru COVER - ダーリン そらる / soraru- ダーリン-Cover / そらる
+- Soul Cobra Twist - Tamashii 魂
+- Soul Eater OP - Resonance
+- Southern All Stars - HOTEL PACIFIC
+- SOUTHERN ALL STARS - 真夏の果実 - Manatsu no Kajitsu
+- Southern All Stars サザンオールスターズ - Ai to Yokubo no Hibi
+- Southern All Stars サザンオールスターズ - I AM YOUR SINGER
+- Spice and Wolf OP 1
+- Spirit Box - Circle with Me
+- Spitz スピッツ- Kaede 楓
+- Spy Classroom - nonoc - Tomoshibi
+- Steins;Gate OP1 - Hacking to the Gate
+- Stephen Sanchez and Em Beihold - Until I Found You
+- Stereopony- Hitohira No Hanabira
+- Suiet - Fall in Love
+- sumika - Fiction
+- Supercell - My Dearest
+- supercell - My Dearest
+- Supercell- Kimino Shiranai Monogatari
+- Survivor - Eye of the Tiger
+- Suzuki Tsunekichi - OMOIDE
+- Sword Art Online S1ED2 - Haruna Luna - Overfly
+- Sword Art Online S2ED1 - Haruna Luna - Startear
+- Sword Art Online S2ED3 - LiSA - シルシ
+- Sword Art Online S2OP2 - Haruka Tomatsu - Courage
+- Sword Art Online S4P2 ED - ReoNA - Anima
+- Sword Art Online S4P2 OP - LiSA - unlasting
+- Taeko Onuki - 4:00 A.M.
+- Taeko Onuki - Tokai
+- TAK x Corbin - Tic! Tac! Toe! => https://youtu.be/h5hMNF3kDm0
+- Tatsuro Yamashita - Morning Glory
+- Tatsuro Yamashita - Ride on Time
+- Tatsuro Yamashita - クリスマス·イブ
+- Tatsuya Kitani - Where Our Blue Is
+- Tatsuya Kitani キタニタツヤ - HUMANLIKE
+- Taylor Swift - Love Story
+- Tayori - A Little Bird Told Me
+- The Black Eyed Peas - I Gotta Feeling
+- The Chords - Sh-Boom
+- The Hollies - Long Cool Woman (In a Black Dress) (1999 Remaster)
+- The Jackson 5 - Santa Clause Is Coming To Town
+- The Melancholy of Haruhi Suzumiya - God Knows
+- THE ORAL CIGARETTES - Kyouran Hey Kids!!
+- The Police - Every Breath You Take
+- The Rolling Stones - Paint It Black
+- The Twelve Kingdoms ED - Getsumei Fuuei
+- The Twelve Kingdoms ED- Getsumei Fuuei
+- The Wanted - Chasing the Sun
+- The Wanted - Glad You Came
+- The Wanted - I Found You
+- The Wanted - We Own The Night
+- The Weeknd - Blinding Lights
+- The Weeknd - Save Your Tears
+- Toaru Kagaku no Railgun - Only My Railgun
+- TOGENASHITOGEARI - Emptiness and Catharsis 空白とカタルシス 
+- TOGENASHITOGEARI - I’ｍ here 運命の華
+- TOGENASHITOGEARI - VOID 空の箱 (井芹仁菜、河原木桃香) (Nina Iseri, Momoka Kawaragi)
+- TOGENASHITOGEARI - Wrong World 雑踏、僕らの街
+- TOGENASHITOGEARI - 空の箱 (井芹仁菜、河原木桃香) - VOID (Nina Iseri, Momoka Kawaragi)
+- TOGENASHITOGEARI - 空白とカタルシス - Emptiness and Catharsis
+- TOGENASHITOGEARI - 運命の華 - I’ｍ here
+- TOGENASHITOGEARI - 雑踏、僕らの街 - Wrong World
+- Tohoshinki - どうして君を好きになってしまったんだろう？
+- TOKOTOKO - Emerald City
+- Tokyo Karankoron - スパイス
+- TOKYO SKA PARADISE ORCHESTRA - (Everybody is a) SUPERSTAR (From TOUR 2021「Together Again!」2021.07.02 at TOKYO GARDEN THEATRE)
+- Tom Odell - Another Love
+- Tomoko Aran - I'm in Love
+- TOMOO - Ginger
+- Toradora ED1 - Vanilla Salt
+- Toradora ED2 | Orange
+- Toradora OP1 | Pre-Parade
+- Toradora OP2 | Silky Heart
+- Toshiki Kadomatsu - Airport Lady
+- Toshikii Kadomatsu - After 5 Clash
+- Train - Hey, Soul Sister
+- Train - Marry Me
+- TRUE (Violet Evergarden) - Sincerely  => https://www.youtube.com/watch?v=uwph0dv9E6U
+- TRUE (Violet Evergarden) - Will => https://www.youtube.com/watch?v=LhSG89uJ1uQ
+- TUYU - I'm getting on the bus to the other world, see ya!
+- Undead Unluck - Kairi Yagi - Know Me
+- Undead Unluck - OKAMOTO - Nothing can challenge this love
+- Undead Unluck - Queen Bee - ZERO ICHfI
+- Uru - Anataga Iru Kotode
+- Uru - Freesia
+- Uru - それを愛と呼ぶなら
+- Utada Hikaru - First Love
+- UVERworld (Promised Neverland OP) - Touch Off
+- Van Halen - Dreams (2023 Remaster)
+- Van Morrison - Brown Eyed Girl
+- Vance Joy - Riptide
+- Vanessa Carlton - Thousand Miles
+- Vaundy - Fukakoryoku
+- Vaundy - mabuta
+- Vaundy - Odoriko 踊り子
+- Vaundy - Tokimeki
+- Vaundy - 恋風邪にのせて - Koikaze ni nosete
+- Vaundy - 花占い / Hana Uranai
+- Vaundy - 裸の勇者 - Hadaka No Yusha
+- Village People - YMCA
+- Vocaloid (Kagamine Rin・Kagamine Len) - えれくとりっく・えんじぇぅ / Electric Angel
+- Vocaloid (Kagamine Rin・Kagamine Len) - 右肩の蝶 / Butterfly on Your Right Shoulder
+- VSPO! COVER - Shunkan Sentimental 瞬間センチメンタル
+- WALK THE MOON - Shut Up and Dance
+- WaMi - Fragments
+- Weaver - Kuchizuke Diamond
+- Wham! - Last Christmas
+- Whitney Houston - I Wanna Dance with Somebody (Who Loves Me)
+- Whitney Houston - I Will Always Love You
+- Willie Nelson - Always on My Mind
+- Willie Nelson - On The Road Again
+- Wotamin - Yume to Hazakura
+- X Japan - Endless Rain
+- X Japan - Say Anything
+- Yakuza - Baka Mitai
+- Yama - am.3:21 => https://www.youtube.com/watch?v=mUZ8JFZUn2U
+- Yama - 春を告げる
+- Yama - 色彩
+- Yama - 血流
+- Yasuha - Flyday Chinatown
+- YES - Roundabout 2008 (JOJO meme song)
+- Yo-King - Tooi Nioi
+- YOASOBI - Kaibutsu 怪物
+- YOASOBI - アイドル
+- YOASOBI - アドベンチャー
+- YOASOBI - 夜にかける
+- Yoh Kamiyama - Irokousui
+- Yoh Kamiyama - Kiito
+- Yoh Kamiyama 神山羊 - YELLOW
+- Yoko Oginome - Dancing Hero
+- Yorinuki Gintama-san ED1 - DOES - Bokutachi no Kisetsu
+- Yorinuki Gintama-san ED2 - Vijandeux - Wave
+- Yorinuki Gintama-san ED3 - AZU - IN MY LIFE
+- Yorinuki Gintama-san ED4 - Piko - Sakurane
+- Yorinuki Gintama-san ED5 - XY - We Gotta Fight
+- Yorinuki Gintama-san OP1 - DOES - Bakuchi Dancer
+- Yorinuki Gintama-san OP2 - Inoue Joe - Kaze no Gotoku
+- Yorinuki Gintama-san OP3 - Chiaki Kuriyama - Kanousei Girl
+- Yorinuki Gintama-san OP4 - FLiP - Kaatoniago
+- Yorinuki Gintama-san OP5 - CHiCO with HoneyWorks - Kyo Mo Sakura Mau Akatsuki Ni
+- Yorushika - Flower And Badger Game 花人局
+- Yorushika - Forget it
+- Yorushika - Sunny
+- Yorushika - Sunny 晴る
+- Yorushika - Thats Why I Gave Up Music
+- Yoshiki - Amethyst
+- Yoshimi Iwasaki 岩崎良美 - タッチ
+- Young Kee - Muteki 無敵
+- Yu-Ching Fei - 一剪梅 （雪花飘飘北风啸啸）
+- Yuaru - Asu no Yozora Shoukaihan アスノヨゾラ哨戒班
+- Yuaru ゆある - アスノヨゾラ哨戒班
+- YUI - Again
+- YUI - CHE.R.RY
+- YUI - LOVE & TRUTH
+- YUI - Rolling Star
+- YUI - Rolling Star (Bleach)
+- Yuika - Sukidakara (feat. Ren)
+- Yuinishio ゆいにしお - セルフハグ・ビッグラヴ (Selfhug Biglove)
+- Yuki Kajiura - Melody
+- Yuki Kajiura 梶浦由記 - Melody
+- Yumi Matsutoya - Rouge no Dengon
+- Yuna Ito - Alone Again
+- Yuru Camp - Shiny Days
+- Yuru Camp - 佐々木恵梨 - ふゆびより
+- YUURI - DRY FLOWER ドライフラワー
+- Yuuri - Mizukiri
+- Yuuri - The day we become eternal love,not lovers
+- YUURI - かくれんぼ
+- Yuzu ゆず - 表裏一体
+- Zedd - Clarity (feat. Foxes)
+- ZUTOMAYOI - Byoushino Kamu
+- くじら - ねむるまち feat.yama
+- くじら - アルカホリック・ランデヴー
+- くじら - 夜桜 feat.めいちゃん
+- くじら - 抱きしめたいほど美しい日々に
+- くじら - 金木犀 feat.Ado
+- しゃろう - 3:03 PM
+- コバソロ & Lefty Hand Cream COVER - 風になる
+- コレサワ - たばこ
+- サカナクション - 撲殺天使ドクロちゃん OP
+- サンボマスター - Seishun Kyousoukyoku
+- ユアネス-yourness - 私の最後の日 My Last Day
+- ユアネス-yourness- Sun shower
+- ユアネス-yourness- 籠の中に鳥 Kago no Naka ni Tori
+- ユイカ - 好きだから
+- ユリカ/花たん - 歌に形はないけれど
+- ラックライフ - 名前を呼ぶよ
+- ラックライフ - 風が吹く街
+- ラムジ - プラネット
+- 一剪梅 - 雪花飘飘北风啸啸
+- 三代目 J SOUL BROTHERS from EXILE TRIBE - 冬物語
+- 三代目J Soul Brothers - 冬物語
+- 丢火车乐队 - 晚安
+- 中島美嘉 - 僕が死のうと思ったのは The Reason I Wanted To Die => https://www.youtube.com/watch?v=0HTAKT-JIaA
+- 五月天 - 最重要的小事
+- 五月天 - 派对动物
+- 五月天 - 突然好想你
+- 五月天 - 終結孤單
+- 任然 - 空空如也
+- 任賢齊 - 對面的女孩看過來
+- 任賢齊 - 心太軟
+- 伍思凱 - 特別的愛給特別的你
+- 健屋花那/にじさんじ COVER - KING
+- 健屋花那/白雪巴 COVER - magnet
+- 光良 - 童话
+- 八十八ヶ所巡礼 88kasyo junrei - 狂感できない
+- 八十八ヶ所巡礼 88kasyo junrei - 金土日
+- 刺蝟Hedgehog - 生之響往
+- 告五人 - 帶我去找夜生活
+- 告五人 - 愛人錯過
+- 周傳雄 Steve Chou - 黃昏 Huang Hun
+- 周杰伦 - 夜曲
+- 周杰伦 - 青花瓷
+- 周杰倫 - 暗號
+- 周杰倫 - 聽見下雨的聲音
+- 周杰倫 - 說了再見
+- 周興哲 Eric Chou - 以后别做朋友
+- 姚斯婷 - 我的心太乱
+- 孫燕姿 - 遇見
+- 宇多田ヒカル - First Love
+- 宋冬野 Dongye Song - 斑马，斑马
+- 岑宁儿 - 追光者
+- 崔健 - 新长征路上的摇滚
+- 庾澄庆 Harlem Yu - 情非得已
+- 庾澄慶 - 情非得已
+- 怪物小姐 feat.愛繆 - 平井堅
+- 旺福 - 我当你空气
+- 曲婉婷 - 我的歌声里
+- 月 Tsuki COVER - 嘘月
+- 朴树 - 平凡之路
+- 李宗盛 Jonathan Lee - 山丘
+- 李榮浩 - 不遺憾
+- 李玉刚 Li Yugang - 剛好遇見你
+- 李荣浩 Li Ronghao - Can't Bear It (Ending Credit Theme Song of 'You Are My Sunshine')
+- 李荣浩 Li Ronghao - Composer
+- 李荣浩 Li Ronghao - 李白
+- 林俊傑 JJ Lin - 江南 River South
+- 林宥嘉 - 说谎
+- 梶浦由記 - Melody
+- 汪峰 Wang Feng - 怒放的生命
+- 汪峰 Wang Feng - 飞得更高
+- 汪峰 Wang Feng COVER - 再也没有
+- 汪峰 Wang Feng COVER - 空空如也
+- 田一名 Tian Yiming COVER - Super Idol 的笑容/热爱105°C的你
+- 秋川雅史 - 千の風になって
+- 紗希 - 恋人になれなかった
+- 絢香 - やさしさに包まれたなら
+- 美波 (Minami) - カワキヲアメク Crying For Rain
+- 老王樂隊 - 我还年轻 我还年轻
+- 胡夏 - 那些年
+- 胡夏 - 那些年我们一起追的女孩
+- 菅田将暉 - Machigaisagashi
+- 蔡程昱・马佳 COVER - 旷世之爱 Grande Amore
+- 薛之谦 - 演员
+- 许巍 Xu Wei - 像风一样自由
+- 逃跑計劃 - 一萬次悲傷
+- 逃跑計劃 - 夜空中最亮的星
+- 鄧麗君 - 月亮代表我的心
+- 酸欠少女 さユり - Sanketsu-girl
+- 酸欠少女 さユり - Tower of Flower
+- 醉紅顏 - 周傳雄-我的心太亂
+- 阿云嘎贾凡 - 生命的河
+- 阿肆 - 熱愛105°C的你
+- 陳小滿 - 傷你
+- 鞠文娴 - BINGBIAN病变 (女声版)
+- 香椎モイミ feat. 可不 - キャットラビング
+- 麦吉_Maggie・盖盖Nyan  COVER - kimi no toriko summertime
+- 203soundworks (Akie秋絵) - Ama no Zaku 天ノ弱 => https://www.youtube.com/watch?v=EoxRhxsTmNg
+- 2PM - Take Off
+- 4na - BURU
+- 7!! - Orange
+- AAA - さよならの前に Sayonara no Mae Ni
+- AAA - 恋音と雨空 Koi Oto to Amazora
+- Ado - Backlight / 逆光（UTA from ONE PIECE FILM RED）
+- Ado - I'm invincible / 私は最強 (UTA from ONE PIECE FILM RED)
+- Ado - New Genesis / 新時代 (UTA from ONE PIECE FILM RED)
+- Ado - Odo
+- Ado - ギラギラ
+- Ado - ボッカデラベリタ
+- Ado COVER - Overdose 歌いました
+- Aimer - After Rain
+- Aimer - I beg you
+- Aimer - Koi wa Ameagari no You ni ED - Ref:rain
+- Aimer - Last Stardust
+- Aimer - March of Time
+- Aimer - Resonantia
+- Aimer - Torches
+- Aimer - Words
+- Aimer - Zankyosanka
+- Aimer - 悲しみはオーロラに
+- Aimyon - Till I Know What Love Is (I'm Never Gonna Die)
+- Aimyon あいみょん - Marigold
+- Aimyon あいみょん - 愛を伝えたいだとか
+- Akaseakari - Koi no Yukue
+- Akatsuki no Yona (Akiko Shikata) - ED2 暁 Dawn
+- Akatsuki no Yona (Kunihiko Ryo) - OP1 Akatsuki no Yona
+- Akie COVER - 天ノ弱
+- Akino - 創聖のアクエリオン
+- Aldnoah Zero - aLIEz
+- Alessandra Mussolini - Tokyo Fantasy
+- Amazarashi - kyoukaisen
+- Amazarashi - Play Goodbye
+- Amazarashi - Sora Ni Utaeba
+- Angel Beats - Girls Dead Monster - Alchemy
+- Angel Beats - Girls Dead Monster - Little Braver
+- Angel Beats - Girls Dead Monster - Marina Nakamura - Crow Song
+- Angel Beats - Girls Dead Monster - Rain Song
+- Angel Beats - My Soul, Your Beats
+- Anri - CAT'S EYE
+- Anri - Driving My Love
+- Anri - Good Bye Boogie Dance
+- Anri - Lady Sunshine
+- Anri - Last Summer Whisper
+- Anri - Remember Summer Days
+- Anri - Shyness Boy
+- Anri - Surprise of Summer
+- Anri - WINDY SUMMER
+- Anzenchitai - Kienai Yoru
+- Anzenchitai - Koi no Yokan
+- Anzenchitai - Mayonakasugino Koi
+- Anzenchitai - Melody
+- Anzenchitai - Tsukini Nureta Futari
+- Anzenchitai - Wine Red No Kokoro
+- Aoharu x Kikanjuu (トイ☆ガンガン 前野智昭･松岡禎丞･小松未可子) - The Bravest Destiny
+- AQUAPLUS - Kimigatame
+- Arekun あれくん - それはまるで映画みたいな恋だった。
+- ASIAN KUNG-FU GENERATION - A Flower Named You
+- ASIAN KUNG-FU GENERATION - Haruka Kanata
+- ASIAN KUNG-FU GENERATION - Re:Re:
+- Atarayo - Summer haze
+- Atarayo あたらよ - Haruru
+- Atarayo あたらよ - 嘘つき
+- Atarayo あたらよ - 夏霞
+- AUO feat. MORISAKI WIN - DAY1
+- ayane/メドレー4曲
+- Ayano Tsuji - Kaze Ni Naru
+- Ayase - Shinezma
+- Ayase - シネマ
+- Ayase - 夜撫でるメノウ
+- B'z - いつかのメリクリスマス
+- Babymetal - shingeki
+- Back number - 003
+- Back number - Emerald
+- Back number - Hanataba
+- Back Number - Happy End  => https://www.youtube.com/watch?v=jChbEX6vYBU
+- Back Number - Koi
+- Back Number - Motto
+- Back Number - Nichiyoubi
+- Back Number - Secret Kiss
+- Back Number - Setagaya Love Story
+- Back Number - Sister
+- Back Number - Super Star Ni Nattara
+- Back Number - Takaneno Hanakosan
+- Back Number - Tegami
+- Back Number - Watagashi
+- Back Number - 瞬き
+- Back Street Boys
+- Bao the Whale - Love Me Not
+- Bao The Whale COVER - Kamisama Hajimemashita OP
+- Bao The Whale COVER - Kokoronashi
+- Bao the Whale COVER - Say So (Japanese Version)
+- Beach Boys
+- Belle - Millenium Parade - U
+- BEYOND - 对面的女孩看过来
+- BEYOND - 海闊天空 (Sky)
+- BLUE ENCOUNT - Polaris
+- Blue Exorcist - UVERworld - Core Pride
+- Bocchi the Rock (kessoku band) - Blue Spring and Western Sky
+- Bocchi the Rock (kessoku band) - Guitar, Loneliness and Blue Planet ギターと孤独と蒼い惑星
+- Bocchi the Rock (kessoku band) - Hitoribocchi Tokyo
+- Bocchi the Rock (kessoku band) - If I could be a constellation
+- Bocchi the Rock (kessoku band) - Into the Light
+- Bocchi the Rock (kessoku band) - Never Forget
+- Bocchi the Rock (kessoku band) - Rockn Roll, Morning Light Falls On You => https://youtu.be/E5O0mCrUdAM
+- Bocchi the Rock (kessoku band) - That Band
+- Bocchi the Rock (kessoku band) ED1 - Distortion!!
+- Bocchi the Rock (kessoku band) ED2 - KaraKara
+- Bocchi the Rock (kessoku band) ED3 - What Is Wrong With Me
+- Bocchi the Rock (kessoku band) OP1 - Seisyun Complex
+- Bocchi the Rock YAHO - Watashi Dake Yuerei ワタシダケユウレイ
+- Bohemia after Dark - Kenny Clarke, Cannonball Adderley - To The Surface
+- Boo Boo's Birthday (Take 11) - Thelonious Monk (瑟隆尼亞斯孟克) - Underground (Special Edition)
+- BRADIO - Golden Liar
+- Bradio; Golden Liar (Rom/Sub Español/Eng Sub)
+- Brandy Senki ブランデー戦記 - Musica
+- Bruno Mars - Grenade
+- Bubbly Summer - 202 (ft. Izumi Makura)
+- BUMP OF CHICKEN - Hello World (Kekkai Sensen OP) => https://www.youtube.com/watch?v=rOU4YiuaxAM
+- BUMP OF CHICKEN - SOUVENEIR
+- BUMP OF CHICKEN - Tentaikansoku
+- BUMP OF CHICKEN - アンサー
+- Bungo Stray Dogs
+- Bungo Stray Dogs (SCREEN mode) - Reason Living
+- Bungo Stray Dogs - ラックライフ - 名前を呼ぶよ
+- Cepheid
+- Charlotte ED - Aoi Tada - 灼け落ちない翼  => https://www.youtube.com/watch?v=OJKQBr9exx4
+- Charlotte OP - Lia - Bravely You  => https://www.youtube.com/watch?v=WhRsyIGN-cA
+- Chevon シェボン - サクラループ
+- Chiai Fujikawa - Aino Uta
+- Chiai Fujikawa - Atashiga Tonarini Iru Uchini
+- Chiai Fujikawa - オレンジ
+- CHiCO with HoneyWorks - 世界は恋に落ちている
+- Chihiro Onitsuka 鬼束ちひろ - 月光 / Gekkou
+- Chilli Beans - Tremolo
+- Chris Hart - I Love You
+- Chris Hart COVER - Love Story Wa Totsuzenni
+- Cindy - Watashitachi o Shinjite Ite
+- Code Geass - Flow - Colors
+- Cody Lee(李) - Dancing Lights
+- Cody Lee(李) - おどる ひかり
+- Cody Lee(李) - 我愛你
+- Counting Crows
+- Cowboy Bebop - Seatbelts - Tank!
+- Creepy Nuts - Baka Majime
+- Creepy Nuts - Daten
+- Creepy Nuts - Losstime
+- Creepy Nuts - Yofukashi no Uta
+- Crepuscule With Nellie - Thelonious Monk (瑟隆尼亞斯孟克) - Criss-Cross
+- Cyberpunk: Edge Runners - I Really Wanna Stay At Your House => https://youtu.be/KvMY1uzSC1E
+- CYsmix feat. Emmy - Tear Rain
+- DA PUMP - U.S.A.
+- Daniel Powder - Bad Day
+- DAOKO × Kenshi Yonezu - 花火 Fireworks
+- Darker than Black - Tsukiakari no Michishirube / ツキアカリのミチシルベ => https://www.youtube.com/watch?v=sSLtqAr32rA
+- Darling in the FranXX - Nakashima Mika - Kiss of Death
+- DAZBEE COVER - 踊り子 Odoriko
+- Digimon OP - Butterfly
+- Dish - NEKO
+- Disney
+- DOES - DOES　『「修羅」（テレビ東京系アニメ「銀魂」エンディングテーマ）』
+- Dramaturgy - Eve MV
+- Dream - Get Over
+- Dua Lipa - Dance The Night (From Barbie The Album)
+- Earth Wind and Fire
+- Ed Sheeran
+- Ed Sheeran - Shivers
+- Edomae Elf ED (Akari Nanawo) - Kien Romance
+- Edomae Elf OP (Cody Lee) - Odoru Hikari
+- Eiichi Ohtaki - Shiawase Na Ketsumatsu
+- Eri Sasaki 佐々木恵梨 - ふゆびより
+- Etsuko Yakushimaru - Boys, come back to me 少年よ我に帰れ
+- Evangelion - 残酷な天使のテーゼ
+- Eve (Jujutsu Kaisen) - 廻廻奇譚 Kaikai Kitan
+- Eve - Ao No Waltz (蒼のワルツ)
+- Eve - Boukenroku
+- Eve - Heikousen
+- Eve - Tokyo Ghetto /トーキョーゲットー
+- Eve - あの娘シークレット
+- Eve - お気に召すまま As You Like It
+- Eve - 心海/ Sea of heart
+- Eve COVER - いかないで/ Ikanaide
+- Eve COVER - 太陽系デスコ/ Solar Disco
+- Eve メドレー - Best of Eve playlist 2021
+- Every Little Thing - fragile
+- Evolving Playlist
+- EXILE - Ti Amo
+- Fiction / HACHI × KMNZ LITA 【Official MV 】
+- Fire Force - Mrs. GREEN APPLE - インフェルノ Inferno
+- FMA
+- FripSide - only my railgun
+- Fujii Kaze - Damn
+- Fujii Kaze - Hana
+- Fujii Kaze - Kirari
+- Fujii Kaze - Matsuri
+- Fujii Kaze - Nan-Nan
+- Fujii Kaze - Shinunoga E-wa 死ぬのがいいわ
+- Fujii Kaze - Workin' Hard
+- Fujita Maiko - ねぇ
+- Fujita Maiko - 駆け引き
+- Full Metal Alchemist - SUKIMASWITCH - Golden Time Rubber
+- Full Metal Alchemist - メッリサ
+- Galileo Galilei - Aoi Shiori 青い栞
+- Garnet Crow - Kimi to Iu Hikaru
+- Gekkan Shoujo Nozaki-kun OP - Kimi ja Nakya Dame Mitai
+- Gintama - redballoon - Yuki No Tsubasa
+- Gintama - Serial Tv Drama - Tougenkyou Alien
+- Gintama - The Rodeo Carburettor - Speed of Flow
+- Gintama ED1 - Captain Straydum - Fuusen Gamu
+- Gintama ED10 - plingmin - This world is Yours
+- Gintama ED11 - ghostnote - I, Ai, Ai
+- Gintama ED12 - Shigi - Kagayaita
+- Gintama ED13 - PENGUIN - Asa ANSWER
+- Gintama ED14 - Takahashi Hitomi x BEAT CRUSADERS - Wo Ai Ni
+- Gintama ED15 - ONE☆DRAFT - Wonderful Days
+- Gintama ED16 - Qwai - Sayonara no Sora
+- Gintama ED17 - SPYAIR - Samurai Heart (Some Like It Hot!)
+- Gintama ED18 - Prague - Balance Doll
+- Gintama ED19 - Kuroneko Chelsea - Anagura
+- Gintama ED20 - Good Coming - Nakama
+- Gintama ED21 - monobright - Moonwalk
+- Gintama ED22 - PAGE - Expect
+- Gintama ED23 - Negoto - DESTINY
+- Gintama ED24 - Aqua Timez - Saigou Made II
+- Gintama ED25 - THREE LIGHTS DOWN KINGS - Glorious Days
+- Gintama ED26 - Swimy - Acchi Muite
+- Gintama ED27 - RIZE - Silver
+- Gintama ED28 - Ayumikurikamaki - Hankou Seimei
+- Gintama ED29 - BURNOUT SYNDROMES - Hana Ichi Monme
+- Gintama ED3 - redballoon - Yuki no Tsubasa
+- Gintama ED30 - CHiCO with HoneyWorks - Hikari Shoumeiron
+- Gintama ED4 - Takahashi Hitomi - Candy Line
+- Gintama ED5 - DOES - Shuura
+- Gintama ED6 - Snowkel - Kiseki
+- Gintama ED7 - KELUN - SIGNAL
+- Gintama ED8 - THE RODEO CARBURETTOR - Speed of Flow
+- Gintama ED9 - POSSIBILITY - sanagi
+- Gintama OP1 - Tommy heavenly6 - Pray
+- Gintama OP10 - ecosystem - Dilemma
+- Gintama OP11 - FLiP - Wonderland
+- Gintama OP12 - AMOYAMO - LET’S GO OUT
+- Gintama OP13 - SPYAIR - Sakura Mitsutsuki
+- Gintama OP14 - BLUE ENCOUNT - DAYxDAY
+- Gintama OP15 - CHiCO with HoneyWorks - Pride Kakumei
+- Gintama OP16 - OKAMOTO'S - Beautiful Days
+- Gintama OP17 - DOES - Know Know Know
+- Gintama OP18 - ЯeaL - Kagerou
+- Gintama OP19 - BLUE ENCOUNT - VS
+- Gintama OP2 - YO-KING - Tooi Nioi
+- Gintama OP20 - DISH// - Katte ni MY SOUL
+- Gintama OP21 - SPYAIR - I Wanna Be
+- Gintama OP3 - redballoon - Giniro no Sora
+- Gintama OP4 - Hearts Grow - Kasanaru Kage
+- Gintama OP5 - DOES - Donten
+- Gintama OP6 - monobright - Anata MAGIC
+- Gintama OP7 - Base Ball Bear - Stairway Generation
+- Gintama OP8 - Prague - Light Infection
+- Gintama OP9 - Serial TV drama - Togenkyo Alien
+- Girl_dm COVER - I really want to stay at your house
+- Glenn Lewis - Fall Again
+- Goose House - Hikaru Nara => https://www.youtube.com/watch?v=cWtgGTCAjYY
+- Gosick OP (Shoujy) - ディスティン・イストワール
+- GRANRODEO - Can Do
+- GRANRODEO - The Other self
+- GRANRODEO - 変幻自在のマジカルスター
+- GReeeeN - キセキ
+- Guilty Crown ED - Departures Blessing
+- Guilty Crown OP - The Everlasting Guilty Crown
+- Gundam - INVOKE
+- Guns N' Roses - Sweet Child O' Mine
+- Hanatan - Tell Your World
+- Hanazawa Kana - I Wonder Why なぜだろう
+- Haruhi Suzumiya ED - Aya Hirano, Minori Chihara and Yūko Gotō - ハレ晴レユカイ
+- Harumaki Gohan - Reunion
+- Heart Forecast - Eve MV
+- Hello Sleepwalkers「午夜の待ち合わせ」MUSIC VIDEO
+- Hideaki Tokunaga - Koibito
+- Hideaki Tokunaga - Saigo No Iiwake
+- HIDEHARU - Proposal
+- Hikaru No Go - Anime De Japan - Majiwaru Michi
+- Hikaru no Go - Bokura no Bouken
+- Hikaru Utada - One Last Kiss
+- HIRAIDAI 平井大 - Stand By Me, Stand By You
+- HIRAIDAI 平井大 - Todokanaikara
+- Hiromi Iwasaki - Street Dancer
+- Hitomi Shimatani - ANGELUS
+- Hitomi Takahashi - Candy Line
+- Hitsujibungaku - more than words
+- Hizuki Yui COVER - DAYBREAK FRONTLINE
+- Hololive (0期生) COVER - ray
+- Hololive (Ayame) - 宵の余、良い
+- Hololive (Ayame) COVER - グッバイ宣言
+- Hololive (Calli) - End of a life
+- Hololive (Calli) COVER - 世界のつづき  => https://www.youtube.com/watch?v=XmoOgPsSPTI
+- Hololive (Calliope Mori) - End of a life
+- Hololive (Calliope Mori) COVER - 世界のつづき  => https://www.youtube.com/watch?v=XmoOgPsSPTI
+- Hololive (Delutaya) - KOKORO RAIN_STOP
+- Hololive (Fubuki) COVER - コールボーイ
+- Hololive (Gawr Gura) COVER - Kyoufuu All Back
+- Hololive (Gawr Gura) COVER - When I'm Gone
+- Hololive (Gawr Gura) COVER KARAOKE - Morning Glory => PTSD Shrimp
+- Hololive (Hajime) - todorokihajime_ED
+- Hololive (Hakos Baelz) - Mind Craft
+- Hololive (Hakos) - 好きだから / Suki Dakara
+- Hololive (Ina) - VIOLET
+- Hololive (Ina・Nabi) COVER - kimi no toriko summertime  => https://www.youtube.com/watch?v=Ucwpn-JQqmI
+- Hololive (IRyS) - Caesura of Despair
+- Hololive (IRyS) - Gravity
+- Hololive (IRyS) - Till the end of me
+- Hololive (Kanata・Nene) COVER - 至上主義アドトラック
+- Hololive (Kanata・Suisei) COVER - 月陽-ツキアカリ
+- Hololive (Kiara & Ina) COVER - い〜やい〜やい〜や Whatever whatever whatever
+- Hololive (Marine) COVER - オトナブルー
+- Hololive (miComet) COVER - アイドル
+- Hololive (Mika Melatika) COVER - 寄り酔い Tipsy
+- Hololive (Moona Hoshinova) - High Tide
+- Hololive (Moona Hoshinova) - Perisai Jitu
+- Hololive (Moona・Suisei) COVER - Saikai
+- Hololive (Mori Calliope x 星街すいせい) COVER - GETCHA!
+- Hololive (Okayu) - 惑星ループ
+- Hololive (Okayu) - 毒杯スワロウ   => https://youtu.be/BNI2FBQQIag
+- Hololive (Okayu) COVER - さよならテンダー
+- Hololive (Okayu・Korone) COVER - Fuwa Fuwa Time ふわふわ時間
+- Hololive (ReGLOSS) - Shunkan Heartbeat
+- Hololive (Roboco) - リルビ
+- Hololive (Shion) - メイジ・オブ・ヴァイオレット
+- Hololive (Shion) COVER - Overdose
+- Hololive (Sora) - 好き、泣いちゃいそう
+- Hololive (Sora・Suisei・Subaru・Polka・Koyori・Chloe) COVER - 怪物
+- Hololive (Suisei) COVER - Cry Baby  => https://www.youtube.com/watch?v=7wbd6ffvXm8
+- Hololive (Suisei) COVER - XION
+- Hololive (Suisei) COVER - 少女レイ
+- Hololive (Suisei) COVER - 幽霊東京
+- Hololive (Suisei・3rd Gen) - Saga Jihen
+- Hololive (Towa) - FACT
+- Hololive (Towa) - ライメイ
+- Hololive (Towa) COVER - Palette
+- Hololive (Towa・Aki) - Rose of the lamp
+- Hololive (Towa・Kanata・Flare) - STARDUST SONG =>  https://youtu.be/LiJBEm9v5Nw
+- HoneyComeBear - 走馬灯 / Somato
+- HoneyWorks ft. 夏川椎菜 - ファンサ
+- Honkai Impact 3
+- Hoshimachi Suisei - 彗星ハネムーン
+- Hoshimachi Suisei - Planetarium
+- Hoshino Gen - Koi  => https://www.youtube.com/watch?v=jhOVibLEDhA
+- Hoshino Gen - Pop Virus
+- Hoshino Gen - SUN
+- Hoshino Gen - 喜劇 Comedy  => https://www.youtube.com/watch?v=URR_Nv-6MZs
+- HOWL BE QUIET - fantasia
+- Hoshimachi Suisei - Kyoushitsu ni Ao (hololive × HoneyWorks) [#ホロハニ Original] => https://m.youtube.com/watch?v=q-DpmU-XBnY
+- Awesome City Club - cosmos - https://music.youtube.com/watch?v=aMbVtdHyH_0
+- Ikimonogakari - Koiuta
+- Ikimonogakari いきものがかり - Sentimental Boyfriend
+- Ikimonogakari いきものがかり - Shiroi Diary
+- Imase - Have a nice day
+- Imase - Nagisa
+- Imase - Night Dancer
+- Imase - 僕らだ
+- In Walked Bud - Live At The Five Spot / August 7, 1958 - Thelonious Monk (瑟隆尼亞斯孟克) - Misterioso
+- Initial D - Crazy for Love
+- Initial D - Deja Vu
+- Initial D - Running in the 90s
+- Invitation - The Kenny Clarke - Francy Boland Big Band - The Golden Eight - encore !
+- Iso Piano PIANO COVER - I LOVE YOU
+- Jacky Cheung - Ta Lai Ting Wo De Yan Chang Hui
+- James Li COVER - Sunny II  => https://www.youtube.com/watch?v=svGq1L5R88w&ab_channel=%E8%8A%92%E6%9E%9CTV%E9%9F%B3%E4%B9%90MangoTVMusic
+- Joe Hisaishi (Castle in the Sky) - Kimi wo Nosete 君をのせて
+- Joe Inoue - CLOSER
+- Jojo - Coda - BLOODY STREAM
+- Jojo - Sono Chi no Sadame
+- Jojo - Yugo Kanno - il vento d'oro
+- Jun Maeda (Air OP) - Tori no Uta => https://www.youtube.com/watch?v=04Q9LtP7nUM
+- Jun Maeda (Clannad ED) - Dango Daikazoku
+- Junko Yagami - 黄昏のBAY CITY
+- K-On - Cagayake Girls
+- K-On - Don't Say "Lazy"
+- K-On - Fuwa Fuwa Time
+- K-On - My Love is a Stapler
+- K/DA - POP/STARS (ft. Madison Beer, (G)I-DLE, Jaira Burns)
+- Kairi Yagi - know me...
+- Kamisama Hajimemashita OP - Toshokan Hanae
+- KANA-BOON - Nandemonedari
+- KANA-BOON 『ないものねだり』Music Video
+- Kanaria ver. - King
+- KANKAN - suima
+- KANKAN 缶缶 - 睡魔
+- Kano - Yoake to Hotaru
+- Kazumasa Oda - Love Story Wa Totsuzenni
+- Kenshi Yonezu - Tsuki Wo Miteita - Moongazing
+- Kenshi Yonezu - ピースサイン
+- Kie Kitano - Hazakura 葉桜  => https://www.youtube.com/watch?v=kQfqxMtF-GM
+- Kill Me Baby - ふたりのきもちのほんとのひみつ  => https://www.youtube.com/watch?v=slazi2PpYUo&ab_channel=KumaTsume
+- Kimi Ni Todoke 君に届け - Tomofumi Tanizawa 智文谷澤 Voice Cast version (Kanji/Rom/Eng)
+- King Gnu - Ame Sansan
+- Kingmin Kun - MR.CLEVER
+- Kiro Akiyama - Caffeine
+- Kitri - Hikare Inochi
+- Kitri - ヒカレイノチ
+- Kobakuro コブクロ - Kimi To Iu Nano Tsubasa 君という名の翼
+- Kobakuro コブクロ - Tsubomi 蕾
+- Kobasolo & Lefty Hand Cream COVER -『No.1』
+- KOKIA - 本当の音
+- Konosuba ED - Chiisana Boukensha
+- Konosuba Move: Kurenai Densetsu OP - Machico - 1 Milli Symphony
+- Kotaro Oshio - Time of Cherry Blossoms
+- Kotaro Oshio - Twilight
+- Kousuke Atari - Natsuyuusora
+- Kray COVER - Asu no Yozora Shoukaihan
+- Kuroko no Basket S1ED1 (ヒャダイン) -  Start it right away
+- Kuroko no Basket S2E2 - Fantastic Tune
+- Kyo Hanabasami - Daisy
+- Kyo Hanabasami - Starry
+- Lewis Capaldi - Someone You Loved (Lyrics)
+- Lia - 一番の宝物  => https://www.youtube.com/watch?v=7lH7csKBnzY&ab_channel=1stPLACE
+- Linked Horizon - Guren No Yumiya (Attack on Titan)
+- Linked Horizon - Shinzou wo Sasageyo  (Attack on Titan)
+- LiSA - Akeboshi
+- LiSA - Catch the Moment
+- LiSA - Oath Sign
+- LiSA - Shirogane
+- LiSA - Shirushi
+- LiSA - 紅蓮華
+- LiSA and Uru - Saikai
+- Lon utaite
+- Love Live - Snow Halation
+- Lucia Ch => https://www.youtube.com/channel/UCBwH091x3pYLbGYwRtPbLlA
+- Lucia COVER - さよなら、僕のヒーロー - 傘村トータ
+- Luck Life - Kiseki
+- Luck Life - Lily
+- Lupin III - Theme From Lupin Ⅲ '78（2002 Version Yuji Ohno）=> https://www.youtube.com/watch?v=KvCtS0sgUy0
+- Lyolite - リオライト
+- Macross - Walkure - Ikenai Borderline
+- Macross - いけないボーダーライン
+- Mafumafu まふまふ COVER - ヴァンパイア
+- Magnet / Covered by Pipkin Pippa x Chikafuji Lisa
+- Mahou Shoujo Madoka★Magica OP (ClariS) - Connect
+- Masaharu Fukuyama - Kazokuninarouyo
+- Masaharu Fukuyama - Sakurazaka
+- Masaharu Fukuyama 福山雅治 - Hatsukoi
+- Masaharu Fukuyama 福山雅治 - Saiai 最愛
+- Masaki Suda - Hoshi wo aogu
+- Masaki Suda - Kokyu
+- Masaki Suda - Madou Ito
+- Masaki Suda - Rurou no Katashiro
+- Masaki Suda - Sayonara Elegy
+- Masaki Suda 菅田将暉 - Machigaisagashi
+- Masayoshi Yamazaki - Ajisai
+- Masayoshi Yamazaki - One More Time, One More Chance
+- Masayoshi Yamazaki 山崎まさよし - One More Time,One More Chance
+- Matsuri - Anata ga inakutemo
+- Meiko Nakahara - Fantasy
+- Memai Siren 眩暈SIREN - 偽物の宴
+- Miki Matsubara - 真夜中のドア〜Stay With Me+
+- MIMiNARI - Nemurenai (feat. Tomori Kusunoki)
+- Minami - RUDE LOSE DANCE
+- MINMI - 四季ノ唄
+- Miori Celesta COVER - ヴァンパイア
+- Mirage Dive - ray
+- Mosawo もさを - ぎゅっと
+- Mosawo もさを- Koiiro
+- Mr. Children - 名もなき詩
+- Mr.Children - Hanabi
+- Mr.Children - Innocent World
+- Mr.Children - Shirushi
+- Ms. OOJA - Baby Dont Know Why
+- Ms.OOJA COVER -真夜中のドア／Stay With Me
+- MV Yomaigoto/ Meychan
+- My Little Lover - Shiroi Kaito
+- Nachoneko COVER - てねてね
+- Nanawoakari ナナヲアカリ - Kien Romance 奇縁ロマンス
+- Natori - fool's table
+- Natori - Friday Night
+- Natori - Overdose
+- Natori - 猿芝居 sarushibai => −−dhttps://youtu.be/bjYG08Cdix4
+- Nijisanji (Ange) COVER - Overdose
+- Nijisanji (Elira Pendora) COVER - Shoujo Rei
+- Nijisanji (Enna Alouette) COVER - Love Space
+- Nijisanji (Inui Toko) COVER - 気まぐれロマンティック
+- Nijisanji (Inui Toko) COVER - 青春コンプレックス
+- Nijisanji (LazuLight) - Diamond City Lights
+- Nijisanji (LazuLight) COVER - Virtual to LIVE
+- Nijisanji (Millie Parfait) COVER - Sana Aku Na Lang
+- Nijisanji (Pomu Rainpuff) COVER - Ikanaide
+- Nijisanji (Ryushen)  - Jokes
+- Nijisanji (Toko) COVER - 青春コンプレックス
+- Nijisanji (とこ/尊楓/リゼ/るる) COVER - 一度だけの恋なら
+- Nishino Kana - Wishing  => https://youtu.be/JggfoYT3kII
+- No Game No Life (Ai Kayano) - Oracion
+- No Game No Life (Konomi Suzuki) - This Game
+- Noragami - THE ORAL CIGARETTES - Kyoran Hey Kids
+- Nqrse - ジオラマ
+- Official髭男dism - Stand By You
+- Official髭男dism - イエスタデイ
+- Official髭男dism - 宿命
+- Orangestar - DAYBREAK FRONTLINE (feat. IA) Official Video
+- OrangeStar - https://www.youtube.com/@OrangestarAS/videos
+- Orangestar - Surges (feat. 夏背 & ルワン) / カロリーメイト
+- OreGairu (早見沙織 Hayami Saori & 東山奈央 Nao Tōyama) - Bright Generation 
+- OreGairu (早見沙織 Hayami Saori & 東山奈央 Nao Tōyama) - Rock You!!
+- OreGairu (早見沙織 Hayami Saori & 東山奈央 Nao Tōyama) S1OP1 - Hello Alone
+- OreGairu (早見沙織 Hayami Saori & 東山奈央 Nao Tōyama) S1OP2 - Everyday World エブリデイワールド
+- OreGairu (早見沙織 Hayami Saori) - Crescendo To You 君にクレッシェンド
+- OreGairu (早見沙織 Hayami Saori) - Diamond no Jundo ダイアモンドの純度
+- OreGairu (早見沙織 Hayami Saori) - 君とMerry Christmas
+- OreGairu (早見沙織 Hayami Saori) - 雪解けに咲いた花
+- OreGairu (柚木涼香 Suzuka Yuzuki) - いつか君が大人になるまで
+- OreGairu (柚木涼香 Suzuka Yuzuki) - 泣いてなんかない｡～煙草が目に､､､～
+- OreGairu (江口拓也 Takuya Eguchi & 近藤隆 Takashi Kondō) - If You Want Real 本物が欲しければ
+- Persona - Dancing All Night Opening
+- Persona - Specialist
+- PhaseConnect (Shiina) - 君に夢中 Kimi ni Muchuu
+- PSYQUI - センチメンタルハートボーイ(ft. Such)
+- RADWIMPS - Grand Escape
+- RADWIMPS - Nandemonaiya
+- RADWIMPS - Sparkling
+- Rainych - Say So (Japanese Version)
+- RAN - Saling Merindu
+- Raven Almazan - 杏里 Anri - Lady Sunshine
+- REI - Shirayukihime
+- Remioromen - KONAYUKI
+- Renai Circulation「恋愛サーキュレーション」Kana Hanazawa
+- Reol
+- REOL - Hikibase => https://www.youtube.com/watch?v=UC_qla6FQwM
+- REOL - No title
+- Rie Fu - Tsuki Akari
+- Rie Takahashi (Re:Zero ED2 ) - Stay Alive
+- Robin Schulz - Sugar (feat. Francesco Yates)
+- Rokudenashi - As you don't know
+- Rookiez Is Punk'd - In My World
+- Russell Dickerson - "Home Sweet"
+- Russell Dickerson - "Love You Like I Used To"
+- Russell Dickerson - "Yours"
+- Ryuki - bokunoyokodenemukimiga
+- Sailor Moon - Moonlight Densetsu
+- Saji - Statice
+- Sakanaction - 新宝島
+- Sakura - いきものがかり
+- Samurai Champloo - Shiki no Uta
+- Satoshi Gogo - Haru
+- Satoshi Gogo - Moon Shade (Secret Garden ver.)
+- SCANDAL - Shunkan Sentimental
+- SEASIDE CIRCUIT - 海にしずむ月
+- SEKAI NO OWARI - Habit
+- SEKAI NO OWARI - Rain
+- SEKAI NO OWARI - Saraba
+- SEKAI NO OWARI - サラバ
+- Sen Masao - 北国の春 Kita Guni no Haru
+- Shayne Orok COVER - Shinunoga E-Wa
+- Sherry - Adesso e Fortuna -Honoo to Eien-
+- Sherry - Kaze no Fantasia
+- ShibayanRecords 【東方ボーカル】 - Fall In The Dark
+- Shounan no Kaze 湘南乃風 - Yumemonogatari
+- Shounen Kaze 湘南乃風- Grand Blue
+- shoyusound - ラストナイトダンス
+- Shyness Boy - Anri
+- SID - Uso
+- Sophisticated Lady - Thelonious Monk (瑟隆尼亞斯孟克) - Thelonious Monk Plays Duke Ellington
+- Soraru COVER - ダーリン そらる / soraru- ダーリン-Cover / そらる
+- Soul Cobra Twist - Tamashii 魂
+- Soul Eater OP - Resonance
+- SOUTHERN ALL STARS
+- Southern All Stars - HOTEL PACIFIC
+- Southern All Stars サザンオールスターズ - Ai to Yokubo no Hibi
+- Southern All Stars サザンオールスターズ - I AM YOUR SINGER
+- Spice and Wolf OP 1
+- Spitz - Minato
+- Spitz スピッツ- Kaede 楓
+- Spy Classroom - nonoc - Tomoshibi
+- Stay With Me - Miki Matsubara
+- Steins;Gate OP1 - Hacking to the Gate
+- Stereopony- Hitohira No Hanabira
+- Suisei singing stream - https://www.youtube.com/watch?v=GbIIr3waYzI
+- SUKIMASWITCH
+- Supercell - My Dearest
+- Supercell- Kimino Shiranai Monogatari
+- Sweet Love - Junko Ohashi
+- Sword Art Online S1ED2 - Haruna Luna - Overfly
+- Sword Art Online S2ED1 - Haruna Luna - Startear
+- Sword Art Online S2ED3 - LiSA - シルシ
+- Sword Art Online S2OP2 - Haruka Tomatsu - Courage
+- Sword Art Online S3ED1 - Eir Aoi - IRIS
+- Sword Art Online S3ED2 - LiSA - Unlasting
+- Sword Art Online S3OP1 - LiSA - Adamas
+- Sword Art Online S3OP2 - Haruka Tomatsu - Resolution
+- Sword Art Online S4P2 ED - ReoNA - Anima
+- Sword Art Online S4P2 OP - LiSA - unlasting
+- Taeko Onuki - 4:00 A.M.
+- Tatsuro Yamashita - Morning Glory
+- Tatsuro Yamashita - Ride on Time
+- Tatsuro Yamashita - クリスマス·イブ
+- Tatsuya Kitani - Where Our Blue Is
+- Tatsuya Kitani キタニタツヤ - HUMANLIKE
+- Taylor Swift
+- Tayori - A Little Bird Told Me
+- tayori - A Little Bird Told Me
+- TeddyLoid&Giga "Desperate feat. LOLUET" MV
+- The Cab NIGHTCORE - Angel with a Shotgun
+- THE FIRST TAKE
+- The Melancholy of Haruhi Suzumiya - God Knows
+- THE ORAL CIGARETTES - Kyouran Hey Kids!!
+- The Police - "Don't Stand So Close to Me"
+- The Police - "Message in a Bottle"
+- The Police - "Roxanne"
+- The Twelve Kingdoms ED- Getsumei Fuuei
+- The Weeknd
+- Toaru Kagaku no Railgun - Only My Railgun
+- Today I can't find your YTM playlist. Could you share a link here?
+- TOKOTOKO - Emerald City
+- Tokyo Ghoul - Unravel
+- Tokyo Karankoron - スパイス
+- TOKYO SKA PARADISE ORCHESTRA - (Everybody is a) SUPERSTAR (From TOUR 2021「Together Again!」2021.07.02 at TOKYO GARDEN THEATRE)
+- TOMOO - Ginger
+- TOMOO - Honey Boy
+- TOMOO - Sunny Day
+- TOMOO - Walk on the Keys
+- Toradora ED1 - Vanilla Salt
+- Toradora ED2 | Orange
+- Toradora OP1 | Pre-Parade
+- Toradora OP2 | Silky Heart
+- Toshiki Kadomatsu - Airport Lady
+- TRUE (Violet Evergarden) - Sincerely  => https://www.youtube.com/watch?v=uwph0dv9E6U
+- TRUE (Violet Evergarden) - Will => https://www.youtube.com/watch?v=LhSG89uJ1uQ
+- TUYU - I'm getting on the bus to the other world, see ya!
+- TUYU https://youtu.be/OOcehwVOWjU
+- Undead Unluck - Kairi Yagi - Know Me
+- Undead Unluck - Queen Bee - ZERO ICHfI
+- Uru - Anataga Iru Kotode
+- Uru - Freesia
+- Uru - それを愛と呼ぶなら
+- Utaite
+- UVERworld (Promised Neverland OP) - Touch Off
+- Van Halen - Dreams (2023 Remaster)
+- Vaundy
+- Vaundy - Fukakoryoku
+- Vaundy - mabuta
+- Vaundy - Odoriko 踊り子
+- Vaundy - Tokimeki
+- Vaundy - 花占い / Hana Uranai
+- Vaundy - 踊り子 Odoriko
+- Vocaloid (Kagamine Rin・Kagamine Len) - えれくとりっく・えんじぇぅ / Electric Angel
+- Vocaloid (Kagamine Rin・Kagamine Len) - 右肩の蝶 / Butterfly on Your Right Shoulder
+- Volcano - The Kenny Clarke, Francy Boland Big Band - Volcano / Rue Chaptal
+- Weaver - Kuchizuke Diamond
+- With Apologies to Oscar - Kenny Clarke, Cannonball Adderley - To The Surface
+- Wotamin - Yume to Hazakura
+- X Japan - Endless Rain
+- X Japan - Say Anything
+- Yakuza - Baka Mitai
+- Yama - am.3:21 => https://www.youtube.com/watch?v=mUZ8JFZUn2U
+- Yama - 春を告げる
+- Yama - 色彩
+- Yama - 血流
+- Yasuha - Flyday Chinatown
+- Yo-King - Tooi Nioi
+- YOASOBI - Kaibutsu 怪物
+- YOASOBI - アイドル
+- YOASOBI - アドベンチャー
+- YOASOBI - 夜にかける
+- Yoh Kamiyama - Kiito
+- Yoh Kamiyama - YELLOW
+- Yoh Kamiyama 神山羊
+- Yoh Kamiyama 神山羊 - YELLOW
+- Yorinuki Gintama-san ED1 - DOES - Bokutachi no Kisetsu
+- Yorinuki Gintama-san ED2 - Vijandeux - Wave
+- Yorinuki Gintama-san ED3 - AZU - IN MY LIFE
+- Yorinuki Gintama-san ED4 - Piko - Sakurane
+- Yorinuki Gintama-san ED5 - XY - We Gotta Fight
+- Yorinuki Gintama-san OP1 - DOES - Bakuchi Dancer
+- Yorinuki Gintama-san OP2 - Inoue Joe - Kaze no Gotoku
+- Yorinuki Gintama-san OP3 - Chiaki Kuriyama - Kanousei Girl
+- Yorinuki Gintama-san OP4 - FLiP - Kaatoniago
+- Yorinuki Gintama-san OP5 - CHiCO with HoneyWorks - Kyo Mo Sakura Mau Akatsuki Ni
+- Yorushika - Sunny
+- Yorushika - Thats Why I Gave Up Music
+- Yoshiki - Amethyst
+- Yoshimi Iwasaki 岩崎良美 - タッチ
+- You Stepped Out of a Dream - The Kenny Clarke, Francy Boland Big Band - Volcano / Rue Chaptal
+- Yu-Gi-Oh! GO RUSH!! Opening 2 - Soul Galaxy (BRADIO）
+- Yuaru ゆある - アスノヨゾラ哨戒班
+- YUI - CHE.R.RY
+- YUI - LOVE & TRUTH
+- Yuika - Sukidakara (feat. Ren)
+- Yuinishio ゆいにしお - セルフハグ・ビッグラヴ (Selfhug Biglove)
+- Yuki Kajiura - Melody
+- Yuki Kajiura 梶浦由記 - Melody
+- Yuna Ito - Alone Again
+- Yuru Camp - Shiny Days
+- Yuru Camp - 佐々木恵梨 - ふゆびより
+- Yutaka Ozaki - I Love You
+- YUURI - DRY FLOWER ドライフラワー
+- Yuuri - Mizukiri
+- Yuuri - The day we become eternal love,not lovers
+- YUURI - かくれんぼ
+- Yuzu ゆず - 表裏一体
+- ZUTOMAYOI - Byoushino Kamu
+- 「Ao No Waltz (蒼のワルツ) - Eve」KAN/ENG/ROMAJI LYRICS (Josee, the Tiger and the Fish)
+- 【Ado】いばら
+- 【Cover】シニカルナイトプラン (Cynical Night Plan) / Pavolia Reine × Tokoyami Towa
+- 【IRyS】いのち(Inochi)/AZKi【COVER】
+- 【歌枠】のんびり歌枠！！！- ハニカムステーション！#107【HACHI 】
+- ぎゅっと。 / もさを。【弾き語りver.】
+- くじら - ねむるまち feat.yama
+- くじら - アルカホリック・ランデヴー
+- くじら - 夜桜 feat.めいちゃん
+- くじら - 抱きしめたいほど美しい日々に
+- くじら - 金木犀 feat.Ado
+- さいとうまりな - crazy for you - Lyric
+- しゃろう - 3:03 PM
+- そばにいて。 / 『ユイカ』【MV】
+- ねむるまち / 猫又おかゆ(cover)
+- もさを
+- アスノヨゾラ哨戒班 ／ Startend cover
+- コバソロ & Lefty Hand Cream COVER - 風になる
+- コレサワ - たばこ
+- サカナクション - 撲殺天使ドクロちゃん OP
+- サンボマスター - Seishun Kyousoukyoku
+- マーシャル・マキシマイザー / 星街すいせい(Cover)
+- ユアネス-yourness - 私の最後の日 My Last Day
+- ユアネス-yourness- Sun shower
+- ユアネス-yourness- 籠の中に鳥 Kago no Naka ni Tori
+- ユイカ - 好きだから
+- ユリカ/花たん - 歌に形はないけれど
+- ラックライフ - 風が吹く街
+- ラムジ - プラネット
+- ロクデナシ - ただ声一つ
+- ロクデナシ - ばいばいまたあした
+- ロクデナシ - スピカ
+- ロクデナシ - 三時のキス
+- ロクデナシ - 愛が灯る
+- ワタシダケユウレイ (Full Version) / SICK HACK 【BOCCHI THE ROCK! OST vol. 5】Watashi Dake Yuurei
+- 一剪梅 - 雪花飘飘北风啸啸
+- 三代目 J SOUL BROTHERS from EXILE TRIBE - 冬物語
+- 三代目J Soul Brothers - 冬物語
+- 丢火车 - 晚安
+- 中島美嘉 - 僕が死のうと思ったのは The Reason I Wanted To Die => https://www.youtube.com/watch?v=0HTAKT-JIaA
+- 五月天 - 最重要的小事
+- 五月天 - 派对动物
+- 任然 - 空空如也
+- 任賢齊 - 對面的女孩看過來
+- 健屋花那/にじさんじ COVER - KING
+- 健屋花那/白雪巴 COVER - magnet
+- 光良 - 童话
+- 八十八ヶ所巡礼 88kasyo junrei - 狂感できない
+- 八十八ヶ所巡礼 88kasyo junrei - 金土日
+- 告五人 - 帶我去找夜生活
+- 告五人 - 愛人錯過
+- 周傳雄Steve Chou - 黃昏
+- 周杰伦 - 夜曲
+- 周杰伦 - 青花瓷
+- 周杰倫 - 暗號
+- 周杰倫 - 說了再見
+- 周興哲 - 以后别做朋友
+- 命の歌 Kurenai (feat. Sennzai)
+- 四大天王: 张学友、刘德华、郭富城、黎明
+- 姚斯婷 - 我的心太乱
+- 宇多田ヒカル - Automatic
+- 宇多田ヒカル - First Love
+- 宇多田ヒカル『One Last Kiss』
+- 宋冬野 - 斑马，斑马
+- 岑宁儿 - 追光者
+- 崔健 - 新长征路上的摇滚
+- 庾澄慶 - 情非得已
+- 強風オールバック / さくらみこ(Cover)
+- 怪物小姐 feat.愛繆 - 平井堅
+- 旺福 - 我当你空气
+- 曲婉婷 - 我的歌声里
+- 月 Tsuki COVER - 嘘月
+- 朴树 - 平凡之路
+- 李宗盛Jonathan Lee - 山丘
+- 李玉刚 Li Yugang - 剛好遇見你
+- 李荣浩Li Ronghao - Can't Bear It (Ending Credit Theme Song of 'You Are My Sunshine')
+- 李荣浩Li Ronghao - Composer
+- 李荣浩Li Ronghao - 李白
+- 林俊傑 JJ Lin - 江南 River South
+- 林宥嘉 - 说谎
+- 梶浦由記 - Melody
+- 汪峰Wang Feng - 怒放的生命
+- 汪峰Wang Feng - 飞得更高
+- 汪峰Wang Feng COVER - 再也没有
+- 汪峰Wang Feng COVER - 空空如也
+- 泡沫の夜 / nqrse
+- 浮雲 (feat. 倚水)
+- 深海(shinkai)/花たん(HaNaTaN)
+- 湘南乃風 (Shonan no Kaze) - "Dear My Friend"
+- 湘南乃風 (Shonan no Kaze) - "JUMP AROUND"
+- 湘南乃風 (Shonan no Kaze) - "LIFE"
+- 湘南乃風 (Shonan no Kaze) - "Saboten"
+- 湘南乃風 (Shonan no Kaze) - "Weekend Paradise"
+- 生命謳歌 - NEE
+- 田一名Tian Yiming COVER - Super Idol 的笑容/热爱105°C的你
+- 睡魔
+- 碧藍之海 OP主題歌 湘南乃風「Grand Blue」(中日字幕)
+- 秋川雅史 - 千の風になって
+- 紗希 - 恋人になれなかった
+- 絢香 - やさしさに包まれたなら
+- 美波 (Minami) - カワキヲアメク Crying For Rain
+- 老王樂隊 - 我还年轻 我还年轻
+- 胡夏 - 那些年
+- 菅田将暉 - Machigaisagashi
+- 薛之谦 - 演员
+- 许巍 Xu Wei - 像风一样自由
+- 退屈を再演しないで - Eve MV
+- 逃跑計劃 - 一萬次悲傷
+- 逃跑計劃 - 夜空中最亮的星
+- 鄧麗君 - 月亮代表我的心
+- 酸欠少女 さユり - Sanketsu-girl
+- 酸欠少女 さユり - Tower of Flower
+- 醉紅顏 - 周傳雄-我的心太亂
+- 阿云嘎贾凡 - 生命的河
+- 阿肆 - 熱愛105°C的你
+- 雪解け (feat. 倚水)
+- 鞠文娴 - BINGBIAN病变 (女声版)
+- 須田景凪「veil」MV
+- 香椎モイミ feat. 可不 - キャットラビング
+- 麦吉_Maggie・盖盖Nyan  COVER - kimi no toriko summertime
 
-## Electronic / Dance
-
-- [ ] Daft Punk – Digital Love [album: Discovery]
-- [ ] Kavinsky – Nightcall
-- [ ] Justice - D.A.N.C.E.
-- [ ] Deadmau5 - Strobe
-
-## Hip Hop / Jazz Hop
-
-- [ ] Nujabes - Luv(sic) pt3 (feat. Shing02)
-- [ ] J Dilla - Donuts (Intro)
-- [ ] MF DOOM - Rapp Snitch Knishes
-
-## Alternative / Indie
-
-- [ ] Tame Impala - The Less I Know The Better
-- [ ] MGMT - Electric Feel
-- [ ] Foster the People - Pumped Up Kicks
-
-## Direct URLs (examples - replace with real URLs)
-
-<!-- Spotify URL example -->
-- [ ] https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp
-
-<!-- YouTube Music URL example -->
-- [ ] https://music.youtube.com/watch?v=xxxxxxxxxxx
-
-<!-- Regular YouTube URL example -->
-- [ ] https://www.youtube.com/watch?v=xxxxxxxxxxx
-
-## More examples
-
-- Porter Robinson - Shelter
-* Madeon - Pop Culture
-- C418 – Sweden [album: Minecraft Volume Alpha]
-- [ ] Hans Zimmer - Time [note: from Inception]
+# 2025
+- 10CM - To Reach You (너에게 닿기를) - To Reach You (너에게 닿기를)
+- 1986 OMEGA TRIBE - Kimi ha 1000％
+- 3 Doors Down - Here Without You
+- 3 Doors Down - Kryptonite
+- Aaron Smith - Dancin (feat. Luvli)
+- ABBA - Dancing Queen
+- Ado - Gyakkou (Uta from ONE PIECE FILM RED) - 逆光 (ウタ from ONE PIECE FILM RED)
+- Ai Tomioka - missing you
+- Ai Tomioka - 恋する惑星「アナタ」Koi suru wakusei "Anata"
+- aimyon - Kimi Wa Rock Wo Kikanai - 君はロックを聴かない
+- Aimyon あいみょん - Ai Wo Tsutaetaidatoka 愛を伝えたいだとか
+- Akasaki - Bunny Girl
+- AKASAKI - 今夜は君と - Tonight With You
+- AKINO - Miiro 海色
+- Alexandros -  Wataridori ワタリドリ
+- Anri - I CAN'T STOP THE LONELINESS 悲しみがとまらない　
+- Anthony Riley - I Got You (I Feel Good) from James Brown
+- Anzenchitai - Anatani あなたに
+- Anzenchitai - 月に濡れたふたり - Tsukini Nureta Futari
+- Aoi Teshima - 明日への手紙 - Asu e no Tegami
+- Atarayo - Summer haze 夏霞
+- Ayumu Imazu - BANDAGE
+- Back Number - Happy End
+- Back Number - Jyoen Jyoyuushou 助演女優症
+- Back Number - Kowai Hanashi こわいはなし
+- back number - Sincerely, from a Future - ある未来より愛を込めて
+- back number - Suiheisen - 水平線
+- Back Number - あやしいひかり - Ayashii Hikari
+- Back Number - アイラブユー - I Love You
+- Back Number - オールドファッション - Old Fashion
+- Back Number - ヒロイン - Heroine
+- Back Number - ブルーアンバー - Blue Amber
+- Back Number - 僕は君の事が好きだけど君は僕を別に好きじゃないみたい - Bokuwa Kiminokotoga Sukidakedo Kimiwa Bokuo Betsuni Sukijyanaimitai
+- Back Number - 思い出せなくなるその日まで - Omoidasenakunaru Sonohimade
+- Back Number - 恋 - Koi
+- Back Number - 日曜日 - Nichiyoubi
+- Back Number - 水平線 - Suiheisen
+- Back Number - 繋いだ手から - Tsunaida Tekara
+- Back Number - 高嶺の花子さん - Takaneno Hanakosan
+- BAND-MAID - Thrill
+- Beatles - In My Life
+- Bee Gees - Staying Alive
+- Billy Joel - She's Always a Woman
+- Bob Dylan - Knockin' On Heaven's Door
+- Bocchi the Rock YAHO (SICK HACK) - I'm the only ghost ワタシダケユウレイ
+- Bocchi the Rock YAHO (SICK HACK) - Watashi Dake Yuerei ワタシダケユウレイ
+- Bonnie Tyler - Total Eclipse of the Heart
+- Bring Me The Horizon - Can You Feel My Heart
+- BUMP OF CHICKEN - Tentaikansoku 天体観測
+- Calum Bowie - Love Lost
+- Capital Cities - Safe and Sound
+- Charlotte (ZHIEND) - Fallin' (English)
+- Charlotte (ZHIEND) - Trigger (English)
+- Chieri Ito - Merry Christmas
+- Cindy - Watashitachi o Shinjite Ite 私達を信じていて
+- ClariS - Connect コネクト
+- Cody Lee(李) - イエロー - Yellow
+- Connie Francis - Pretty Little Baby
+- Creepy Nuts - Nidone 二度寝
+- Da-iCE - I wonder
+- Disney (Tangled) - I See the Light
+- Disney (Tangled) - When Will My Life Begin
+- DOES - KNOW KNOW KNOW
+- Dönut Larsen - Ghost Of You
+- Eddie Money - Take Me Home Tonight
+- Eir Aoi - Ignite
+- Elia Stellaria COVER - 「Secret base～君がくれたもの～」
+- EXILE - 真夏の果実 - Manatsunokajitsu
+- Fall Out Boy - Centuries
+- Fifth Harmony - Work from Home
+- Frank Sinatra - Fly Me To The Moon (2008 Remastered)
+- Fujii Kaze - Tsumi No Kaori - 罪の香り
+- Fujii Kaze - もうええわ - Mo-Eh-Wa
+- Fujii Kaze - ロンリーラプソディ - Lonely Rhapsody
+- FUNKIST - Snow Fairy
+- G-Over - drive
+- Gabriela Bee - High Hopes
+- Greatest Showman - Rewrite the Stars
+- GReeeeN - 愛唄 - Aiuta
+- Guns N Roses - Welcome To The Jungle
+- Haruomi Hosono - Kanashimi no Lucky Star 悲しみのラッキースター 
+- Hi-Fi Set - スカイレストラン - Sky Restaurant
+- High School Musical - Breaking Free
+- High School Musical - Start of Something New
+- High School Musical - We're All in This Together
+- HIMEHINA - バブリン - Bubblin'
+- Hitsujibungaku - Feel
+- Hitsujibungaku - Mild Days
+- Hololive (Ao) - bubble maybe 泡沫メイビー
+- Hololive (AZKI X Koyori X Lamy) COVER - 愛♡スクリ～ム
+- Hololive (AZKI x Suisei) COVER - 冒険彗星 
+- Hololive (AZKI) - いのち (2024 ver.)
+- Hololive (AZKI) COVER - Sincerely
+- Hololive (Baelz) - Weight of the World 壊レタ世界ノ歌
+- Hololive (Baelz) COVER - Kokoronashi 心做し
+- Hololive (Baelz) COVER - Suki Dakara 好きだから
+- Hololive (Elizabeth Rose Bloodflame X Hakka) COVER - Mephisto
+- Hololive (Elizabeth Rose Bloodflame) COVER - Snow Halation
+- Hololive (FLOW GLOW) - Heaven's Drive
+- Hololive (FLOW GLOW) - Lost in Paradise
+- Hololive (FLOW GLOW) - Shout Baby
+- Hololive (FLOW GLOW) COVER - BE THE MONSTER
+- Hololive (FLOW GLOW) COVER - Heaven's Drive
+- Hololive (FLOW GLOW) COVER - LOAD
+- Hololive (FLOW GLOW) COVER - Lost in Paradise
+- Hololive (FLOW GLOW) COVER - Shout Baby
+- Hololive (FUWAMOCO) (NEKOPARA After) - side by side
+- Hololive (FUWAMOCO) - Lifetime Showtime
+- Hololive (Gigi X Cece) COVER - Naimononedari / ないものねだり
+- Hololive (Gigi) COVER - Hai Yorokonde / はいよろこんで
+- Hololive (Hajime) - BANZAI
+- Hololive (Hajime) - Countach
+- Hololive (Hajime) COVER - ヴァンパイア
+- Hololive (HoloEN) - Breaking Dimensions
+- Hololive (HoloEN) - Odyssey
+- Hololive (Iroha X AZKi) COVER - 心予報 - Eve / Covered by 風真いろは×
+- Hololive (IRyS) - Carbonated Love
+- Hololive (IRyS) - Diamond Girlfriend
+- Hololive (IRyS) - Mortality Game
+- Hololive (Kanade) COVER - 快晴名前のない怪物
+- Hololive (Kanade・Calliope) - Beyond the way
+- Hololive (Kanade・Calliope) COVER - Beyond the Way
+- Hololive (Kanade・Calliope) COVER - DAYBREAK FRONTLINE
+- Hololive (Kanata) - Fallen Wing 片羽
+- Hololive (Korone X Shion) - 【デジモンアドベンチャー】brave heart
+- Hololive (Kronii) - Souten ni Moyu 蒼天に燃ゆ
+- Hololive (Liz・Hakka) COVER - Mephisto
+- Hololive (Mio) - Colorful Universe
+- Hololive (Mio) COVER - 天ノ弱
+- Hololive (Moona X Nerissa) - 100%
+- Hololive (Moona) - Charade
+- Hololive (Moona) - 愛の小さな歌 Ai no Chiisana Uta
+- Hololive (Nerissa) - Good Luck, Babe!
+- Hololive (Nerissa) COVER - Espresso
+- Hololive (Nerissa) COVER - God-ish  / 神っぽいな
+- Hololive (Niko) COVER - アスノヨゾラ哨戒班
+- Hololive (Niko) COVER - ヒカリへ
+- Hololive (Okayu) - また、おかえり
+- Hololive (Okayu) - ガザニア
+- Hololive (Okayu) - ガザニア gazania
+- Hololive (Okayu) - キスだけでいいからね - just a kiss
+- Hololive (Okayu) - キスだけでいいからね just a kiss
+- Hololive (Okayu) - ネコカブリーナ Neko Kaburi-Na
+- Hololive (ReGLOSS X FLOW GLOW) - Heaven's Drive
+- Hololive (ReGLOSS X FLOW GLOW) - Lost in Paradise
+- Hololive (ReGLOSS X FLOW GLOW) - Shout Baby
+- Hololive (ReGLOSS) - Hour Time Yellow
+- Hololive (ReGLOSS) - Midsummer Citrus / ミッドサマーシトラス
+- Hololive (ReGLOSS) - Sakura Mirage サクラミラージュ
+- Hololive (ReGLOSS) - SUMMERTIME RECORD サマータイムレコード
+- Hololive (ReGLOSS) - symmetry シンメトリー
+- Hololive (ReGLOSS) COVER - スターマイン (Da-iCE)
+- Hololive (ReGLOSS) COVER - スターマイン / Da-iCE
+- Hololive (Sakuna formerly Aqua) COVER - 恋愛サーキュレーション
+- Hololive (Sora) COVER - 命に嫌われている
+- Hololive (SorAZ) - 君の知らない物語 - Kimi no Shiranai Monogatari
+- Hololive (Suisei) - DEADPOOL
+- Hololive (Suisei) - Orbital Period
+- Hololive (Suisei) - もうどうなってもいいや - I don't care
+- Hololive (Suisei) - ムーンライト Moonlight
+- Hololive (Vivi) - FG ROADSTER（SOLO ver.）
+- Hololive (Vivi) - Luna say maybe
+- Hololive - Moonlight Densetsu (Sailor Moon)
+- I Don't Like Mondays - Wolf Vibes
+- I Don't Like Mondays - WOLF VIBES
+- I Don't Like Mondays - Zero Gravity
+- I Re'in For Re'in - Mystery Girl ミステリー・ガール
+- Ikimonogakari - Sentimental Boyfriend
+- Ikimonogakari - Shiroi Diary
+- Ikimonogakari - ブルーバード - Blue Bird
+- James Brown - I Got You (I Feel Good)
+- James Brown - It's A Man's, Man's, Man's World
+- Jason Paige - Pokemon Theme
+- Joe Hisaishi - 海の見える街 - A Town with an Ocean View
+- JUJU - Konoyoruwo Tometeyo この夜を止めてよ
+- Julie and the Phantoms (Netflix) - Bright
+- Julie and the Phantoms (Netflix) - Stand Tall
+- Julie Andrews - I Could Have Danced All Night (from "My Fair Lady")
+- Julie Andrews - Wouldn't It Be Lovely
+- Junko Ohashi - I Love You So
+- Junko Ohashi - Sweet Love
+- Junko Ohashi - Telephone Number テレフォン・ナンバー
+- Kahoru Kohiruimaki - City Hunter 愛よ消えないで
+- KANA-BOON - Silhouette シルエット
+- Karan Aujla - Tauba Tauba (From "Bad Newz")
+- Kazumasa Oda - Yes-No
+- Ken Hirai - POP STAR
+- Kenshi Yonezu - LOSER
+- Kenshi Yonezu - Uma to Shika
+- Kenshi Yonezu - さよーならまたいつか！
+- Kenshi Yonezu - さよーならまたいつか！- Sayonara - Sayonara, Mata Itsuka!
+- King Gnu - 白日 - Hakujitsu
+- King Gnu - 硝子窓 - GLASS WINDOW
+- King Gnu - 逆夢 - Sakayume
+- Kingo Hamada - Machi No Dorufin
+- Kiss - I Was Made for Lovin' You
+- Kiss - I Was Made For Lovin' You
+- KOBUKURO - Million Films
+- kojima michiru - Best Friend
+- KPOP Demon Hunters – Golden
+- KPOP Demon Hunters – Soda Pop
+- KPOP Demon Hunters – Takedown
+- Lady Antebellum - Need You Now
+- Lady Gaga & Bruno Mars - Die With a Smile
+- Lana Del Rey - Summertime Sadness
+- Lemon Fight - Stronger
+- Life in 3D - Put Your Head on My Shoulder
+- Lilas Ikuta - Sparkle - スパークル
+- LINKIN PARK - Skin to Bone
+- Lipps Inc. - Funkytown
+- Lisa - Crossing Field
+- LiSA - Gurenge 紅蓮華
+- LiSA - Homura 炎
+- Lydia - F.I.R.
+- Mahou Shoujo Madoka★Magica - Sis Puella Magica! (Yuki Kajiura)
+- Mai Yamane - Tasogare
+- MAN WITH A MISSION - 絆ノ奇跡 / Kizuna No Kiseki
+- Maroon 5 - This Love
+- Masaki Suda - Haiiro to Ao (灰色と青)
+- Masaki Suda - るろうの形代 - Rurou no Katashiro
+- Masaki Suda - 糸 - Ito
+- Meiko Nakahara - Dance In The Memories
+- Meiko Nakahara - Go Away
+- Meiko Nakahara - ココナッツの片想い - Coconut No Kataomoi
+- Meiko Nakahara - ジゴロ - Gigolo
+- Meiko Nakahara - 君たちキウイ・パパイア・マンゴーだね。 - Kimitachi Kiwi Papaya Mango Dane
+- Memai Siren 眩暈SIREN - Nisemononoutage 偽物の宴
+- Miki Matsubara - Hello Today ハロー・トゥデイ
+- Miki Matsubara - WASH ウオッシュ
+- milet - Anytime Anywhere
+- Miori Celesta x Yura Rikudou COVER - ねむるまち (Nemuru Machi)
+- Mosawo もさを - Gyutto ぎゅっと
+- Mr. Children - 365日 - Sanbyakurokujuugonichi
+- Mr. Children - Gift
+- Mrs. GREEN APPLE - KUSUSHIKI - クスシキ
+- Mrs. GREEN APPLE - ダンスホール - Dance Hall
+- Nanami Urara COVER - Surges
+- NANAOAKARI ナナヲアカリ - Kien Romance 奇縁ロマンス
+- Nano - SAVIOR OF SONG (feat. MY FIRST STORY)
+- Nickelback - If Today Was Your Last Day
+- Nijisanji (Ange) COVER - Bunny Girl
+- Nijisanji (Ryushen) COVER - ヒッチコック
+- Noriyo Ikeda - Dream in the Street
+- Nouvelle Story - Be Yourself Or Die Dreaming
+- Novelbright - candle
+- Novelbright - 君色ノート
+- NYANA BANYANA - I Really Want to Stay At Your House
+- Official HIGE DANdism - Laughter
+- Official HIGE DANdism - Universe
+- OFFICIAL HIGE DANDISM - 日常 - Nichijo
+- Official髭男dism - Pretender
+- Omoinotake - 幾億光年 - Ikuokukonen
+- ONE OK ROCK - Kanzen kankaku Dreamer 完全感覚Dreamer
+- Onmyo-za - KOUGA NINPOUCHOU 甲賀忍法帖 
+- Phase Connect (Rie, Runie, Lumi) COVER - Still Into You
+- Phase Connect (Shiina) - ihopeudontforgetme
+- Phase Connect - Pick Me Fever
+- Phase Connect COVER - One Step March
+- Phase Connect COVER - Pick Me Fever
+- Phase Connect COVER - The Feels
+- pillows - Star overhead
+- plenty - 人間そっくり - Ningen Sokkuri
+- plenty - 蒼き日々 - Aokihibi
+- Queen - We Are the Champions
+- Red Hot Chili Peppers - Scar Tissue
+- Reiko Takahashi - Sunset Road
+- Rock It! - Du wirst ein Rock It sein
+- Rock It! - Wie die Welt leuchtet
+- Rock It! - Wir lieben die Musik
+- Ryokuoushoku Shakai - 花になって - Be a flower
+- S.Kiyotaka & Omega Tribe - DEAR BREEZE
+- S.Kiyotaka & Omega Tribe - SUMMER SUSPICION
+- Sade - Smooth Operator (2011 Remastered)
+- Sade - Smooth Operator (Single Version)
+- Saki Kubota - Campus Gai '81 キャンパス街'81
+- Saucy Dog - シンデレラボーイ - Cinderella Boy
+- SawanoHiroyuki - aLIEz (Aldnoah Zero)
+- Seiko Matsuda - Aoi Sangosho 青い珊瑚礁
+- SEKAI NO OWARI - Zukan - 図鑑
+- SHIENA NISHIZAWA - 吹雪 - FUBUKI
+- Shoko Nakagawa - DAN DAN 心魅かれてく - DAN DAN kokorohikareteku
+- Shubham Rangra - Manwa Lage (LoFi)
+- SID - Monokuro No Kiss モノクロのキス
+- SID - Uso 嘘
+- SID - レイン - Rain
+- SPECTRUM - FLY
+- Spitz - あじさい通り - Ajisai Doori
+- Stevie Wonder - Isn't She Lovely
+- SUKIMASWITCH - 雫 - Shizuku
+- Supercell- Kimino Shiranai Monogatari 君の知らない物語
+- Sword Art Online S1OP1 - LiSA - Crossing Field
+- Taeko Onuki - じゃじゃ馬娘 - Jajauma Musume
+- Tatsuya Kitani - Where Our Blue Is - 青のすみか
+- Tears For Fears - Everybody Wants To Rule The World (Single Version)
+- Teddy Swims - Lose Control
+- The Kooks - Naive
+- The Outfield - Your Love
+- The Smiths - Heaven Knows I'm Miserable Now
+- The Supremes - Stop! In The Name Of Love
+- The White Stripes - Fell In Love With a Girl
+- The White Stripes - Seven Nation Army
+- TOGENASHITOGEARI - Emptiness and Catharsis 空白とカタルシス
+- Tokyo Ska Paradise Orchestra - 美しく燃える森
+- Tomoko Aran - Midnight Pretenders
+- Tomonari Sora - 鬼ノ宴 - Demons Banquet
+- tuki - SAKURA KIMI WATASHI - サクラキミワタシ
+- tuki - 晩餐歌
+- Uru - アンビバレント - Ambivalent
+- Vaundy - Mabuta まぶた
+- Vaundy - pained
+- Vaundy - トドメの一撃 - Todome no ichigeki (feat. Cory Wong)
+- Vaundy - 世界の秘密 - Sekai no Himitsu
+- Vaundy - 怪獣の花唄 / Kaiju no Hanauta
+- Vaundy - 瞳惚れ - hitomibore
+- Vocaloid - Crusher-P feat. GUMI - ECHO
+- Vocaloid - Dixie Flatline feat. Megurine Luka - Just Be Friends
+- Vocaloid - doriko feat. Hatsune Miku - Romeo and Cinderella 
+- Vocaloid - Kurousa-P feat. Hatsune Miku - Senbonzakura
+- Vocaloid - kz (livetune) feat. Hatsune Miku - Tell Your World
+- Vocaloid - minato (Ryuusei-P) feat. Hatsune Miku & Megurine Luka - Magnet
+- Vocaloid - Neru feat. Kagamine Rin - Lost One’s Weeping
+- Vocaloid - Nori-P feat. Kagamine Len - Butterfly on Your Right Shoulder
+- Vocaloid - ryo (supercell) feat. Hatsune Miku - Melt
+- Vocaloid - ryo (supercell) feat. Hatsune Miku - ODDS&ENDS
+- Vocaloid - ryo (supercell) feat. Hatsune Miku - World is Mine
+- Vocaloid - wowaka feat. Hatsune Miku - Rolling Girl
+- VShojo (AmaLee x Nerissa) - Blink Gone
+- VShojo (AmaLee) - Ruler Of My Heart
+- VShojo (Michi x bariloaf) COVER - BRAIN
+- VShojo (Michi) - Medicine
+- VShojo (Michi) COVER - Medicine
+- VShojo (Michi) COVER - Paparazzi
+- VShojo (Michi) COVER - Tipsy
+- VShojo (Michi) COVER - 寄り酔い Tipsy
+- VShojo AmaLee - Ruler Of My Heart
+- VSPO! (Asumi) COVER - サマータイムレコード
+- VyVid (Eva) COVER - Magnetic
+- VyVid (Eva) COVER - you are my curse
+- Warren Zevon - Keep Me in Your Heart
+- WhaleDontSleep - ねむるまち - Sleeping town (feat. yama)
+- WhaleDontSleep - 化粧と - Daily Makeup (feat. Aomushi)
+- WhaleDontSleep - 抱きしめたいほど美しい日々に - Beautiful Day
+- WhaleDontSleep - 金木犀 - Osmanthus (feat. Ado)
+- White Stripes - Seven Nation Army
+- Whiteberry - Natsu Matsuri
+- X JAPAN - Forever Love
+- X JAPAN - Kurenai (紅 KURENAI)
+- X JAPAN - Tears
+- Yo-Yo Ma - I Could Have Danced All Night (Extended version)
+- YOASOBI - 祝福
+- Yorushika - Forget it 忘れてください
+- Yorushika - Howl at the Moon 月に吠える
+- Yorushika - Sun 太陽
+- Yorushika - Sunny - 晴る
+- Yorushika - 言って
+- Yuki Hayashi - You Say Run
+- Yuki Kimura - LOVE & JOY
+- Yurie Kokubu - I Wanna Be With You
+- Yurie Kokubu - Just A Joke
+- Zero Gravity - I Don't Like Mondays
+- ZUTOMAYO - Byoushin wo Kamu 秒針を噛む
+- ZUTOMAYO - Stay Foolish ばかじゃないのに
+- 光逸幸 / Kouitu Sin COVER - LOOP / SIRUP
+- 周華健 - 刀劍如夢
+- 張韶涵 - 遺失的美好
+- 林俊傑 JJ Lin - 因你而在
+- 許紹洋 - 花香
+- 費玉清 Fei Yu-Ching - 一簾幽夢 - Dreaming In A Romantic Night
+- 費玉清 Fei Yu-Ching - 千里之外 - Thousand Miles Away
+- 費玉清 Fei Yu-ching - 天之大
+- 阿杜 - 天黑
+- 阿杜 - 撕夜
+- AKASAKI - Bunny Girl
+- Anzenchitai - 消えない夜 - Kienai Yoru
+- Atarayo - 夏霞 - Summer haze
+- back number - あやしいひかり - Ayashii Hikari
+- back number - こわいはなし - Kowai Hanashi
+- back number - エメラルド - Emerald
+- back number - 助演女優症 - Jyoen Jyoyuushou
+- back number - 繋いだ手から - Tsunaida Tekara
+- back number - 高嶺の花子さん - Takaneno Hanakosan
+- ClariS - コネクト - Connect
+- CodyLee - おどる ひかり - Dancing Lights
+- Creepy Nuts - 二度寝 - Nidone
+- EXILE - 真夏の果実 - Manatsunokajitsu
+- Frank Sinatra - Fly Me To The Moon (2008 Remastered) (feat. Count Basie And His Orchestra)
+- Fujii Kaze - 花 (Fujii Kaze Stadium Live "Feelin' Good") - Hana (Fujii Kaze Stadium Live "Feelin' Good")
+- Haruomi Hosono - 悲しみのラッキースター - Kanashimi no Lucky Star
+- I Don't Like Mondays. - Zero Gravity
+- Kenshi Yonezu - 米津玄師  - 馬と鹿   Kenshi Yonezu - Uma to Shika
+- King Gnu - 白日 - Hakujitsu
+- King Gnu - 逆夢 - Sakayume
+- KOBUKURO - Million Films
+- LET ME KNOW - 偽愛とハイボール - Ai to Highball
+- LINKIN PARK - SKIN TO BONE
+- LiSA - 炎 - homura
+- Masaki Suda - 米津玄師 MV「 灰色と青（ ＋菅田将暉 ）」
+- Memaisiren - 偽物の宴 - Nisemononoutage
+- nano - SAVIOR OF SONG (feat. MY FIRST STORY)
+- Official HIGE DANdism - Laughter
+- Ryokuoushoku Shakai - 花になって - Be a flower
+- Spitz - あじさい通り - Ajisai Doori
+- Vaundy - 恋風邪にのせて - Koikaze ni nosete
+- X JAPAN - ENDLESS RAIN (Remaster) - Endless Rain
+- X JAPAN - 紅（イントロ　ストリングス） (Remaster) - Kurenai (Intro strings) (Remaster)
+- Yellow Magic Orchestra - Rydeen (2018 Bob Ludwig Remastering)
+- 最美的夜 - 【1080P 60帧】《醒醒，现在是千禧年》（完整版）【2024B站跨年晚会单品】
+- 阿杜 - 天黑
 

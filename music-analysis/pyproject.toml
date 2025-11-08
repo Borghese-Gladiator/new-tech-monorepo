@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "MP3 Playlist Analyzer & Normalizer with audio feature extraction and playlist management"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
-packages = [{include = "src"}]
+packages = [{include = "scripts"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -36,6 +36,17 @@ aiohttp = "^3.9.0"
 pyarrow = "^14.0.0"
 fastparquet = "^2023.10.1"
 
+# 🔤 Collation/sorting dependencies (default: pure Python, no native build)
+unidecode = "^1.3.8"
+pyuca = "^1.2"
+
+# 🚀 Optional native ICU (install system icu4c first if you want this)
+pyicu = { version = "^2.16", optional = true }
+
+[tool.poetry.extras]
+# Enable with: `poetry install -E icu` (after installing icu4c on your system)
+icu = ["pyicu"]
+
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
 pytest-asyncio = "^0.21.0"
@@ -45,11 +56,17 @@ ruff = "^0.1.6"
 types-pyyaml = "^6.0.12"
 
 [tool.poetry.scripts]
-ingest = "scripts.ingest:main"
-download = "scripts.download:main"
-analyze = "scripts.analyze:main"
-playlists = "scripts.playlists:main"
-run-all = "scripts.run_all:main"
+# Note: Scripts are organized by pipeline stage in numbered directories
+# Run them directly with: poetry run python scripts/XX_stage/script_name.py
+preprocess-extract = "scripts.01_preprocess.A_extract_lines:main"
+preprocess-clean = "scripts.01_preprocess.B_clean_lines:main"
+get-spotify-ids = "scripts.02_create.A_get_ids_for_spotify:main"
+get-ytmusic-ids = "scripts.02_create.A_get_ids_for_ytmusic:main"
+build-spotify-playlist = "scripts.02_create.B_build_playlists_spotify:main"
+build-ytmusic-playlist = "scripts.02_create.B_build_playlists_ytmusic:main"
+download-audio = "scripts.03_download.download_audio_yt:main"
+analyze-features = "scripts.04_analyze.analyze_features:main"
+synthesize = "scripts.05_synthesize.synth_average_track:main"
 
 [build-system]
 requires = ["poetry-core"]

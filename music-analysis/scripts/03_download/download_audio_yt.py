@@ -12,10 +12,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src import downloader, utils
+from scripts.core import downloader, utils
 
 
 def main():

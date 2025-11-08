@@ -12,10 +12,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src import features, utils, visualize
+from scripts.core import audio_features, utils, visualize
 
 
 def main():
@@ -53,7 +50,7 @@ def main():
 
     # Extract features
     audio_paths = audio_tracks['audio_path'].tolist()
-    features_list = features.extract_features_batch(
+    features_list = audio_features.extract_features_batch(
         audio_paths,
         n_mfcc=cfg.get('n_mfcc', 13),
         spectral_rolloff_pct=cfg.get('spectral_rolloff_pct', 0.85),

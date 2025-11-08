@@ -2,7 +2,7 @@
 Tests for audio feature extraction.
 """
 import pytest
-from src.features import extract_features
+from scripts.core.audio_features import extract_features
 
 
 def test_extract_features_basic(short_audio_fixture):

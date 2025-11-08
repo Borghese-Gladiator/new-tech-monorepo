@@ -2,7 +2,7 @@
 Tests for deduplication and normalization.
 """
 import pytest
-from src.utils import normalize_string, create_dedup_key, deduplicate_tracks
+from scripts.core.utils import normalize_string, create_dedup_key, deduplicate_tracks
 
 
 def test_normalize_string_lowercase():
