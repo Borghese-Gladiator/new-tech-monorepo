@@ -1,13 +1,13 @@
 # MP3 Analyzer Configuration
 
 # Input/Output paths
-input_markdown: ./data/playlist.md
+input_markdown: ./data/01_B_cleaned_playlist.txt
 download_dir: ./data/audio_raw
-audio_out_dir: ./outputs/audio
+audio_out_dir: ./data/03_downloaded_audio
 fig_dir: ./outputs/figures
 features_csv: ./outputs/audio_features.csv
-failed_log: ./outputs/failed_inputs.txt
-manifest_path: ./data/track_manifest.parquet
+failed_log: ./data/02_A_spotify_failed_tracks.txt
+manifest_path: ./data/02_A_spotify_track_manifest.parquet
 run_log: ./outputs/run.log
 
 # Audio processing

@@ -268,7 +268,7 @@ def main():
     ]
 
     # Write Markdown
-    md_path = Path("data/raw_extracted_music_by_year.md")
+    md_path = Path("data/01_A_extracted_music_by_year.md")
     md_path.parent.mkdir(parents=True, exist_ok=True)
     with md_path.open("w", encoding="utf-8") as f:
         for year in sorted(grouped.keys()):

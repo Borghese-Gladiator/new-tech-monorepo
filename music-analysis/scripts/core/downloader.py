@@ -18,7 +18,7 @@ class AudioDownloader:
 
     def __init__(
         self,
-        output_dir: str = "./outputs/audio",
+        output_dir: str = "./data/03_downloaded_audio",
         bitrate: int = 320,
         target_lufs: Optional[float] = None,
     ):
@@ -417,7 +417,7 @@ def create_downloader(config: dict) -> AudioDownloader:
         AudioDownloader instance
     """
     return AudioDownloader(
-        output_dir=config.get('audio_out_dir', './outputs/audio'),
+        output_dir=config.get('audio_out_dir', './data/03_downloaded_audio'),
         bitrate=config.get('mp3_bitrate', 320),
         target_lufs=config.get('target_lufs'),
     )

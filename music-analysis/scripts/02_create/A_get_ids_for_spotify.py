@@ -86,7 +86,7 @@ def main():
         manifest_data.append(entry)
 
     # Save manifest
-    manifest_path = cfg.get('manifest_path', './data/track_manifest.parquet')
+    manifest_path = cfg.get('manifest_path', './data/02_A_spotify_track_manifest.parquet')
     utils.ensure_dir(Path(manifest_path).parent)
 
     df = pd.DataFrame(manifest_data)
@@ -95,7 +95,7 @@ def main():
 
     # Write failed inputs
     if failed_lines:
-        failed_log = cfg.get('failed_log', './outputs/failed_inputs.txt')
+        failed_log = cfg.get('failed_log', './data/02_A_spotify_failed_tracks.txt')
         utils.write_failed_inputs(failed_lines, failed_log)
         logger.warning(f"Failed to resolve {len(failed_lines)}/{len(tracks)} tracks")
     else:

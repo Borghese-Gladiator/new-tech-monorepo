@@ -233,10 +233,10 @@ def process_playlist(input_file, output_songs, output_uncategorized):
 
 def main():
     # Define paths
-    base_dir = Path(__file__).parent.parent
-    input_file = base_dir / "data" / "playlist.md"
-    output_songs = base_dir / "data" / "playlist_clean.txt"
-    output_uncategorized = base_dir / "data" / "playlist_uncategorized.txt"
+    base_dir = Path(__file__).parent.parent.parent  # Go up to project root
+    input_file = base_dir / "data" / "01_A_extracted_music_by_year.md"
+    output_songs = base_dir / "data" / "01_B_cleaned_playlist.txt"
+    output_uncategorized = base_dir / "data" / "01_B_unrecognized_playlist.txt"
 
     print(f"Processing: {input_file}")
     print(f"Output songs: {output_songs}")

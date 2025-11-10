@@ -33,9 +33,9 @@ logger.add(
 
 # Hard-coded paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-INPUT_FILE = PROJECT_ROOT / "data" / "playlist_cleaned.txt"
-OUTPUT_FILE = PROJECT_ROOT / "data" / "ytmusic_ids.txt"
-FAILED_FILE = PROJECT_ROOT / "data" / "ytmusic_failed.txt"
+INPUT_FILE = PROJECT_ROOT / "data" / "01_B_cleaned_playlist.txt"
+OUTPUT_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_ids.txt"
+FAILED_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_failed_tracks.txt"
 # YTMusic browser headers file - generate with: ytmusicapi browser
 BROWSER_FILE = PROJECT_ROOT / "browser.json"
 
@@ -129,7 +129,7 @@ def main():
     # Validate input file
     if not INPUT_FILE.exists():
         logger.error(f"Input file not found: {INPUT_FILE}")
-        logger.error("Run the preprocessing scripts first to generate playlist_cleaned.txt")
+        logger.error("Run the preprocessing scripts first to generate 01_B_cleaned_playlist.txt")
         sys.exit(1)
 
     logger.info(f"Input file: {INPUT_FILE}")

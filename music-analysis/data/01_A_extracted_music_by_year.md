@@ -211,13 +211,10 @@ English
 - Nightcore - Remember When
 - Nightcore - The Cab - Angel with a Shotgun  => https://www.youtube.com/watch?v=cvaIgq5j2Q8
 - Norah Jones - Come Away with Me
-- Old R&B
 - One Direction - That's What Makes You Beautiful
-- One Republic
 - OneRepublic - Counting Stars
 - OneRepublic - Nobody (from Kaiju No. 8)
 - OneRepublic - RUNAWAY
-- Outfield
 - Owl City - Fireflies
 - Panic! At the Disco - High Hopes
 - Passenger - Let Her Go
@@ -341,7 +338,6 @@ Chinese
 - 菅田将暉 - Machigaisagashi
 - 梶浦由記 - Melody
 - 生命謳歌 - NEE
-- 浮雲 (feat. 倚水)
 - 湘南乃風 (Shonan no Kaze) - "Dear My Friend"
 - 湘南乃風 (Shonan no Kaze) - "JUMP AROUND"
 - 湘南乃風 (Shonan no Kaze) - "LIFE"
@@ -367,7 +363,6 @@ Chinese
 - 汪峰 Wang Feng COVER - 再也没有
 - 汪峰 Wang Feng COVER - 空空如也
 - 许巍 Xu Wei - 像风一样自由
-- 四大天王: 张学友、刘德华、郭富城、黎明
 - 健屋花那/白雪巴 COVER - magnet
 - A-Lin - 給我一個理由忘記
 - 刺蝟Hedgehog - 生之響往
@@ -685,9 +680,8 @@ Japanese
 - Hanazawa Kana - I Wonder Why なぜだろう
 - Haruhi Suzumiya ED - Aya Hirano, Minori Chihara and Yūko Gotō - ハレ晴レユカイ
 - Harumaki Gohan - Reunion
-- Hastune Miku songs - https://www.youtube.com/@googoo888/videos
 - Heart Forecast - Eve MV
-- Hello Sleepwalkers「午夜の待ち合わせ」MUSIC VIDEO
+- Hello Sleepwalkers - 午夜の待ち合わせ
 - Hideaki Tokunaga - Koibito
 - Hideaki Tokunaga - Saigo No Iiwake
 - Hideaki Tokunaga - Yasashii Kiss O Shite
@@ -704,7 +698,7 @@ Japanese
 - Hitsujibungaku - more than words
 - Hizuki Yui COVER - DAYBREAK FRONTLINE
 - Hololive (0期生) COVER - ray
-- Hololive (AZKI) いのち (2024 ver.)
+- Hololive (AZKI) - いのち (2024 ver.)
 - Hololive (Aqua X Towa X Suisei) COVER - 快晴
 - Hololive (Ayame) - 宵の余、良い
 - Hololive (Ayame) COVER - グッバイ宣言
@@ -789,7 +783,7 @@ Japanese
 - Hololive (Okayu) - 惑星ループ
 - Hololive (Okayu) - 毒杯スワロウ   => https://youtu.be/BNI2FBQQIag
 - Hololive (Okayu) COVER - さよならテンダー
-- Hololive (Okayu) 彗星ハネムーン - https://www.youtube.com/watch?v=2jW7L0GsMmU
+- Hololive (Okayu) - 彗星ハネムーン - https://www.youtube.com/watch?v=2jW7L0GsMmU
 - Hololive (Okayu・Korone) COVER - Fuwa Fuwa Time ふわふわ時間
 - Hololive (Okayu・Korone) COVER - If... - https://www.youtube.com/watch?v=wVOHaMd3utA
 - Hololive (Raora) COVER - ECHO
@@ -820,7 +814,6 @@ Japanese
 - Hololive (Suisei) COVER - 少女レイ
 - Hololive (Suisei) COVER - 幽霊東京
 - Hololive (Suisei) COVER - 彗星ハネムーン => https://www.youtube.com/watch?v=zEUNMi1nz0I
-- Hololive (Suisei) 彗星ハネムーン - https://www.youtube.com/watch?v=zEUNMi1nz0I
 - Hololive (Suisei・3rd Gen) - Saga Jihen
 - Hololive (Towa) - FACT
 - Hololive (Towa) - インテグラル / Startend (cover)
@@ -837,7 +830,6 @@ Japanese
 - HoneyComeBear - 走馬灯 / Soumatou
 - HoneyWorks ft. 夏川椎菜 - ファンサ
 - Hoshimachi Suisei - Planetarium
-- Hoshimachi Suisei - https://www.youtube.com/watch?v=GbIIr3waYzI
 - Hoshino Gen - Koi  => https://www.youtube.com/watch?v=jhOVibLEDhA
 - Hoshino Gen - Pop Virus
 - Hoshino Gen - SUN
@@ -872,7 +864,6 @@ Japanese
 - K-On - My Love is a Stapler
 - KANA-BOON - Nandemonedari
 - KANA-BOON - Silhouette
-- KANA-BOON 『ないものねだり』Music Video
 - KANKAN - suima
 - KANKAN 缶缶 - 睡魔
 - KOBUKURO コブクロ - Kimi To Iu Nano Tsubasa 君という名の翼
@@ -881,6 +872,7 @@ Japanese
 - KOKIA - 本当の音
 - Kairi Yagi - know me...
 - Kamisama Hajimemashita OP - Toshokan Hanae
+- Kana Hanazawa - Renai Circulation 恋愛サーキュレーション
 - Kanaria ver. - King
 - Kano - Yoake to Hotaru
 - Kazumasa Oda - Love Story Wa Totsuzenni
@@ -897,7 +889,7 @@ Japanese
 - Kitri - ヒカレイノチ
 - Kobakuro コブクロ - Kimi To Iu Nano Tsubasa 君という名の翼
 - Kobakuro コブクロ - Tsubomi 蕾
-- Kobasolo & Lefty Hand Cream COVER -『No.1』
+- Kobasolo & Lefty Hand Cream COVER - No.1
 - Kohmi Hirose - promise
 - Kohmi Hirose - ゲレンデがとけるほど恋したい
 - Kohmi Hirose - ゲレンデがとけるほど恋したい（WHAT AN EXCITING MIX！）
@@ -934,7 +926,6 @@ Japanese
 - MIMiNARI - Nemurenai (feat. Tomori Kusunoki)
 - MINMI - 四季ノ唄
 - MUCC - Nirvana / ニルヴァーナ
-- MV Yomaigoto/ Meychan
 - Macross - いけないボーダーライン
 - Mafumafu まふまふ COVER - ヴァンパイア
 - Mahou Shoujo Madoka★Magica OP (ClariS) - Connect
@@ -957,6 +948,7 @@ Japanese
 - Meiko Nakahara - Fantasy
 - Meiko Nakahara - Fantasy (1982)
 - Memai Siren 眩暈SIREN - 偽物の宴
+- Meychan - Yomaigoto
 - Midnight Grand Orchestra - Midnight Mission
 - Miki Matsubara - Stay With Me
 - Miki Matsubara - 真夜中のドア〜Stay With Me+
@@ -1013,7 +1005,6 @@ Japanese
 - Official髭男dism - Stand By You
 - Official髭男dism - イエスタデイ
 - Official髭男dism - 宿命
-- OrangeStar - https://www.youtube.com/@OrangestarAS/videos
 - Orangestar - DAYBREAK FRONTLINE (feat. IA) Official Video
 - Orangestar - Surges
 - Orangestar - Surges (feat. 夏背 & ルワン) / カロリーメイト
@@ -1032,7 +1023,6 @@ Japanese
 - PSYQUI - センチメンタルハートボーイ(ft. Such)
 - Phase Connect (Shiina) - 君に夢中 Kimi ni Muchuu
 - PhaseConnect (Shiina) - 君に夢中 Kimi ni Muchuu
-- Potion　/　紫翠みちる
 - RADWIMPS - Grand Escape
 - RADWIMPS - Nandemonaiya
 - RADWIMPS - Sparkling
@@ -1041,7 +1031,6 @@ Japanese
 - REOL - No title
 - Remioromen - KONAYUKI
 - Remioromen - KONAYUKI / 粉雪
-- Renai Circulation「恋愛サーキュレーション」Kana Hanazawa
 - Rie Fu - Tsuki Akari
 - Rie Takahashi (Re:Zero ED2 ) - Stay Alive
 - Rokudenashi - As you don't know
@@ -1068,8 +1057,8 @@ Japanese
 - Sherry - Adesso e Fortuna -Honoo to Eien-
 - Sherry - Kaze no Fantasia
 - ShibayanRecords 【東方ボーカル】 - Fall In The Dark
-- Shounan no Kaze 湘南乃風 - Yumemonogatari
-- Shounen Kaze 湘南乃風- Grand Blue
+- Shounen Kaze 湘南乃風 - Yumemonogatari
+- Shounen Kaze 湘南乃風 - Grand Blue
 - Shyness Boy - Anri
 - Sophisticated Lady - Thelonious Monk (瑟隆尼亞斯孟克) - Thelonious Monk Plays Duke Ellington
 - Soraru COVER - ダーリン そらる / soraru- ダーリン-Cover / そらる
@@ -1115,14 +1104,12 @@ Japanese
 - TRUE (Violet Evergarden) - Sincerely  => https://www.youtube.com/watch?v=uwph0dv9E6U
 - TRUE (Violet Evergarden) - Will => https://www.youtube.com/watch?v=LhSG89uJ1uQ
 - TUYU - I'm getting on the bus to the other world, see ya!
-- TUYU https://youtu.be/OOcehwVOWjU
 - Taeko Onuki - 4:00 A.M.
 - Taeko Onuki - Tokai
 - Tatsuro Yamashita - Morning Glory
 - Tatsuro Yamashita - クリスマス·イブ
 - Tatsuya Kitani - Where Our Blue Is
 - Tatsuya Kitani キタニタツヤ - HUMANLIKE
-- TeddyLoid&Giga "Desperate feat. LOLUET" MV
 - The Melancholy of Haruhi Suzumiya - God Knows
 - The Twelve Kingdoms ED - Getsumei Fuuei
 - Toaru Kagaku no Railgun - Only My Railgun
@@ -1141,7 +1128,6 @@ Japanese
 - Uru - Freesia
 - Uru - それを愛と呼ぶなら
 - Utada Hikaru - First Love
-- Utaite
 - VSPO! COVER - Shunkan Sentimental 瞬間センチメンタル
 - Vaundy - Odoriko 踊り子
 - Vaundy - 恋風邪にのせて - Koikaze ni nosete
@@ -1176,8 +1162,6 @@ Japanese
 - Yoh Kamiyama - Irokousui
 - Yoh Kamiyama - Kiito
 - Yoh Kamiyama - YELLOW
-- Yoh Kamiyama 神山羊
-- Yoh Kamiyama 神山羊 - YELLOW
 - Yoko Oginome - Dancing Hero
 - Yorinuki Gintama-san ED1 - DOES - Bokutachi no Kisetsu
 - Yorinuki Gintama-san ED2 - Vijandeux - Wave
@@ -1215,19 +1199,16 @@ Japanese
 - ZUTOMAYOI - Byoushino Kamu
 - asu COVER - ねむるまち
 - asu 明透 COVER - ねむるまち
-- ayane/メドレー4曲
 - back number - Happy End
 - back number - Tsunaida Tekara / 繋いだ手から
 - halca - Kimi No Tonari
 - nonoc (Spy Classroom) - Tomoshibi
 - shoyusound - ラストナイトダンス
 - sumika - Fiction
-- 「Ao No Waltz (蒼のワルツ) - Eve」KAN/ENG/ROMAJI LYRICS (Josee, the Tiger and the Fish)
-- 【Ado】いばら
-- 【Cover】シニカルナイトプラン (Cynical Night Plan) / Pavolia Reine × Tokoyami Towa
-- 【IRyS】いのち(Inochi)/AZKi【COVER】
-- 【歌枠】のんびり歌枠！！！- ハニカムステーション！#107【HACHI 】
-- ぎゅっと。 / もさを。【弾き語りver.】
+- Eve - Ao No Waltz (蒼のワルツ)
+- Ado - いばら
+- Hololive (Pavolia Reine × Tokoyami Towa) COVER - シニカルナイトプラン (Cynical Night Plan)
+- Hololive (IRyS) COVER - いのち
 - くじら - ねむるまち feat.yama
 - くじら - アルカホリック・ランデヴー
 - くじら - 夜桜 feat.めいちゃん
@@ -1235,14 +1216,14 @@ Japanese
 - くじら - 金木犀 feat.Ado
 - さいとうまりな - crazy for you - Lyric
 - しゃろう - 3:03 PM
-- そばにいて。 / 『ユイカ』【MV】
-- ねむるまち / 猫又おかゆ(cover)
-- アスノヨゾラ哨戒班 ／ Startend cover
+- ユイカ - そばにいて
+- Hololive (猫又おかゆ) COVER - ねむるまち
+- Hololive (Startend) COVER - アスノヨゾラ哨戒班
 - コバソロ & Lefty Hand Cream COVER - 風になる
 - コレサワ - たばこ
 - サカナクション - 撲殺天使ドクロちゃん OP
 - サンボマスター - Seishun Kyousoukyoku
-- マーシャル・マキシマイザー / 星街すいせい(Cover)
+- Hololive (Hoshimachi Suisei) - マーシャル・マキシマイザー
 - ユアネス-yourness - 私の最後の日 My Last Day
 - ユアネス-yourness- - Sun shower
 - ユアネス-yourness- 籠の中に鳥 Kago no Naka ni Tori
@@ -1256,16 +1237,16 @@ Japanese
 - ロクデナシ - スピカ
 - ロクデナシ - 三時のキス
 - ロクデナシ - 愛が灯る
-- ワタシダケユウレイ (Full Version) / SICK HACK 【BOCCHI THE ROCK! OST vol. 5】Watashi Dake Yuurei
+- Bocchi the Rock (Sick Hack) - ワタシダケユウレイ
 - 中島美嘉 - 僕が死のうと思ったのは The Reason I Wanted To Die => https://www.youtube.com/watch?v=0HTAKT-JIaA
 - 健屋花那/にじさんじ COVER - KING
 - 八十八ヶ所巡礼 88kasyo junrei - 狂感できない
 - 八十八ヶ所巡礼 88kasyo junrei - 金土日
-- 命の歌 Kurenai (feat. Sennzai)
+- 命の歌 - Kurenai (feat. Sennzai)
 - 宇多田ヒカル - Automatic
 - 宇多田ヒカル - First Love
-- 宇多田ヒカル『One Last Kiss』
-- 強風オールバック / さくらみこ(Cover)
+- 宇多田ヒカル - One Last Kiss
+- Hololive (Sakura Miko) COVER - 強風オールバック
 - 泡沫の夜 / nqrse
 - 深海(shinkai)/花たん(HaNaTaN)
 - 秋川雅史 - 千の風になって
@@ -1279,6 +1260,8 @@ Japanese
 - 須田景凪「veil」MV
 - 香椎モイミ feat. 可不 - キャットラビング
 - 麦吉_Maggie・盖盖Nyan  COVER - kimi no toriko summertime
+- 浮雲 - 夏央
+- 紫翠みちる - Potion
 
 Korean
 - Bolbbalgan4 (볼빨간 사춘기) - "Galaxy (우주를 줄게)"
@@ -1782,6 +1765,7 @@ German
 - Rock It! - Wir lieben die Musik
 
 Instrumental
+- CASIOPEA - Sunnyside Feelin'
 - Shubham Rangra - Manwa Lage (LoFi)
 - Yellow Magic Orchestra - Rydeen (2018 Bob Ludwig Remastering)
 - Yo-Yo Ma - I Could Have Danced All Night (Extended version)
