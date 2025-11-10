@@ -1,25 +1,21 @@
 ## YouTube Music setup
-Browser Headers
-1. Open YouTube Music in Chrome:
-    - https://music.youtube.com
-    - (Make sure you're logged in)
-2. Open DevTools:
-    - Press F12 or Cmd+Option+I (Mac)
-    - Click the Network tab
-3. Filter requests:
-    - Type browse in the filter box
-    - Refresh the page if needed
-    - Click on any browse request
-4. Copy the request:
-    - Right-click on the request
-    - Select: Copy → Copy as cURL (bash)
-5. Generate browser.json:
-    - `cd /Users/timothy.shee/GitHub/new-tech-monorepo/music-analysis`
-    - `poetry run ytmusicapi browser`
-      - Paste the cURL command when prompted
-      - Press Enter
-6. Verify `browser.json` is created
-    - ls -la browser.json
-
+[Browser Authentication](https://ytmusicapi.readthedocs.io/en/stable/setup/browser.html)
+- `poetry run ytmusicapi browser`
+- Verify `browser.json` is created
 
 ## Spotify setup
+You need to create a .env file at the project root with:
+```
+# Get Spotify credentials from: https://developer.spotify.com/dashboard
+SPOTIFY_CLIENT_ID=your_actual_client_id
+SPOTIFY_CLIENT_SECRET=your_actual_client_secret
+SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
+YTMUSIC_HEADERS_PATH=./browser.json
+```
+
+Steps to get Spotify credentials:
+1. Go to https://developer.spotify.com/dashboard
+2. Log in with your Spotify account
+3. Click "Create app"
+4. Add redirect URI: http://localhost:8888/callback
+5. Copy the Client ID and Client Secret
