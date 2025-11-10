@@ -33,7 +33,7 @@ logger.add(
 
 # Hard-coded paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-INPUT_FILE = PROJECT_ROOT / "data" / "01_B_cleaned_playlist.txt"
+INPUT_FILE = PROJECT_ROOT / "data" / "01_B_cleaned_playlist.md"
 OUTPUT_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_ids.txt"
 FAILED_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_failed_tracks.txt"
 # YTMusic browser headers file - generate with: ytmusicapi browser
@@ -129,7 +129,7 @@ def main():
     # Validate input file
     if not INPUT_FILE.exists():
         logger.error(f"Input file not found: {INPUT_FILE}")
-        logger.error("Run the preprocessing scripts first to generate 01_B_cleaned_playlist.txt")
+        logger.error("Run the preprocessing scripts first to generate 01_B_cleaned_playlist.md")
         sys.exit(1)
 
     logger.info(f"Input file: {INPUT_FILE}")
@@ -166,12 +166,47 @@ def main():
 
     logger.info(f"Total lines read: {len(lines)}")
 
+    # Load existing results to skip (for resume capability)
+    existing_tracks = set()
+    if OUTPUT_FILE.exists():
+        logger.info(f"Found existing results file. Loading to resume...")
+        with OUTPUT_FILE.open('r', encoding='utf-8') as f:
+            for line in f:
+                if not line.startswith('#') and '# ID:' in line:
+                    # Extract track name (everything before # ID:)
+                    track = line.split('# ID:')[0].strip()
+                    existing_tracks.add(track)
+        logger.info(f"Loaded {len(existing_tracks)} existing results. Will skip these.")
+
+    # Load existing failed tracks
+    existing_failed = set()
+    if FAILED_FILE.exists():
+        with FAILED_FILE.open('r', encoding='utf-8') as f:
+            for line in f:
+                if not line.startswith('#'):
+                    existing_failed.add(line.strip())
+
     # Process tracks
     results = []
     failed = []
     skipped = 0
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    FAILED_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    # Initialize or append to output files
+    file_mode = 'a' if OUTPUT_FILE.exists() else 'w'
+    if file_mode == 'w':
+        with OUTPUT_FILE.open('w', encoding='utf-8') as f:
+            f.write("# YouTube Music IDs\n")
+            f.write("# Results are written incrementally as tracks are found\n")
+            f.write("#\n")
+
+    file_mode = 'a' if FAILED_FILE.exists() else 'w'
+    if file_mode == 'w':
+        with FAILED_FILE.open('w', encoding='utf-8') as f:
+            f.write("# Tracks that could not be found on YouTube Music\n")
+            f.write("#\n")
 
     for i, line in enumerate(lines, 1):
         if not line.strip():
@@ -184,6 +219,17 @@ def main():
             skipped += 1
             continue
 
+        # Skip if already processed
+        if original in existing_tracks:
+            logger.debug(f"[{i}/{len(lines)}] Skipping (already found): {artist} - {title}")
+            results.append((original, None))  # Count it but don't search
+            continue
+
+        if original in existing_failed:
+            logger.debug(f"[{i}/{len(lines)}] Skipping (previously failed): {artist} - {title}")
+            failed.append(original)  # Count it but don't search
+            continue
+
         # Progress logging
         if i % 10 == 0:
             logger.info(f"Progress: {i}/{len(lines)} tracks processed...")
@@ -194,39 +240,52 @@ def main():
         video_id = search_ytmusic(ytmusic, artist, title)
 
         if video_id:
-            # Success
+            # Success - write immediately
             results.append((original, video_id))
+            with OUTPUT_FILE.open('a', encoding='utf-8') as f:
+                f.write(f"{original}  # ID: {video_id}\n")
             logger.success(f"✓ Found ID: {video_id}")
         else:
-            # Failed
+            # Failed - write immediately
             failed.append(original)
+            with FAILED_FILE.open('a', encoding='utf-8') as f:
+                f.write(f"{original}\n")
             logger.warning(f"✗ Not found: {artist} - {title}")
 
-    # Write results
+    # Update headers with final counts
     logger.info("=" * 80)
-    logger.info("Writing results...")
+    logger.info("Updating final statistics...")
 
+    # Read existing results
+    with OUTPUT_FILE.open('r', encoding='utf-8') as f:
+        content = f.readlines()
+
+    # Update header with final count
     with OUTPUT_FILE.open('w', encoding='utf-8') as f:
         f.write("# YouTube Music IDs\n")
         f.write(f"# Generated: {len(results)} tracks found\n")
         f.write(f"# Failed: {len(failed)} tracks not found\n")
         f.write("#\n")
-
-        for track, video_id in results:
-            # Format: Artist - Title  # ID: VIDEO_ID
-            f.write(f"{track}  # ID: {video_id}\n")
+        # Write all results (skip old header)
+        for line in content:
+            if not line.startswith('#'):
+                f.write(line)
 
     logger.info(f"✓ Results written to: {OUTPUT_FILE}")
 
-    # Write failed tracks
+    # Update failed file header
     if failed:
+        with FAILED_FILE.open('r', encoding='utf-8') as f:
+            content = f.readlines()
+
         with FAILED_FILE.open('w', encoding='utf-8') as f:
             f.write("# Tracks that could not be found on YouTube Music\n")
             f.write(f"# Total: {len(failed)}\n")
             f.write("#\n")
-
-            for track in failed:
-                f.write(f"{track}\n")
+            # Write all failed (skip old header)
+            for line in content:
+                if not line.startswith('#'):
+                    f.write(line)
 
         logger.warning(f"✗ Failed tracks written to: {FAILED_FILE}")
 
