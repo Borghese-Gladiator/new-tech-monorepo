@@ -182,6 +182,10 @@ def iter_added_lines_from_patch(patch_text: str):
             continue
         if raw.startswith("+") and not raw.startswith("+++"):
             line = raw[1:].rstrip("\r\n")
+            # Strip leading markdown bullet points to normalize lines
+            line = line.lstrip()
+            if line.startswith("- "):
+                line = line[2:]
             if line.strip():
                 yield current_file, line
 
@@ -214,16 +218,26 @@ def main():
     repo1 = collect_first_seen_lines(REPO1_PATH, FILE1_HINT)
     repo2 = collect_first_seen_lines(REPO2_PATH, FILE2_HINT)
 
-    # Deduplicate by text, keep the OLDEST timestamp
-    combined = {}
+    # Deduplicate by text (case-insensitive), keep the OLDEST timestamp and original text
+    # Use lowercase as key for deduplication, but preserve original text
+    normalized_map = {}  # normalized_text -> (timestamp, original_text)
+
     for m in (repo1, repo2):
         for txt, ts in m.items():
-            combined[txt] = ts if txt not in combined else min(combined[txt], ts)
+            normalized = txt.lower()
+            if normalized not in normalized_map:
+                normalized_map[normalized] = (ts, txt)
+            else:
+                existing_ts, existing_txt = normalized_map[normalized]
+                # Keep the entry with older timestamp
+                if ts < existing_ts:
+                    normalized_map[normalized] = (ts, txt)
+                # If same timestamp, keep the existing one (first seen wins)
 
     # Group by year, then by language
     grouped: Dict[int, Dict[str, List[Tuple[int, str]]]] = defaultdict(lambda: defaultdict(list))
 
-    for txt, ts in combined.items():
+    for ts, txt in normalized_map.values():
         year = utc_year(ts)
         language = detect_language(txt)
         grouped[year][language].append((ts, txt))
@@ -254,7 +268,8 @@ def main():
     ]
 
     # Write Markdown
-    md_path = Path("music_by_year.md")
+    md_path = Path("data/raw_extracted_music_by_year.md")
+    md_path.parent.mkdir(parents=True, exist_ok=True)
     with md_path.open("w", encoding="utf-8") as f:
         for year in sorted(grouped.keys()):
             f.write(f"# {year}\n")
