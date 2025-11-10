@@ -37,8 +37,14 @@ def clean_artist_name(artist):
     if hololive_match:
         return hololive_match.group(1).strip()
 
+    # Remove irrelevant parentheses with artist info like "( - Justin Bieber)"
+    artist = re.sub(r'\s*\(\s*-\s*[^)]+\)', '', artist)
+
     # Remove trailing (feat. ...), (ED), (OP), etc.
     artist = re.sub(r'\s*\([^)]*(?:feat|ED|OP|OST|from)[^)]*\)', '', artist, flags=re.IGNORECASE)
+
+    # Remove any remaining empty parentheses
+    artist = re.sub(r'\s*\(\s*\)', '', artist)
 
     # Remove duplicate names (e.g., "Mosawo もさを" -> "Mosawo")
     # Keep only the first word if there are duplicates with different scripts
@@ -61,6 +67,9 @@ def clean_song_name(song):
 
     # Remove extra notes after '=>'
     song = re.sub(r'\s*=>\s*[^-]+$', '', song)
+
+    # Remove ED/OP tags with numbers (e.g., "ED2", "OP1", "ED 2", "OP 1")
+    song = re.sub(r'\s*(?:ED|OP)\s*\d+\s*', '', song, flags=re.IGNORECASE)
 
     # Remove common video-related phrases (with or without parentheses)
     video_patterns = [
@@ -141,9 +150,30 @@ def parse_and_clean_line(line):
     # Remove URLs early
     line = remove_url_suffix(line)
 
+    # Handle Hololive pattern EARLY: "Hololive (Artist) Song" -> "Artist - Song"
+    # This handles cases like "Hololive (AZKI) いのち (2024 ver.)" -> "AZKI - いのち (2024 ver.)"
+    hololive_match = re.match(r'Hololive\s*\(([^)]+)\)\s+(.*)', line, re.IGNORECASE)
+    if hololive_match:
+        artist = hololive_match.group(1).strip()
+        song = hololive_match.group(2).strip()
+        line = f"{artist} - {song}"
+
     # Remove tags like COVER, KARAOKE (but keep the structure)
     # Replace "COVER -" or "KARAOKE -" with just "-"
     line = re.sub(r'\s*(?:COVER|KARAOKE)\s+', ' ', line, flags=re.IGNORECASE)
+
+    # Remove irrelevant parentheses with artist info like "( - Justin Bieber)" BEFORE splitting
+    line = re.sub(r'\s*\(\s*-\s*[^)]+\)', '', line)
+
+    # Remove ED/OP tags with numbers from the beginning/middle of lines
+    # This handles cases like "Toradora ED2 | Orange" or "Anime OP1 - Song"
+    line = re.sub(r'\s+(?:ED|OP)\s*\d+\s*', ' ', line, flags=re.IGNORECASE)
+
+    # Convert pipe separators to dashes (e.g., "Toradora | Orange" -> "Toradora - Orange")
+    line = re.sub(r'\s*\|\s*', ' - ', line)
+
+    # Normalize en dash (–) to regular dash
+    line = line.replace('–', '-')
 
     # Smarter dash normalization: don't normalize dashes in short artist names like "K-On", "A-ha"
     # Only normalize dashes that are clearly separators
@@ -184,6 +214,11 @@ def process_playlist(input_file, output_songs, output_uncategorized):
     songs = []
     uncategorized = []
     current_year = None
+    current_language = None
+
+    # Language headers to preserve
+    language_headers = ['English', 'Chinese', 'Japanese', 'Korean', 'German', 'French',
+                       'Spanish', 'Russian', 'Instrumental', 'Other']
 
     with open(input_file, 'r', encoding='utf-8') as f:
         for line_num, line in enumerate(f, 1):
@@ -202,6 +237,13 @@ def process_playlist(input_file, output_songs, output_uncategorized):
                 uncategorized.append(f"\n# {current_year}")
                 continue
 
+            # Check for language headers
+            if line in language_headers:
+                current_language = line
+                # Add language header to songs list
+                songs.append(f"\n## {current_language}")
+                continue
+
             # Parse and clean the line
             cleaned, is_song = parse_and_clean_line(line)
 
@@ -214,19 +256,29 @@ def process_playlist(input_file, output_songs, output_uncategorized):
                 # Keep original for uncategorized
                 uncategorized.append(line)
 
-    # Write songs to file
+    # Write songs to file (markdown format with bullets)
     with open(output_songs, 'w', encoding='utf-8') as f:
         for song in songs:
-            f.write(f"{song}\n")
+            # Headers start with # or newline+#, don't add bullets to those
+            if song.startswith('#') or song.startswith('\n#'):
+                f.write(f"{song}\n")
+            else:
+                # Add bullet point to song lines
+                f.write(f"- {song}\n")
 
-    # Write uncategorized to file
+    # Write uncategorized to file (markdown format with bullets)
     with open(output_uncategorized, 'w', encoding='utf-8') as f:
         for item in uncategorized:
-            f.write(f"{item}\n")
+            # Headers start with # or newline+#, don't add bullets to those
+            if item.startswith('#') or item.startswith('\n#'):
+                f.write(f"{item}\n")
+            else:
+                # Add bullet point to uncategorized lines
+                f.write(f"- {item}\n")
 
-    # Count only actual songs/items (not year headers)
-    num_songs = len([s for s in songs if not s.startswith('\n#')])
-    num_uncategorized = len([u for u in uncategorized if not u.startswith('\n#')])
+    # Count only actual songs/items (not year or language headers)
+    num_songs = len([s for s in songs if not s.startswith('\n#') and not s.startswith('#')])
+    num_uncategorized = len([u for u in uncategorized if not u.startswith('\n#') and not u.startswith('#')])
 
     return num_songs, num_uncategorized
 
@@ -235,8 +287,8 @@ def main():
     # Define paths
     base_dir = Path(__file__).parent.parent.parent  # Go up to project root
     input_file = base_dir / "data" / "01_A_extracted_music_by_year.md"
-    output_songs = base_dir / "data" / "01_B_cleaned_playlist.txt"
-    output_uncategorized = base_dir / "data" / "01_B_unrecognized_playlist.txt"
+    output_songs = base_dir / "data" / "01_B_cleaned_playlist.md"
+    output_uncategorized = base_dir / "data" / "01_B_unrecognized_playlist.md"
 
     print(f"Processing: {input_file}")
     print(f"Output songs: {output_songs}")

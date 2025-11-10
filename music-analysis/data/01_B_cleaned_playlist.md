@@ -400,6 +400,7 @@
 - Ado - Kitto Coaster / きっとコースター
 - Ado - New Genesis / 新時代 (UTA from ONE PIECE FILM RED)
 - Ado - Odo
+- Ado - いばら
 - Ado - ギラギラ
 - Ado - ボッカデラベリタ
 - Ado - Overdose 歌いました
@@ -498,6 +499,7 @@
 - Back Number - 花束 - Hanataba
 - Blue E & orcist - Rookiez Is Punk'd - In My World
 - Blue E & orcist - UVERworld - Core Pride
+- Bocchi the Rock (Sick Hack) - ワタシダケユウレイ
 - Bocchi the Rock (kessoku band) - Blue Spring and Western Sky
 - Bocchi the Rock (kessoku band) - Bundle up your dreams / 夢を束ねて
 - Bocchi the Rock (kessoku band) - Guitar, Loneliness and Blue Planet ギターと孤独と蒼い惑星
@@ -574,6 +576,7 @@
 - Etsuko Yakushimaru - Boys, come back to me 少年よ我に帰れ
 - Evangelion - 残酷な天使のテーゼ
 - Eve (Jujutsu Kaisen) - 廻廻奇譚 Kaikai Kitan
+- Eve - Ao No Waltz (蒼のワルツ)
 - Eve - Ao No Waltz (蒼のワルツ)
 - Eve - Boukenroku
 - Eve - Heikousen
@@ -666,6 +669,7 @@
 - Guilty Crown ED (EGOIST) - Departures Blessing
 - Guilty Crown ED - Departures Blessing
 - Guilty Crown OP - The Everlasting Guilty Crown
+- HACHI - Fiction
 - HIDEHARU - Proposal
 - HIRAIDAI - Stand By Me, Stand By You
 - HIRAIDAI - Todokanaikara
@@ -675,6 +679,7 @@
 - Haruhi Suzumiya ED - Aya Hirano, Minori Chihara and Yūko Gotō - ハレ晴レユカイ
 - Harumaki Gohan - Reunion
 - Heart Forecast - Eve
+- Hello Sleepwalkers - 午夜の待ち合わせ
 - Hideaki Tokunaga - Koibito
 - Hideaki Tokunaga - Saigo No Iiwake
 - Hideaki Tokunaga - Yasashii Kiss O Shite
@@ -727,10 +732,12 @@
 - Hakos Baelz - Mind Craft
 - Hakos - 好きだから / Suki Dakara
 - HoloAdvent - Rebellion
+- Hoshimachi Suisei - マーシャル・マキシマイザー
 - IRyS - Caesura of Despair
 - IRyS - Gravity
 - IRyS - HERE COMES HOPE
 - IRyS - Till the end of me
+- IRyS - いのち
 - Ina & Nabi - kimi no toriko summertime
 - Ina - VIOLET
 - Ina - おどれ！VRダンス！
@@ -773,12 +780,13 @@
 - NoPeLaBo - BLUE CLAPPER
 - Okayu & Korone - Fuwa Fuwa Time ふわふわ時間
 - Okayu & Korone - If...
+- Okayu - 彗星ハネムーン
 - Okayu - 惑星ループ
 - Okayu - 毒杯スワロウ
 - Okayu - さよならテンダー
-- Okayu - 彗星ハネムーン
 - Okayu & Korone - Fuwa Fuwa Time ふわふわ時間
 - Okayu & Korone - If...
+- Pavolia - シニカルナイトプラン (Cynical Night Plan)
 - Raora - ECHO
 - ReGLOSS - Shunkan Heartbeat
 - ReGLOSS - feelingradation / フィーリングラデーション
@@ -791,12 +799,14 @@
 - Roboco - リルビ
 - Rushia - Ghost in a Flower
 - Rushia - Goodbye Sengen
+- Sakura Miko - 強風オールバック
 - Shion - メイジ・オブ・ヴァイオレット
 - Shion - Overdose
 - Shion & Gura - 白金ディスコ
 - Shiori - Kyoufuu All Back 強風オールバック
 - Sora - 好き、泣いちゃいそう
 - Sora & Suisei & Subaru & Polka & Koyori & Chloe - 怪物
+- Startend - アスノヨゾラ哨戒班
 - Suisei - GET THE CROWN
 - Suisei - XION
 - Suisei - ビビデバ - BIBBIDIBA
@@ -816,6 +826,7 @@
 - Towa & Aki - Rose of the lamp
 - Towa & Kanata & Flare - STARDUST SONG
 - miComet - アイドル
+- 猫又おかゆ - ねむるまち
 - 黒上フブキ - 鬼の宴
 - Hololive - 青春アーカイブ
 - Hololive DEV_IS - スターマイン / Da-iCE
@@ -941,6 +952,7 @@
 - Meiko Nakahara - Fantasy
 - Meiko Nakahara - Fantasy (1982)
 - Memai - 偽物の宴
+- Meychan - Yomaigoto
 - Midnight Grand Orchestra - Midnight Mission
 - Miki Matsubara - Stay With Me
 - Miki Matsubara - 真夜中のドア〜Stay With Me+
@@ -1049,8 +1061,8 @@
 - Sherry - Adesso e Fortuna - Honoo to Eien-
 - Sherry - Kaze no Fantasia
 - ShibayanRecords - Fall In The Dark
-- Shounan - Yumemonogatari
 - Shounen - Grand Blue
+- Shounen - Yumemonogatari
 - Shyness Boy - Anri
 - Sophisticated Lady - Thelonious Monk (瑟隆尼亞斯孟克) - Thelonious Monk Plays Duke Ellington
 - Soraru - ダーリン そらる / soraru - ダーリン - / そらる
@@ -1195,9 +1207,10 @@
 - back number - Tsunaida Tekara / 繋いだ手から
 - halca - Kimi No Tonari
 - nonoc (Spy Classroom) - Tomoshibi
+- nqrse - 泡沫の夜
 - shoyusound - ラストナイトダンス
 - sumika - Fiction
-- 「Ao - Eve」KAN/ENG/ROMAJI (Josee, the Tiger and the Fish)
+- tayori - 雪解け (feat. 倚水)
 - くじら - ねむるまち feat.yama
 - くじら - アルカホリック・ランデヴー
 - くじら - 夜桜 feat.めいちゃん
@@ -1212,6 +1225,7 @@
 - ユアネス-yourness - 私の最後の日 My Last Day
 - ユアネス-yourness - Sun shower
 - ユアネス-yourness - 籠の中に鳥 Kago no Naka ni Tori
+- ユイカ - そばにいて
 - ユイカ - 好きだから
 - ユリカ/花たん - 歌に形はないけれど
 - ラックライフ - 名前を呼ぶよ
@@ -1226,15 +1240,21 @@
 - 健屋花那/にじさんじ - KING
 - 八十八ヶ所巡礼 88kasyo junrei - 狂感できない
 - 八十八ヶ所巡礼 88kasyo junrei - 金土日
+- 命の歌 - Kurenai (feat. Sennzai)
 - 宇多田ヒカル - Automatic
 - 宇多田ヒカル - First Love
+- 宇多田ヒカル - One Last Kiss
+- 浮雲 - 夏央
 - 秋川雅史 - 千の風になって
 - 紗希 - 恋人になれなかった
+- 紫翠みちる - Potion
 - 絢香 - やさしさに包まれたなら
 - 美波 (Minami) - カワキヲアメク Crying For Rain
+- 花たん - 深海
 - 退屈を再演しないで - Eve
 - 酸欠少女 さユり - Sanketsu-girl
 - 酸欠少女 さユり - Tower of Flower
+- 須田景凪 - veil
 - 香椎モイミ feat. 可不 - キャットラビング
 - 麦吉_Maggie & 盖盖Nyan - kimi no toriko summertime
 
@@ -1739,6 +1759,7 @@
 - Rock It! - Wir lieben die Musik
 
 ## Instrumental
+- CASIOPEA - Sunnyside Feelin'
 - Shubham Rangra - Manwa Lage (LoFi)
 - Yellow Magic Orchestra - Rydeen (2018 Bob Ludwig Remastering)
 - Yo-Yo Ma - I Could Have Danced All Night (Extended version)

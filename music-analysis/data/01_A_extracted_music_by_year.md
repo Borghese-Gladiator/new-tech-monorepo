@@ -108,7 +108,6 @@ English
 - Elton John - I'm Still Standing
 - Elvis Presley - Can't Help Falling In Love
 - Eric Clapton - Tears in Heaven
-- Fiction / HACHI × KMNZ LITA 【Official MV 】
 - Frank Sinatra - Come Fly With Me
 - Frank Sinatra - I Love You Baby
 - Frank Sinatra - Moonlight Serenade
@@ -354,7 +353,6 @@ Chinese
 - 李荣浩 Li Ronghao - Can't Bear It (Ending Credit Theme Song of 'You Are My Sunshine')
 - 李荣浩 Li Ronghao - Composer
 - 李玉刚 Li Yugang - 剛好遇見你
-- 碧藍之海 OP主題歌 湘南乃風「Grand Blue」(中日字幕)
 - 周傳雄 Steve Chou - 黃昏 Huang Hun
 - 田一名 Tian Yiming COVER - Super Idol 的笑容/热爱105°C的你
 - 月 Tsuki COVER - 嘘月
@@ -406,6 +404,7 @@ Japanese
 - Ado - Kitto Coaster / きっとコースター
 - Ado - New Genesis / 新時代 (UTA from ONE PIECE FILM RED)
 - Ado - Odo
+- Ado - いばら
 - Ado - ギラギラ
 - Ado - ボッカデラベリタ
 - Ado COVER - Overdose 歌いました
@@ -504,6 +503,7 @@ Japanese
 - Back Number - 花束 - Hanataba
 - Blue Exorcist - Rookiez Is Punk'd - In My World
 - Blue Exorcist - UVERworld - Core Pride
+- Bocchi the Rock (Sick Hack) - ワタシダケユウレイ
 - Bocchi the Rock (kessoku band) - Blue Spring and Western Sky
 - Bocchi the Rock (kessoku band) - Bundle up your dreams / 夢を束ねて
 - Bocchi the Rock (kessoku band) - Guitar, Loneliness and Blue Planet ギターと孤独と蒼い惑星
@@ -580,6 +580,7 @@ Japanese
 - Etsuko Yakushimaru - Boys, come back to me 少年よ我に帰れ
 - Evangelion - 残酷な天使のテーゼ
 - Eve (Jujutsu Kaisen) - 廻廻奇譚 Kaikai Kitan
+- Eve - Ao No Waltz (蒼のワルツ)
 - Eve - Ao No Waltz (蒼のワルツ)
 - Eve - Boukenroku
 - Eve - Heikousen
@@ -672,6 +673,7 @@ Japanese
 - Guilty Crown ED (EGOIST) - Departures Blessing
 - Guilty Crown ED - Departures Blessing
 - Guilty Crown OP - The Everlasting Guilty Crown
+- HACHI - Fiction
 - HIDEHARU - Proposal
 - HIRAIDAI 平井大 - Stand By Me, Stand By You
 - HIRAIDAI 平井大 - Todokanaikara
@@ -734,10 +736,12 @@ Japanese
 - Hololive (Hakos Baelz) - Mind Craft
 - Hololive (Hakos) - 好きだから / Suki Dakara
 - Hololive (HoloAdvent) - Rebellion
+- Hololive (Hoshimachi Suisei) - マーシャル・マキシマイザー
 - Hololive (IRyS) - Caesura of Despair
 - Hololive (IRyS) - Gravity
 - Hololive (IRyS) - HERE COMES HOPE
 - Hololive (IRyS) - Till the end of me
+- Hololive (IRyS) COVER - いのち
 - Hololive (Ina X Nabi) COVER - kimi no toriko summertime  => https://www.youtube.com/watch?v=Ucwpn-JQqmI
 - Hololive (Ina) - VIOLET
 - Hololive (Ina) COVER - おどれ！VRダンス！
@@ -780,12 +784,13 @@ Japanese
 - Hololive (NoPeLaBo) - BLUE CLAPPER
 - Hololive (Okayu X Korone) COVER - Fuwa Fuwa Time ふわふわ時間
 - Hololive (Okayu X Korone) COVER - If... - https://www.youtube.com/watch?v=wVOHaMd3utA
+- Hololive (Okayu) - 彗星ハネムーン - https://www.youtube.com/watch?v=2jW7L0GsMmU
 - Hololive (Okayu) - 惑星ループ
 - Hololive (Okayu) - 毒杯スワロウ   => https://youtu.be/BNI2FBQQIag
 - Hololive (Okayu) COVER - さよならテンダー
-- Hololive (Okayu) - 彗星ハネムーン - https://www.youtube.com/watch?v=2jW7L0GsMmU
 - Hololive (Okayu・Korone) COVER - Fuwa Fuwa Time ふわふわ時間
 - Hololive (Okayu・Korone) COVER - If... - https://www.youtube.com/watch?v=wVOHaMd3utA
+- Hololive (Pavolia Reine × Tokoyami Towa) COVER - シニカルナイトプラン (Cynical Night Plan)
 - Hololive (Raora) COVER - ECHO
 - Hololive (ReGLOSS) - Shunkan Heartbeat
 - Hololive (ReGLOSS) - feelingradation / フィーリングラデーション
@@ -798,12 +803,14 @@ Japanese
 - Hololive (Roboco) - リルビ
 - Hololive (Rushia) COVER - Ghost in a Flower
 - Hololive (Rushia) COVER - Goodbye Sengen
+- Hololive (Sakura Miko) COVER - 強風オールバック
 - Hololive (Shion) - メイジ・オブ・ヴァイオレット
 - Hololive (Shion) COVER - Overdose
 - Hololive (Shion・Gura) COVER - 白金ディスコ
 - Hololive (Shiori) COVER - Kyoufuu All Back 強風オールバック
 - Hololive (Sora) - 好き、泣いちゃいそう
 - Hololive (Sora・Suisei・Subaru・Polka・Koyori・Chloe) COVER - 怪物
+- Hololive (Startend) COVER - アスノヨゾラ哨戒班
 - Hololive (Suisei) - GET THE CROWN
 - Hololive (Suisei) - XION
 - Hololive (Suisei) - ビビデバ - BIBBIDIBA
@@ -823,6 +830,7 @@ Japanese
 - Hololive (Towa・Aki) - Rose of the lamp
 - Hololive (Towa・Kanata・Flare) - STARDUST SONG =>  https://youtu.be/LiJBEm9v5Nw
 - Hololive (miComet) COVER - アイドル
+- Hololive (猫又おかゆ) COVER - ねむるまち
 - Hololive (黒上フブキ) COVER - 鬼の宴
 - Hololive - 青春アーカイブ
 - Hololive DEV_IS COVER - スターマイン / Da-iCE
@@ -1057,8 +1065,8 @@ Japanese
 - Sherry - Adesso e Fortuna -Honoo to Eien-
 - Sherry - Kaze no Fantasia
 - ShibayanRecords 【東方ボーカル】 - Fall In The Dark
-- Shounen Kaze 湘南乃風 - Yumemonogatari
 - Shounen Kaze 湘南乃風 - Grand Blue
+- Shounen Kaze 湘南乃風 - Yumemonogatari
 - Shyness Boy - Anri
 - Sophisticated Lady - Thelonious Monk (瑟隆尼亞斯孟克) - Thelonious Monk Plays Duke Ellington
 - Soraru COVER - ダーリン そらる / soraru- ダーリン-Cover / そらる
@@ -1203,12 +1211,10 @@ Japanese
 - back number - Tsunaida Tekara / 繋いだ手から
 - halca - Kimi No Tonari
 - nonoc (Spy Classroom) - Tomoshibi
+- nqrse - 泡沫の夜
 - shoyusound - ラストナイトダンス
 - sumika - Fiction
-- Eve - Ao No Waltz (蒼のワルツ)
-- Ado - いばら
-- Hololive (Pavolia Reine × Tokoyami Towa) COVER - シニカルナイトプラン (Cynical Night Plan)
-- Hololive (IRyS) COVER - いのち
+- tayori - 雪解け (feat. 倚水)
 - くじら - ねむるまち feat.yama
 - くじら - アルカホリック・ランデヴー
 - くじら - 夜桜 feat.めいちゃん
@@ -1216,17 +1222,14 @@ Japanese
 - くじら - 金木犀 feat.Ado
 - さいとうまりな - crazy for you - Lyric
 - しゃろう - 3:03 PM
-- ユイカ - そばにいて
-- Hololive (猫又おかゆ) COVER - ねむるまち
-- Hololive (Startend) COVER - アスノヨゾラ哨戒班
 - コバソロ & Lefty Hand Cream COVER - 風になる
 - コレサワ - たばこ
 - サカナクション - 撲殺天使ドクロちゃん OP
 - サンボマスター - Seishun Kyousoukyoku
-- Hololive (Hoshimachi Suisei) - マーシャル・マキシマイザー
 - ユアネス-yourness - 私の最後の日 My Last Day
 - ユアネス-yourness- - Sun shower
 - ユアネス-yourness- 籠の中に鳥 Kago no Naka ni Tori
+- ユイカ - そばにいて
 - ユイカ - 好きだから
 - ユリカ/花たん - 歌に形はないけれど
 - ラックライフ - 名前を呼ぶよ
@@ -1237,7 +1240,6 @@ Japanese
 - ロクデナシ - スピカ
 - ロクデナシ - 三時のキス
 - ロクデナシ - 愛が灯る
-- Bocchi the Rock (Sick Hack) - ワタシダケユウレイ
 - 中島美嘉 - 僕が死のうと思ったのは The Reason I Wanted To Die => https://www.youtube.com/watch?v=0HTAKT-JIaA
 - 健屋花那/にじさんじ COVER - KING
 - 八十八ヶ所巡礼 88kasyo junrei - 狂感できない
@@ -1246,22 +1248,19 @@ Japanese
 - 宇多田ヒカル - Automatic
 - 宇多田ヒカル - First Love
 - 宇多田ヒカル - One Last Kiss
-- Hololive (Sakura Miko) COVER - 強風オールバック
-- 泡沫の夜 / nqrse
-- 深海(shinkai)/花たん(HaNaTaN)
+- 浮雲 - 夏央
 - 秋川雅史 - 千の風になって
 - 紗希 - 恋人になれなかった
+- 紫翠みちる - Potion
 - 絢香 - やさしさに包まれたなら
 - 美波 (Minami) - カワキヲアメク Crying For Rain
+- 花たん - 深海
 - 退屈を再演しないで - Eve MV
 - 酸欠少女 さユり - Sanketsu-girl
 - 酸欠少女 さユり - Tower of Flower
-- 雪解け (feat. 倚水)
-- 須田景凪「veil」MV
+- 須田景凪 - veil
 - 香椎モイミ feat. 可不 - キャットラビング
 - 麦吉_Maggie・盖盖Nyan  COVER - kimi no toriko summertime
-- 浮雲 - 夏央
-- 紫翠みちる - Potion
 
 Korean
 - Bolbbalgan4 (볼빨간 사춘기) - "Galaxy (우주를 줄게)"
@@ -1285,7 +1284,6 @@ German
 - Gintama OP11 - FLiP - Wonderland
 - Gundam - INVOKE
 - Hardcastle - Mundane
-- Hikaru no Go soundtrack - https://www.youtube.com/playlist?list=PL46459E1791DDC7A2
 - Macross - Walkure - Ikenai Borderline
 - Nightcore - Cady Groves - Little Girl Capable of Murder  => https://www.youtube.com/watch?v=23cWJ1Em0f8
 - Paul Anka - Put Your Head On My Shoulder
@@ -1294,7 +1292,6 @@ German
 - Undead Unluck - Kairi Yagi - Know Me
 - Undead Unluck - OKAMOTO - Nothing can challenge this love
 - Undead Unluck - Queen Bee - ZERO ICHfI
-- Vaundy
 - Vaundy - Fukakoryoku
 - Vaundy - mabuta
 - Vaundy - Tokimeki
