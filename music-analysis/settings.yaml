@@ -1,7 +1,7 @@
 # MP3 Analyzer Configuration
 
 # Input/Output paths
-input_markdown: ./data/01_B_cleaned_playlist.txt
+input_markdown: ./data/01_B_cleaned_playlist.md
 download_dir: ./data/audio_raw
 audio_out_dir: ./data/03_downloaded_audio
 fig_dir: ./outputs/figures
