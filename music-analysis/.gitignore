@@ -49,10 +49,6 @@ secrets/
 outputs/
 data/audio_raw/
 data/*.parquet
-data/*_track_ids.txt
-data/*_failed_tracks.txt
-data/*_playlist.md
-data/*_playlist.txt
 
 # Logs
 *.log
