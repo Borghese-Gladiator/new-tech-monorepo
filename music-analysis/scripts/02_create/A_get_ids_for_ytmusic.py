@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-Search for YouTube Music IDs for tracks in playlist.
+Search YouTube Music API for video IDs.
 
-Reads from: data/playlist_cleaned.txt
-Writes to: data/ytmusic_ids.txt
+⚠️  WARNING: This script makes API calls to YouTube Music!
+- Rate limited: ~1-2 requests/second
+- Takes ~30 minutes for 1,700 tracks
+- Results are cached - safe to re-run (skips existing)
 
-Output format: Artist - Title  # ID: VIDEO_ID
+Input:  data/01_B_normalized_tracks.csv
+Output: data/02_A_ytmusic_track_ids.csv (track_name, video_id)
+        data/02_A_ytmusic_failed_tracks.txt
 
 Usage:
     poetry run python scripts/02_create/A_get_ids_for_ytmusic.py
 """
+import csv
 import os
 import sys
 from pathlib import Path
@@ -34,8 +39,8 @@ logger.add(
 
 # Hard-coded paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-INPUT_FILE = PROJECT_ROOT / "data" / "01_B_cleaned_playlist.md"
-OUTPUT_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_ids.txt"
+INPUT_FILE = PROJECT_ROOT / "data" / "01_B_cleaned_playlist.md"  # TODO: Update to use CSV
+OUTPUT_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_ids.csv"
 FAILED_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_failed_tracks.txt"
 MANIFEST_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_manifest.parquet"
 # YTMusic browser headers file - generate with: ytmusicapi browser

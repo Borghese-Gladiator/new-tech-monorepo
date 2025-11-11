@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """
-Run this AFTER you run `extract_lines.py`
+Normalize playlist entries to CSV format.
 
-Script to parse and clean playlist.md for easy splitting and Spotify/YT_Music search
+⚠️ NO API CALLS - This script only cleans and normalizes text.
+
+Input:  data/01_A_extracted_music_by_year.md
+Output: data/01_B_normalized_tracks.csv (track_name, year, language)
+        data/01_B_unrecognized.txt
+
+Reads extracted music lines and normalizes them into "Artist - Title" format.
+Handles various input formats including markdown links, URLs, and special patterns.
 """
 
+import csv
 import re
 from pathlib import Path
 
@@ -213,14 +221,14 @@ def parse_and_clean_line(line):
     return line, is_song
 
 
-def process_playlist(input_file, output_songs, output_uncategorized):
-    """Process the playlist file and categorize entries"""
-    songs = []
+def process_playlist(input_file, output_csv, output_uncategorized):
+    """Process the playlist file and output to CSV format"""
+    songs = []  # List of dicts: {track_name, year, language}
     uncategorized = []
     current_year = None
     current_language = None
 
-    # Language headers to preserve
+    # Language headers to track
     language_headers = ['English', 'Chinese', 'Japanese', 'Korean', 'German', 'French',
                        'Spanish', 'Russian', 'Instrumental', 'Other']
 
@@ -236,16 +244,11 @@ def process_playlist(input_file, output_songs, output_uncategorized):
             year_match = re.match(r'^#\s*(\d{4})\s*$', line)
             if year_match:
                 current_year = year_match.group(1)
-                # Add year header to both lists
-                songs.append(f"\n# {current_year}")
-                uncategorized.append(f"\n# {current_year}")
                 continue
 
             # Check for language headers
             if line in language_headers:
                 current_language = line
-                # Add language header to songs list
-                songs.append(f"\n## {current_language}")
                 continue
 
             # Parse and clean the line
@@ -255,60 +258,51 @@ def process_playlist(input_file, output_songs, output_uncategorized):
                 continue
 
             if is_song:
-                songs.append(cleaned)
+                songs.append({
+                    'track_name': cleaned,
+                    'year': current_year or '',
+                    'language': current_language or ''
+                })
             else:
                 # Keep original for uncategorized
                 uncategorized.append(line)
 
-    # Write songs to file (markdown format with bullets)
-    with open(output_songs, 'w', encoding='utf-8') as f:
-        for song in songs:
-            # Headers start with # or newline+#, don't add bullets to those
-            if song.startswith('#') or song.startswith('\n#'):
-                f.write(f"{song}\n")
-            else:
-                # Add bullet point to song lines
-                f.write(f"- {song}\n")
+    # Write songs to CSV
+    with open(output_csv, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=['track_name', 'year', 'language'])
+        writer.writeheader()
+        writer.writerows(songs)
 
-    # Write uncategorized to file (markdown format with bullets)
+    # Write uncategorized to text file
     with open(output_uncategorized, 'w', encoding='utf-8') as f:
         for item in uncategorized:
-            # Headers start with # or newline+#, don't add bullets to those
-            if item.startswith('#') or item.startswith('\n#'):
-                f.write(f"{item}\n")
-            else:
-                # Add bullet point to uncategorized lines
-                f.write(f"- {item}\n")
+            f.write(f"{item}\n")
 
-    # Count only actual songs/items (not year or language headers)
-    num_songs = len([s for s in songs if not s.startswith('\n#') and not s.startswith('#')])
-    num_uncategorized = len([u for u in uncategorized if not u.startswith('\n#') and not u.startswith('#')])
-
-    return num_songs, num_uncategorized
+    return len(songs), len(uncategorized)
 
 
 def main():
     # Define paths
     base_dir = Path(__file__).parent.parent.parent  # Go up to project root
     input_file = base_dir / "data" / "01_A_extracted_music_by_year.md"
-    output_songs = base_dir / "data" / "01_B_cleaned_playlist.md"
-    output_uncategorized = base_dir / "data" / "01_B_unrecognized_playlist.md"
+    output_csv = base_dir / "data" / "01_B_normalized_tracks.csv"
+    output_uncategorized = base_dir / "data" / "01_B_unrecognized.txt"
 
     print(f"Processing: {input_file}")
-    print(f"Output songs: {output_songs}")
+    print(f"Output CSV: {output_csv}")
     print(f"Output uncategorized: {output_uncategorized}")
     print()
 
     num_songs, num_uncategorized = process_playlist(
-        input_file, output_songs, output_uncategorized
+        input_file, output_csv, output_uncategorized
     )
 
     print(f"✓ Processed {num_songs + num_uncategorized} total entries")
-    print(f"  - {num_songs} songs with clear artist-song format")
-    print(f"  - {num_uncategorized} uncategorized entries")
+    print(f"  - {num_songs} normalized tracks")
+    print(f"  - {num_uncategorized} unrecognized entries")
     print()
     print(f"Files created:")
-    print(f"  - {output_songs}")
+    print(f"  - {output_csv}")
     print(f"  - {output_uncategorized}")
 
 
