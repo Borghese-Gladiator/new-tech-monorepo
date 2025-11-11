@@ -8,7 +8,15 @@ This script downloads audio from YouTube Music using video IDs found in the prev
 
 ## Prerequisites
 
-### 1. Python Dependencies (Already Installed)
+### 1. YouTube Account (REQUIRED)
+
+**You must be signed in to YouTube in your browser** to download audio. YouTube now requires authentication to prevent bot abuse.
+
+- Sign in to YouTube in Chrome (or Firefox/Safari/Edge)
+- Keep your browser open while downloading
+- The script will automatically extract cookies from your browser
+
+### 2. Python Dependencies (Already Installed)
 
 These are managed by Poetry and should already be installed:
 - `yt-dlp` - YouTube downloader
@@ -19,7 +27,7 @@ If needed, run:
 poetry install
 ```
 
-### 2. ffmpeg (System Dependency - REQUIRED)
+### 3. ffmpeg (System Dependency - REQUIRED)
 
 ffmpeg is required by yt-dlp to convert audio to MP3 format.
 
@@ -97,6 +105,20 @@ poetry run python scripts/03_download/download_audio_yt.py --max 10
 Re-download files even if they already exist:
 ```bash
 poetry run python scripts/03_download/download_audio_yt.py --force
+```
+
+### Specify Browser
+
+Use cookies from a different browser (default: chrome):
+```bash
+# Firefox
+poetry run python scripts/03_download/download_audio_yt.py --browser firefox
+
+# Safari
+poetry run python scripts/03_download/download_audio_yt.py --browser safari
+
+# Edge
+poetry run python scripts/03_download/download_audio_yt.py --browser edge
 ```
 
 ### Adjust Download Delay

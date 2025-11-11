@@ -2,13 +2,14 @@
 """
 Download audio from YouTube Music using video IDs.
 
-Reads video IDs from: data/02_A_ytmusic_track_ids.txt
+Reads video IDs from: data/02_A_ytmusic_track_ids.csv
 Downloads to: data/03_downloaded_audio/
 
 Usage:
     poetry run python scripts/03_download/download_audio_yt.py [--max N] [--force]
 """
 import argparse
+import csv
 import subprocess
 import sys
 import time
@@ -26,7 +27,7 @@ logger.add(
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-INPUT_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_ids.txt"
+INPUT_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_ids.csv"
 OUTPUT_DIR = PROJECT_ROOT / "data" / "03_downloaded_audio"
 
 
@@ -51,34 +52,21 @@ def check_dependencies():
 
 
 def parse_track_ids(input_file: Path):
-    """Parse track IDs from the input file."""
+    """Parse track IDs from the CSV file."""
     tracks = []
 
     with input_file.open('r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-
-            # Skip comments and empty lines
-            if not line or line.startswith('#'):
-                continue
-
-            # Parse format: "Artist - Title  # ID: VIDEO_ID"
-            if '# ID:' not in line:
-                continue
-
-            parts = line.split('# ID:')
-            track_name = parts[0].strip()
-            video_id = parts[1].strip()
-
+        reader = csv.DictReader(f)
+        for row in reader:
             tracks.append({
-                'name': track_name,
-                'video_id': video_id,
+                'name': row['track_name'],
+                'video_id': row['video_id'],
             })
 
     return tracks
 
 
-def download_track(video_id: str, track_name: str, output_dir: Path, force: bool = False) -> bool:
+def download_track(video_id: str, track_name: str, output_dir: Path, browser: str = "chrome", force: bool = False) -> bool:
     """
     Download a track from YouTube Music.
 
@@ -86,13 +74,14 @@ def download_track(video_id: str, track_name: str, output_dir: Path, force: bool
         video_id: YouTube video ID
         track_name: Track name for logging
         output_dir: Directory to save the file
+        browser: Browser to extract cookies from
         force: Force re-download even if file exists
 
     Returns:
         True if successful, False otherwise
     """
-    # Construct YouTube Music URL
-    url = f"https://music.youtube.com/watch?v={video_id}"
+    # Construct YouTube URL (works for both YouTube and YouTube Music)
+    url = f"https://www.youtube.com/watch?v={video_id}"
 
     # Output template: "Artist - Title [VIDEO_ID].mp3"
     output_template = str(output_dir / f"%(artist)s - %(title)s [%(id)s].%(ext)s")
@@ -108,6 +97,7 @@ def download_track(video_id: str, track_name: str, output_dir: Path, force: bool
     try:
         cmd = [
             'yt-dlp',
+            '--cookies-from-browser', browser,  # Extract cookies from browser
             '--extract-audio',
             '--audio-format', 'mp3',
             '--audio-quality', '320K',
@@ -144,6 +134,7 @@ def main():
     parser.add_argument("--max", type=int, help="Maximum number of tracks to download (for testing)")
     parser.add_argument("--force", action="store_true", help="Force re-download of existing files")
     parser.add_argument("--delay", type=float, default=3.0, help="Base delay in seconds for exponential backoff (default: 3.0)")
+    parser.add_argument("--browser", default="chrome", help="Browser to extract cookies from (chrome, firefox, safari, edge) (default: chrome)")
     args = parser.parse_args()
 
     logger.info("=" * 80)
@@ -152,6 +143,9 @@ def main():
 
     # Check dependencies
     check_dependencies()
+
+    logger.info(f"Using cookies from browser: {args.browser}")
+    logger.info("Note: You must be signed in to YouTube in this browser")
 
     # Validate input file
     if not INPUT_FILE.exists():
@@ -189,6 +183,7 @@ def main():
             video_id=track['video_id'],
             track_name=track['name'],
             output_dir=OUTPUT_DIR,
+            browser=args.browser,
             force=args.force,
         )
 
