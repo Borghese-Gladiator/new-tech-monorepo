@@ -1,25 +1,47 @@
-# MP3 Playlist Analyzer & Normalizer
+# Music Analysis Pipeline
 
-A comprehensive Python toolkit for building, analyzing, and managing music playlists across Spotify and YouTube Music platforms. Features audio feature extraction using librosa, automatic playlist creation, and rich visualizations.
+A comprehensive Python toolkit for extracting, normalizing, and analyzing music playlists from git history. Features YouTube Music integration, audio download with yt-dlp, and audio analysis with librosa.
 
 ## Features
 
-- 📝 **Markdown-based playlist input** - Simple text format for track lists
-- 🔍 **Multi-platform search** - Find tracks on Spotify and YouTube Music
-- 📥 **Audio download** - Fetch high-quality MP3s from YouTube/YouTube Music
-- 🎵 **Audio analysis** - Extract 100+ audio features using librosa
+- 📝 **Git History Extraction** - Extract music entries from commit history across repositories
+- 🧹 **Smart Normalization** - Clean and standardize track names to "Artist - Title" format
+- 🔍 **YouTube Music Search** - Find video IDs for tracks (with rate limiting)
+- 📥 **Audio Download** - Download high-quality MP3s (320kbps) with exponential backoff
+- 🎵 **Audio Analysis** - Extract 100+ audio features using librosa
 - 📊 **Visualizations** - Generate insightful charts (PCA, correlations, spectral analysis)
-- 🎼 **Playlist sync** - Create synchronized playlists on Spotify and YouTube Music
-- 🔊 **Loudness normalization** - Optional LUFS-based audio normalization
-- 🔄 **Deduplication** - Smart fuzzy matching to avoid duplicate tracks
+- 🔄 **Resume Capability** - All scripts support interruption and resume
+
+## Pipeline Overview
+
+```
+01_preprocess/          → Extract and normalize track names
+  A_extract_lines.py       ⚙️  Extract from git history
+  B_normalize_tracks_to_csv.py  ⚙️  Clean to "Artist - Title" format
+
+02_create/              → Search for video IDs
+  A_get_ids_for_ytmusic.py  ⚠️  API CALLS - YouTube Music search
+  B_build_playlists_ytmusic.py  ⚠️  API CALLS - Create playlists
+
+03_download/            → Download audio files
+  download_audio_yt.py     🔐 Requires browser cookies
+
+04_analyze/             → Extract features and visualize
+  (Coming soon)
+
+Legend:
+  ⚙️  No API calls - safe to run repeatedly
+  ⚠️  Makes API calls - rate limited
+  🔐 Requires authentication
+```
 
 ## Requirements
 
 - Python 3.10+
 - ffmpeg (for audio processing)
 - Poetry (for dependency management)
-- Spotify API credentials
-- YouTube Music account (for playlist management)
+- YouTube account (for downloading)
+- YouTube Music browser.json (for ID search)
 
 ## Installation
 
@@ -41,388 +63,332 @@ Download from [ffmpeg.org](https://ffmpeg.org/download.html)
 ### 2. Clone and setup
 
 ```bash
-cd mp3-analyzer
-make setup
+cd music-analysis
+poetry install
 ```
 
-This will:
-- Install Poetry (if not already installed)
-- Create a virtual environment
-- Install all Python dependencies
+### 3. Configure authentication
 
-### 3. Configure API credentials
+#### YouTube Music Setup (for ID search)
 
-#### Spotify Setup
+Generate browser authentication file:
 
-1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/)
-2. Create a new app
-3. Add `http://localhost:8888/callback` as a Redirect URI
-4. Copy your Client ID and Client Secret
+```bash
+# Open YouTube Music in Chrome: https://music.youtube.com
+# Open DevTools (F12) → Network tab
+# Filter by 'browse' and click any request
+# Right-click → Copy → Copy as cURL
+# Then run:
+poetry run ytmusicapi browser
 
-Create a `.env` file from the template:
+# This creates browser.json in your directory
+```
+
+Update `.env`:
 ```bash
 cp .env.example .env
+# Edit .env and set:
+YTMUSIC_HEADERS_PATH=./browser.json
 ```
 
-Edit `.env` and fill in your Spotify credentials:
-```env
-SPOTIFY_CLIENT_ID=your_client_id_here
-SPOTIFY_CLIENT_SECRET=your_client_secret_here
-SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
-SPOTIFY_USERNAME=your_spotify_username
-```
+#### Browser Cookies (for downloading)
 
-#### YouTube Music Setup
+**You must be signed in to YouTube in your browser**. The download script will automatically extract cookies from your browser (Chrome by default).
 
-Authenticate with YouTube Music:
-```bash
-make ytmusic-setup
-# or
-poetry run ytmusicapi oauth
-```
-
-This will:
-1. Open a browser window for authentication
-2. Save your credentials to `./secrets/ytmusic_headers.json`
-
-Update `.env` with the headers path:
-```env
-YTMUSIC_HEADERS_PATH=./secrets/ytmusic_headers.json
-```
+No additional setup needed - just stay signed in!
 
 ## Usage
 
-### Quick Start
+### Stage 1: Extract from Git History
 
-1. Edit `data/playlist.md` with your tracks:
-
-```markdown
-# My Playlist
-
-- Daft Punk – Digital Love [album: Discovery]
-- Nujabes - Luv(sic) pt3 (feat. Shing02)
-- https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp
-- Kavinsky – Nightcall
-```
-
-2. Run the full pipeline:
+Extract music entries from git commit history:
 
 ```bash
-make run
+poetry run python scripts/01_preprocess/A_extract_lines.py
 ```
 
-This will:
-- Parse the markdown file
-- Search for tracks on Spotify and YouTube Music
-- Download audio files
-- Extract audio features
-- Generate visualizations
-- Create playlists on both platforms
+**Output:** `data/01_A_extracted_music_by_year.md`
 
-### Individual Scripts
+### Stage 2: Normalize Track Names
 
-Run specific stages of the pipeline using poetry scripts:
+Clean and standardize track names to CSV format:
 
 ```bash
-# Parse markdown and search for tracks
-poetry run ingest
-
-# Download audio files
-poetry run download
-
-# Extract features and generate visualizations
-poetry run analyze
-
-# Create/update playlists
-poetry run playlists
-
-# Run everything
-poetry run run-all
+poetry run python scripts/01_preprocess/B_normalize_tracks_to_csv.py
 ```
 
-Or use the Makefile shortcuts:
+**Output:**
+- `data/01_B_normalized_tracks.csv` (track_name, year, language)
+- `data/01_B_unrecognized.txt`
+
+⚙️ **No API calls** - Safe to run multiple times
+
+### Stage 3: Search YouTube Music (⚠️ API Calls)
+
+Search for video IDs on YouTube Music:
 
 ```bash
-make ingest      # Parse and search
-make download    # Download audio
-make analyze     # Extract features
-make playlists   # Create playlists
-make run         # Full pipeline
+poetry run python scripts/02_create/A_get_ids_for_ytmusic.py
 ```
 
-You can also run scripts directly:
+**Output:**
+- `data/02_A_ytmusic_track_ids.csv` (track_name, video_id)
+- `data/02_A_ytmusic_failed_tracks.txt`
+
+⚠️ **Makes API calls:**
+- Rate limited: ~1-2 requests/second
+- Takes ~30 minutes for 1,700 tracks
+- **Resume capability**: Skips already-found tracks
+- Safe to interrupt and re-run
+
+### Stage 4: Download Audio (🔐 Requires Browser)
+
+Download MP3s from YouTube:
 
 ```bash
-# Run individual scripts directly
-python scripts/ingest.py
-python scripts/download.py
-python scripts/analyze.py
-python scripts/playlists.py
-python scripts/run_all.py
+# Test with 5 tracks
+poetry run python scripts/03_download/download_audio_yt.py --max 5
+
+# Full download (default 3s delay between tracks)
+poetry run python scripts/03_download/download_audio_yt.py
+
+# More conservative (5s delay)
+poetry run python scripts/03_download/download_audio_yt.py --delay 5
+
+# Use different browser for cookies
+poetry run python scripts/03_download/download_audio_yt.py --browser firefox
 ```
 
-### Script Options
+**Output:** `data/03_downloaded_audio/Artist - Title [VIDEO_ID].mp3`
 
-```bash
-# Force re-processing
-poetry run run-all --force
-python scripts/run_all.py --force
+🔐 **Requirements:**
+- Must be signed in to YouTube in browser (Chrome/Firefox/Safari/Edge)
+- Automatically extracts cookies from browser
+- Keep browser running while downloading
 
-# Clear existing playlists before adding tracks
-poetry run playlists --clear
-python scripts/playlists.py --clear
+**Features:**
+- 320kbps MP3 quality
+- Exponential backoff (adapts to rate limiting)
+- Resume capability (skips existing files)
+- 5-minute timeout per track
 
-# Use custom config file
-poetry run ingest --config custom_settings.yaml
-python scripts/ingest.py --config custom_settings.yaml
+**Options:**
+- `--max N` - Download only first N tracks (for testing)
+- `--delay N` - Base delay in seconds (default: 3.0)
+- `--browser BROWSER` - Browser to extract cookies from (default: chrome)
+- `--force` - Re-download existing files
+
+See [`scripts/03_download/README.md`](scripts/03_download/README.md) for detailed documentation.
+
+## Data Flow
+
+```
+Git History (2+ repos)
+    ↓
+[A_extract_lines.py]  ⚙️
+    ↓
+01_A_extracted_music_by_year.md
+    ↓
+[B_normalize_tracks_to_csv.py]  ⚙️
+    ↓
+01_B_normalized_tracks.csv (track_name, year, language)
+    ↓
+[A_get_ids_for_ytmusic.py]  ⚠️  API CALLS
+    ↓
+02_A_ytmusic_track_ids.csv (track_name, video_id)
+    ↓
+[download_audio_yt.py]  🔐 Browser cookies
+    ↓
+03_downloaded_audio/*.mp3
+    ↓
+[analyze_features.py] (future)
+    ↓
+04_features.csv
 ```
 
-## Markdown Format
+## Project Structure
 
-The input markdown file supports multiple track formats:
-
-### Artist - Title Format
-```markdown
-- Daft Punk – Digital Love
-- Artist - Title (feat. Guest)
 ```
-
-### With Metadata Hints
-```markdown
-- Daft Punk – Digital Love [album: Discovery]
-- Nujabes – Luv(sic) pt3 [note: amazing track]
+music-analysis/
+├── scripts/
+│   ├── 01_preprocess/
+│   │   ├── A_extract_lines.py           # Extract from git history
+│   │   └── B_normalize_tracks_to_csv.py # Normalize to CSV (⚙️ no API)
+│   ├── 02_create/
+│   │   ├── A_get_ids_for_ytmusic.py     # Search YouTube Music (⚠️ API)
+│   │   └── B_build_playlists_ytmusic.py # Create playlists (⚠️ API)
+│   ├── 03_download/
+│   │   ├── download_audio_yt.py         # Download MP3s (🔐 browser)
+│   │   └── README.md                    # Detailed docs
+│   ├── core/
+│   │   ├── downloader.py                # yt-dlp wrapper
+│   │   ├── playlist_ytmusic.py          # YouTube Music API
+│   │   └── utils.py                     # Utilities
+│   └── 04_analyze/ (future)
+├── data/
+│   ├── 01_A_extracted_music_by_year.md       # Git extraction output
+│   ├── 01_B_normalized_tracks.csv            # Normalized tracks
+│   ├── 01_B_unrecognized.txt                 # Failed to parse
+│   ├── 02_A_ytmusic_track_ids.csv            # Video IDs
+│   ├── 02_A_ytmusic_failed_tracks.txt        # Search failures
+│   └── 03_downloaded_audio/                  # MP3 files
+├── outputs/
+│   ├── figures/                              # Visualizations
+│   └── run.log                               # Execution logs
+├── logs/                                     # Script logs
+├── settings.yaml                             # Configuration
+├── .env                                      # API credentials
+├── browser.json                              # YouTube Music auth
+├── pyproject.toml                            # Poetry dependencies
+├── SCRIPT_ORGANIZATION.md                    # Reorganization suggestions
+└── README.md                                 # This file
 ```
-
-### Direct URLs
-```markdown
-- https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp
-- https://music.youtube.com/watch?v=xxxxxxxxxxx
-- https://www.youtube.com/watch?v=xxxxxxxxxxx
-```
-
-### Local Files
-```markdown
-- /path/to/local/file.mp3
-```
-
-### Markdown Lists
-```markdown
-- [ ] Track with checkbox
-- [x] Completed track
-* Bullet point
-- Regular dash
-```
-
-## Audio Features
-
-The analyzer extracts 100+ audio features per track:
-
-### Temporal Features
-- **Duration** - Track length in seconds
-- **Tempo** - BPM (beats per minute)
-- **Beat count** - Number of detected beats
-- **Beat strength** - Average onset strength
-
-### Loudness & Dynamics
-- **RMS energy** - Root mean square energy (mean, std, median, quartiles)
-- **Dynamic range** - Loudness variation in dB
-- **Zero crossing rate** - Frequency of signal sign changes
-
-### Timbre & Spectral Features
-- **MFCCs** - 13 Mel-frequency cepstral coefficients (mean, std, median, quartiles each)
-- **Spectral centroid** - "Brightness" of sound (mean, std, median, quartiles)
-- **Spectral bandwidth** - Frequency range (mean, std, median, quartiles)
-- **Spectral rolloff** - Frequency below which 85% of energy is contained
-- **Spectral flatness** - Measure of noisiness vs. tonality
-- **Spectral contrast** - Difference between peaks and valleys across 7 frequency bands
-
-### Harmonic & Pitch Features
-- **Chroma** - 12 pitch class intensities (C, C#, D, ...)
-- **Tonnetz** - 6-dimensional tonal centroid features
-
-All features are aggregated per track and saved to `outputs/audio_features.csv`.
-
-## Visualizations
-
-The analyzer generates the following charts in `outputs/figures/`:
-
-1. **`hist_tempo_bpm.png`** - Distribution of track tempos
-2. **`scatter_centroid_vs_bandwidth.png`** - Spectral brightness vs. bandwidth
-3. **`correlation_heatmap.png`** - Feature correlation matrix
-4. **`pca_tracks.png`** - 2D PCA visualization of track similarity
-5. **`boxplot_mfcc_means.png`** - Distribution of MFCC coefficients
 
 ## Configuration
 
 Edit `settings.yaml` to customize behavior:
 
 ```yaml
-# Input/Output
-input_markdown: ./data/playlist.md
-audio_out_dir: ./outputs/audio
-features_csv: ./outputs/audio_features.csv
-failed_log: ./outputs/failed_inputs.txt
+# Input/Output paths
+input_markdown: ./data/01_B_cleaned_playlist.md
+ytmusic_manifest_path: ./data/02_A_ytmusic_track_manifest.parquet
+ytmusic_playlist_name: "YT Music Normalized Mix"
+audio_out_dir: ./data/03_downloaded_audio
+run_log: ./outputs/run.log
 
-# Processing
-max_items: 100
+# Audio processing
+mp3_bitrate: 320  # kbps
+target_lufs: -14.0  # Loudness normalization (optional)
+
+# Search/matching
 fuzzy_threshold: 80  # Minimum match score (0-100)
+max_search_candidates: 5
 
-# Audio
-target_lufs: -14.0  # Loudness normalization target
-mp3_bitrate: 320    # kbps
-
-# Playlists
-target_playlist_name: "Normalized Mix"
-yt_search_filter: "songs"  # or "videos"
-
-# Feature extraction
+# Feature extraction (future)
 n_mfcc: 13
-spectral_rolloff_pct: 0.85
-
-# Visualization
-figure_dpi: 150
-tempo_bins: 30
-```
-
-## Project Structure
-
-```
-mp3-analyzer/
-├── src/
-│   ├── md_parser.py           # Markdown parser
-│   ├── search_match.py        # Track search & matching
-│   ├── downloader.py          # Audio download (yt-dlp)
-│   ├── features.py            # Feature extraction (librosa)
-│   ├── visualize.py           # Chart generation (matplotlib)
-│   ├── playlist_spotify.py    # Spotify playlist management
-│   ├── playlist_ytmusic.py    # YouTube Music playlist management
-│   └── utils.py               # Utilities (logging, normalization)
-├── scripts/
-│   ├── ingest.py              # Parse markdown and search tracks
-│   ├── download.py            # Download audio files
-│   ├── analyze.py             # Extract features and visualize
-│   ├── playlists.py           # Create playlists
-│   └── run_all.py             # Run full pipeline
-├── tests/
-│   ├── test_md_parser.py      # Parser tests
-│   ├── test_dedupe.py         # Deduplication tests
-│   └── test_features.py       # Feature extraction tests
-├── data/
-│   └── playlist.md            # Input track list
-├── outputs/
-│   ├── audio/                 # Downloaded MP3s
-│   ├── figures/               # Generated charts
-│   ├── audio_features.csv     # Feature data
-│   └── failed_inputs.txt      # Tracks that failed
-├── secrets/
-│   └── ytmusic_headers.json   # YouTube Music auth
-├── settings.yaml              # Configuration
-├── .env                       # API credentials
-├── pyproject.toml            # Poetry dependencies
-├── Makefile                   # Build targets
-└── README.md                  # This file
-```
-
-## Development
-
-### Run tests
-
-```bash
-make test
-```
-
-### Format code
-
-```bash
-make format
-```
-
-### Run linters
-
-```bash
-make lint
-```
-
-### Clean generated files
-
-```bash
-make clean
+sample_rate: null  # Use native sample rate
 ```
 
 ## Troubleshooting
 
-### ffmpeg not found
+### "ffmpeg not found"
 ```
-Error: ffmpeg is required but not installed
+ERROR: ffmpeg is required but not installed
 ```
-**Solution**: Install ffmpeg (see Installation section)
+**Solution:** Install ffmpeg (see Installation section)
 
-### Spotify authentication fails
+### YouTube Download Failures
 ```
-Error: Spotify credentials not provided
+ERROR: Sign in to confirm you're not a bot
+ERROR: HTTP Error 400: Bad Request
 ```
-**Solution**: Check that `.env` file exists and contains valid credentials
 
-### YouTube Music 403 errors
-```
-Error: Failed to search YouTube Music: 403
-```
-**Solution**: Re-run `make ytmusic-setup` to refresh authentication
+**Solutions:**
+1. Make sure you're signed in to YouTube in your browser
+2. Keep your browser running while downloading
+3. Try a different browser: `--browser firefox`
+4. Update yt-dlp: `poetry run pip install --upgrade yt-dlp`
 
-### No tracks found
+### YouTube Music Search Failures
 ```
-Error: No tracks found in markdown file
+ERROR: Failed to initialize YouTube Music client
 ```
-**Solution**: Check that `data/playlist.md` exists and contains valid track entries
 
-### Rate limiting
-If you hit API rate limits:
-- Reduce `max_items` in `settings.yaml`
-- Add delays between requests (will be implemented in future version)
-- Use direct URLs instead of search queries
+**Solution:** Regenerate browser.json:
+```bash
+poetry run ytmusicapi browser
+# Follow the prompts to paste cURL command
+```
+
+### Rate Limiting
+
+If downloads are too fast:
+```bash
+# Increase delay to 5 seconds
+poetry run python scripts/03_download/download_audio_yt.py --delay 5
+```
+
+If YouTube Music search hits limits:
+- The script already includes delays
+- Safe to interrupt and re-run (resumes from where it left off)
+- Results are cached
 
 ## Advanced Usage
 
-### Loudness Normalization
+### Resume After Interruption
 
-Enable LUFS-based loudness normalization:
+All scripts support resume:
 
-```yaml
-# settings.yaml
-target_lufs: -14.0  # Target loudness in LUFS
+**Download script:**
+```bash
+# Interrupted? Just re-run - it skips existing files
+poetry run python scripts/03_download/download_audio_yt.py
 ```
 
-This applies 2-pass loudnorm filter during download/conversion.
-
-### Custom Search Filters
-
-For YouTube Music, choose search filter:
-
-```yaml
-yt_search_filter: "songs"   # More specific, music-only
-# or
-yt_search_filter: "videos"  # Broader, includes music videos
+**YouTube Music search:**
+```bash
+# Interrupted? Re-run - it skips tracks already found
+poetry run python scripts/02_create/A_get_ids_for_ytmusic.py
 ```
 
-### Fuzzy Matching Threshold
+### Exponential Backoff
 
-Adjust matching sensitivity:
+The download script automatically adapts to rate limiting:
+- **Base delay:** 3 seconds (configurable with `--delay`)
+- **On failure:** Delay doubles (up to 48s max)
+- **On success:** Delay reduces by 10%
+- Automatically backs off if YouTube starts rejecting requests
 
-```yaml
-fuzzy_threshold: 80   # Stricter (fewer false positives)
-fuzzy_threshold: 60   # Looser (more matches)
+### Custom Browser
+
+Use cookies from a different browser:
+
+```bash
+poetry run python scripts/03_download/download_audio_yt.py --browser safari
 ```
 
-## Contributing
+Supported browsers: `chrome`, `firefox`, `safari`, `edge`
 
-Contributions are welcome! Please:
+## Development
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run `make check` to verify
-6. Submit a pull request
+### Run tests
+```bash
+poetry run pytest
+```
+
+### Format code
+```bash
+poetry run black .
+poetry run isort .
+```
+
+### Clean generated files
+```bash
+rm -rf data/03_downloaded_audio/*
+rm -rf outputs/*
+```
+
+## Known Issues
+
+1. **YouTube Music search** sometimes returns incorrect matches
+   - Manually review `02_A_ytmusic_failed_tracks.txt`
+   - Edit CSV to add missing video IDs
+
+2. **Download script** may fail on age-restricted content
+   - These tracks are skipped
+   - Check logs for details
+
+3. **Some tracks use en dash (–) instead of hyphen (-)**
+   - B_normalize_tracks_to_csv.py handles most cases
+   - Check `01_B_unrecognized.txt` for edge cases
+
+## Future Enhancements
+
+See [SCRIPT_ORGANIZATION.md](SCRIPT_ORGANIZATION.md) for proposed improvements:
+- Reorganize script structure for clarity
+- Add CSV format everywhere
+- Mark API-calling scripts explicitly
+- Better error handling and logging
 
 ## License
 
@@ -432,9 +398,9 @@ MIT License - see LICENSE file for details
 
 - [librosa](https://librosa.org/) - Audio analysis
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Audio download
-- [spotipy](https://spotipy.readthedocs.io/) - Spotify API
 - [ytmusicapi](https://ytmusicapi.readthedocs.io/) - YouTube Music API
+- [loguru](https://github.com/Delgan/loguru) - Logging
 
 ## Support
 
-For issues, questions, or suggestions, please open an issue on GitHub.
+For issues or questions, please open an issue on GitHub.
