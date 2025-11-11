@@ -1,5 +1,5 @@
 # YouTube Music IDs
-# Generated: 1729 tracks found
+# Generated: 1744 tracks found
 # Failed: 4 tracks not found
 #
 Spanish - random ones got assigned here??  # ID: WAVO1_7cABU
@@ -1736,3 +1736,52 @@ Hololive (Nerissa) - Sweetest Scarlet  # ID: K-q6mrNvuow
 Horimiya COVER - Iro Kousui  # ID: 9ZfYJoCy52w
 Hololive (Advent) - Sirens  # ID: hMtlZrpBQsw
 Hololive (FLOW GLOW) COVER - One  # ID: nFO1jILeoJ4
+Ange - Overdose  # ID: cw13KP7tPmc
+Elira Pendora - Shoujo Rei  # ID: yIKg_ffILwk
+Elira - Shoujo Rei  # ID: yIKg_ffILwk
+Enna Alouette - Love Space  # ID: zxgFBLadcEA
+Enna - Love Space  # ID: zxgFBLadcEA
+Inui Toko - 気まぐれロマンティック  # ID: 1boL5rnvJdk
+Inui Toko - 青春コンプレックス  # ID: 7FDRQifEMUQ
+Inui - 気まぐれロマンティック  # ID: 1boL5rnvJdk
+Inui - 青春コンプレックス  # ID: 7FDRQifEMUQ
+LazuLight - Diamond City Lights  # ID: MWKw-heslkQ
+LazuLight - Virtual to LIVE  # ID: _G6kcpRxaio
+Millie Parfait - Sana Aku Na Lang  # ID: AVQ6Z0CebBU
+Millie - Sana Aku Na Lang  # ID: AVQ6Z0CebBU
+Pomu Rainpuff - Ikanaide  # ID: OC7Q2BnIyEs
+Pomu - Ikanaide  # ID: OC7Q2BnIyEs
+Ryushen - Jokes  # ID: 7a75UI5rw7U
+Toko Inui - らしさ  # ID: 1boL5rnvJdk
+Toko Inui - 晴る  # ID: gdG6Yjmnuz4
+Toko - 青春コンプレックス  # ID: 7FDRQifEMUQ
+とこ/尊楓/リゼ/るる - 一度だけの恋なら  # ID: qHSihFKF5UE
+AmaLee - Ruler Of My Heart  # ID: p_D1hVsKvSA
+AmaLee & Nerissa - Blink Gone  # ID: 6yWyLnLWiAA
+Michi - Medicine  # ID: mU3WxurzNfk
+Michi - Paparazzi  # ID: KPs9oxsdIWc
+Michi - Tipsy  # ID: 9DqTXCd_vq0
+Michi & bariloaf - BRAIN  # ID: UocAgx19Wj4
+Ange - Bunny Girl  # ID: IpEVD2Gb_zg
+Ryushen - ヒッチコック  # ID: pJJrhNeXiU0
+Michi - 寄り酔い Tipsy  # ID: o1HxeJYKwlQ
+Nerissa - Meltdown  # ID: HTToIEq9uvc
+Nerissa - Sweetest Scarlet  # ID: K-q6mrNvuow
+Horimiya - Iro Kousui  # ID: pIZ_tApNslQ
+Andora - Fragments (note that "WaMi - Fragments" is different)  # ID: 8pV8HkfDTaE
+Advent - Sirens  # ID: hMtlZrpBQsw
+AZKi & Mio - ninelie  # ID: OVXnizdIxtc
+Botan - 人間みたいね  # ID: 5J70dygI5Og
+FLOW GLOW - One  # ID: IenFrufsAfU
+FLOW GLOW - good enough  # ID: W1Tff8itcNY
+FLOW GLOW - ゆれる  # ID: uAX_UVix6s0
+Kobo Kanaeru - Fond Memories  # ID: LCvrgllsuKQ
+Koyori - 愛♡スクリ～ム！  # ID: 3yaab2_EEHM
+Sora - ゴーストルール  # ID: OawQ054luI4
+Sora - ゴーストルール  # ID: OawQ054luI4
+虎金妃笑虎 - BRAIN  # ID: Cg-hMIePcYM
+虎金妃笑虎 - アスノヨゾラ哨戒班  # ID: Cg-hMIePcYM
+Toko Inui - B級  # ID: yeav3eDN6wI
+Toko Inui - 踊り子  # ID: 1boL5rnvJdk
+Michi - BRAIN  # ID: w_appDFuUeU
+Yoei - 水星  # ID: EJO2JzJ_g_g

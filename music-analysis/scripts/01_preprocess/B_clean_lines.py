@@ -150,13 +150,17 @@ def parse_and_clean_line(line):
     # Remove URLs early
     line = remove_url_suffix(line)
 
-    # Handle Hololive pattern EARLY: "Hololive (Artist) Song" -> "Artist - Song"
-    # This handles cases like "Hololive (AZKI) いのち (2024 ver.)" -> "AZKI - いのち (2024 ver.)"
-    hololive_match = re.match(r'Hololive\s*\(([^)]+)\)\s+(.*)', line, re.IGNORECASE)
-    if hololive_match:
-        artist = hololive_match.group(1).strip()
-        song = hololive_match.group(2).strip()
-        line = f"{artist} - {song}"
+    # Handle VTuber organization patterns EARLY: "Org (Artist) Song" -> "Artist - Song"
+    # This handles cases like:
+    #   "Hololive (AZKI) いのち (2024 ver.)" -> "AZKI - いのち (2024 ver.)"
+    #   "Hololive (Artist) – Song" -> "Artist - Song"
+    #   "VShojo (Michi) COVER – BRAIN" -> "Michi COVER - BRAIN"
+    vtuber_org_match = re.match(r'(Hololive|VShojo|Nijisanji)\s*\(([^)]+)\)\s*[–-]?\s*(.*)', line, re.IGNORECASE)
+    if vtuber_org_match:
+        artist = vtuber_org_match.group(2).strip()
+        song = vtuber_org_match.group(3).strip()
+        if song:  # Only process if there's a song title
+            line = f"{artist} - {song}"
 
     # Remove tags like COVER, KARAOKE (but keep the structure)
     # Replace "COVER -" or "KARAOKE -" with just "-"

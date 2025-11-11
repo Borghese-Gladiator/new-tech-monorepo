@@ -979,27 +979,27 @@
 - Natori - 猿芝居 sarushibai
 - Natori - 猿芝居 sarushibai
 - Nightcore - Take A Hint (feat. Elizabeth Gillies & Victoria Justice)
-- Nijisanji (Ange) - Overdose
-- Nijisanji (Elira Pendora) - Shoujo Rei
-- Nijisanji (Elira) - Shoujo Rei
-- Nijisanji (Enna Alouette) - Love Space
-- Nijisanji (Enna) - Love Space
-- Nijisanji (Inui Toko) - 気まぐれロマンティック
-- Nijisanji (Inui Toko) - 青春コンプレックス
-- Nijisanji (Inui) - 気まぐれロマンティック
-- Nijisanji (Inui) - 青春コンプレックス
-- Nijisanji (LazuLight) - Diamond City Lights
-- Nijisanji (LazuLight) - Virtual to LIVE
-- Nijisanji (Mika Melatika) - 寄り酔い Tipsy
-- Nijisanji (Millie Parfait) - Sana Aku Na Lang
-- Nijisanji (Millie) - Sana Aku Na Lang
-- Nijisanji (Pomu Rainpuff) - Ikanaide
-- Nijisanji (Pomu) - Ikanaide
-- Nijisanji (Ryushen) - Jokes
-- Nijisanji (Toko Inui) - らしさ
-- Nijisanji (Toko Inui) - 晴る
-- Nijisanji (Toko) - 青春コンプレックス
-- Nijisanji - 一度だけの恋なら
+- Ange - Overdose
+- Elira Pendora - Shoujo Rei
+- Elira - Shoujo Rei
+- Enna Alouette - Love Space
+- Enna - Love Space
+- Inui Toko - 気まぐれロマンティック
+- Inui Toko - 青春コンプレックス
+- Inui - 気まぐれロマンティック
+- Inui - 青春コンプレックス
+- LazuLight - Diamond City Lights
+- LazuLight - Virtual to LIVE
+- Mika Melatika - 寄り酔い Tipsy
+- Millie Parfait - Sana Aku Na Lang
+- Millie - Sana Aku Na Lang
+- Pomu Rainpuff - Ikanaide
+- Pomu - Ikanaide
+- Ryushen - Jokes
+- Toko Inui - らしさ
+- Toko Inui - 晴る
+- Toko - 青春コンプレックス
+- とこ/尊楓/リゼ/るる - 一度だけの恋なら
 - Nishino Kana - Wishing
 - No Game No Life (Ai Kayano) - Oracion
 - No Game No Life (Konomi Suzuki) - This Game
@@ -1446,12 +1446,12 @@
 - The White Stripes - Fell In Love With a Girl
 - The White Stripes - Seven Nation Army
 - Vocaloid - Crusher-P feat. GUMI - ECHO
-- VShojo (AmaLee) - Ruler Of My Heart
-- VShojo (AmaLee & Nerissa) - Blink Gone
-- VShojo (Michi) - Medicine
-- VShojo (Michi) - Paparazzi
-- VShojo (Michi) - Tipsy
-- VShojo (Michi & bariloaf) - BRAIN
+- AmaLee - Ruler Of My Heart
+- AmaLee & Nerissa - Blink Gone
+- Michi - Medicine
+- Michi - Paparazzi
+- Michi - Tipsy
+- Michi & bariloaf - BRAIN
 - VyVid (Eva) - Magnetic
 - VyVid (Eva) - you are my curse
 - Warren Zevon - Keep Me in Your Heart
@@ -1670,8 +1670,8 @@
 - Nanami Urara - Surges
 - NANAOAKARI - Kien Romance 奇縁ロマンス
 - Nano - SAVIOR OF SONG (feat. MY FIRST STORY)
-- Nijisanji (Ange) - Bunny Girl
-- Nijisanji (Ryushen) - ヒッチコック
+- Ange - Bunny Girl
+- Ryushen - ヒッチコック
 - Noriyo Ikeda - Dream in the Street
 - Novelbright - candle
 - Novelbright - 君色ノート
@@ -1727,17 +1727,17 @@
 - Vocaloid - ryo (supercell) feat. Hatsune Miku - ODDS&ENDS
 - Vocaloid - ryo (supercell) feat. Hatsune Miku - World is Mine
 - Vocaloid - wowaka feat. Hatsune Miku - Rolling Girl
-- VShojo (Michi) - 寄り酔い Tipsy
+- Michi - 寄り酔い Tipsy
 - VSPO! (Asumi) - サマータイムレコード
 - WhaleDontSleep - ねむるまち - Sleeping town (feat. yama)
 - WhaleDontSleep - 化粧と - Daily Makeup (feat. Aomushi)
 - WhaleDontSleep - 抱きしめたいほど美しい日々に - Beautiful Day
 - WhaleDontSleep - 金木犀 - Osmanthus (feat. Ado)
-- X JAPAN - ENDLESS RAIN (Remaster) - Endless Rain
-- X JAPAN - Forever Love
-- X JAPAN - Kurenai (紅 KURENAI)
-- X JAPAN - Tears
-- X JAPAN - 紅（イントロ ストリングス） (Remaster) - Kurenai (Intro strings) (Remaster)
+- & JAPAN - ENDLESS RAIN (Remaster) - Endless Rain
+- & JAPAN - Forever Love
+- & JAPAN - Kurenai (紅 KURENAI)
+- & JAPAN - Tears
+- & JAPAN - 紅（イントロ ストリングス） (Remaster) - Kurenai (Intro strings) (Remaster)
 - YOASOBI - 祝福
 - Yorushika - Forget it 忘れてください
 - Yorushika - Howl at the Moon 月に吠える
@@ -1749,28 +1749,26 @@
 - Yurie Kokubu - Just A Joke
 - ZUTOMAYO - Byoushin wo Kamu 秒針を噛む
 - ZUTOMAYO - Stay Foolish ばかじゃないのに
-
-- Hololive (Nerissa) - Meltdown
-- Hololive (Nerissa) - Sweetest Scarlet
-- Horimiya COVER - Iro Kousui
-- Andora – Fragments (note that "WaMi – Fragments" is different)
-- Hololive (Advent) - Sirens
-- Hololive (AZKi x Mio) – ninelie
-- Hololive (Botan) COVER – 人間みたいね
-- Hololive (FLOW GLOW) COVER - One
-- Hololive (FLOW GLOW) COVER – good enough
-- Hololive (FLOW GLOW) COVER – ゆれる
-- Hololive (Kobo Kanaeru) – Fond Memories
-- Hololive (Koyori) COVER – 愛♡スクリ～ム！
-- Hololive (Sora) COVER – ゴーストルール
-- Hololive (Sora) COVER – ゴーストルール
-- Hololive (虎金妃笑虎) COVER – BRAIN
-- Hololive (虎金妃笑虎) COVER – アスノヨゾラ哨戒班
-- Toko Inui COVER – B級
-- Toko Inui COVER – 踊り子
-- VShojo (Michi) COVER – BRAIN
-- Yoei COVER – 水星
-
+- Nerissa - Meltdown
+- Nerissa - Sweetest Scarlet
+- Horimiya - Iro Kousui
+- Andora - Fragments (note that "WaMi - Fragments" is different)
+- Advent - Sirens
+- AZKi & Mio - ninelie
+- Botan - 人間みたいね
+- FLOW GLOW - One
+- FLOW GLOW - good enough
+- FLOW GLOW - ゆれる
+- Kobo Kanaeru - Fond Memories
+- Koyori - 愛♡スクリ～ム！
+- Sora - ゴーストルール
+- Sora - ゴーストルール
+- 虎金妃笑虎 - BRAIN
+- 虎金妃笑虎 - アスノヨゾラ哨戒班
+- Toko Inui - B級
+- Toko Inui - 踊り子
+- Michi - BRAIN
+- Yoei - 水星
 
 ## Korean
 - CM - To Reach You (너에게 닿기를) - To Reach You (너에게 닿기를)
