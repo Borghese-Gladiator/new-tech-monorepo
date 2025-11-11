@@ -1,93 +1,225 @@
 #!/usr/bin/env python3
 """
-Download audio files from URLs or copy local files.
+Download audio from YouTube Music using video IDs.
+
+Reads video IDs from: data/02_A_ytmusic_track_ids.txt
+Downloads to: data/03_downloaded_audio/
 
 Usage:
-    poetry run python scripts/download.py [--config settings.yaml] [--force]
+    poetry run python scripts/03_download/download_audio_yt.py [--max N] [--force]
 """
 import argparse
+import subprocess
 import sys
+import time
 from pathlib import Path
 
-import pandas as pd
 from loguru import logger
 
-from scripts.core import downloader, utils
+# Configure logging
+logger.remove()
+logger.add(
+    sys.stderr,
+    format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
+    level="INFO",
+)
+
+# Paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+INPUT_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_ids.txt"
+OUTPUT_DIR = PROJECT_ROOT / "data" / "03_downloaded_audio"
+
+
+def check_dependencies():
+    """Check if yt-dlp and ffmpeg are installed."""
+    try:
+        result = subprocess.run(['yt-dlp', '--version'], capture_output=True, check=True)
+        logger.info(f"✓ yt-dlp version: {result.stdout.decode().strip()}")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        logger.error("✗ yt-dlp not found")
+        logger.error("  Install with: poetry install")
+        sys.exit(1)
+
+    try:
+        result = subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+        version_line = result.stdout.decode().split('\n')[0]
+        logger.info(f"✓ ffmpeg installed: {version_line}")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        logger.error("✗ ffmpeg not found")
+        logger.error("  Install with: brew install ffmpeg")
+        sys.exit(1)
+
+
+def parse_track_ids(input_file: Path):
+    """Parse track IDs from the input file."""
+    tracks = []
+
+    with input_file.open('r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+
+            # Skip comments and empty lines
+            if not line or line.startswith('#'):
+                continue
+
+            # Parse format: "Artist - Title  # ID: VIDEO_ID"
+            if '# ID:' not in line:
+                continue
+
+            parts = line.split('# ID:')
+            track_name = parts[0].strip()
+            video_id = parts[1].strip()
+
+            tracks.append({
+                'name': track_name,
+                'video_id': video_id,
+            })
+
+    return tracks
+
+
+def download_track(video_id: str, track_name: str, output_dir: Path, force: bool = False) -> bool:
+    """
+    Download a track from YouTube Music.
+
+    Args:
+        video_id: YouTube video ID
+        track_name: Track name for logging
+        output_dir: Directory to save the file
+        force: Force re-download even if file exists
+
+    Returns:
+        True if successful, False otherwise
+    """
+    # Construct YouTube Music URL
+    url = f"https://music.youtube.com/watch?v={video_id}"
+
+    # Output template: "Artist - Title [VIDEO_ID].mp3"
+    output_template = str(output_dir / f"%(artist)s - %(title)s [%(id)s].%(ext)s")
+
+    # Check if already downloaded
+    if not force:
+        # Check for existing file with this video ID
+        existing_files = list(output_dir.glob(f"*[{video_id}].mp3"))
+        if existing_files:
+            logger.debug(f"Already downloaded: {existing_files[0].name}")
+            return True
+
+    try:
+        cmd = [
+            'yt-dlp',
+            '--extract-audio',
+            '--audio-format', 'mp3',
+            '--audio-quality', '320K',
+            '--output', output_template,
+            '--no-playlist',
+            '--quiet',
+            '--progress',
+            url,
+        ]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minute timeout
+        )
+
+        if result.returncode != 0:
+            logger.error(f"Download failed: {result.stderr}")
+            return False
+
+        return True
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Download timeout for: {track_name}")
+        return False
+    except Exception as e:
+        logger.error(f"Download error: {e}")
+        return False
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Download audio files")
-    parser.add_argument("--config", default="./settings.yaml", help="Path to configuration file")
+    parser = argparse.ArgumentParser(description="Download audio from YouTube Music")
+    parser.add_argument("--max", type=int, help="Maximum number of tracks to download (for testing)")
     parser.add_argument("--force", action="store_true", help="Force re-download of existing files")
+    parser.add_argument("--delay", type=float, default=3.0, help="Base delay in seconds for exponential backoff (default: 3.0)")
     args = parser.parse_args()
 
-    # Load configuration
-    cfg = utils.load_config(args.config)
-    utils.load_env()
-    utils.setup_logging(cfg.get('run_log', './outputs/run.log'))
+    logger.info("=" * 80)
+    logger.info("YouTube Music Audio Downloader")
+    logger.info("=" * 80)
 
-    logger.info("=" * 60)
-    logger.info("DOWNLOAD: Downloading/copying audio files")
-    logger.info("=" * 60)
+    # Check dependencies
+    check_dependencies()
 
-    # Load manifest
-    manifest_path = cfg.get('manifest_path', './data/track_manifest.parquet')
-    if not Path(manifest_path).exists():
-        logger.error(f"Manifest not found: {manifest_path}")
-        logger.error("Run 'ingest' script first")
+    # Validate input file
+    if not INPUT_FILE.exists():
+        logger.error(f"Input file not found: {INPUT_FILE}")
+        logger.error("Run the YouTube Music ID search script first:")
+        logger.error("  poetry run python scripts/02_create/A_get_ids_for_ytmusic.py")
         sys.exit(1)
 
-    df = pd.read_parquet(manifest_path)
-    logger.info(f"Loaded manifest with {len(df)} tracks")
+    # Create output directory
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Output directory: {OUTPUT_DIR}")
 
-    # Initialize downloader
-    dl = downloader.create_downloader(cfg)
+    # Parse track IDs
+    tracks = parse_track_ids(INPUT_FILE)
+    logger.info(f"Found {len(tracks)} tracks to download")
 
-    # Process tracks
-    for idx, row in df.iterrows():
-        if not row['resolved']:
-            logger.debug(f"Skipping unresolved track: {row['raw_line'][:80]}")
-            continue
+    if args.max:
+        tracks = tracks[:args.max]
+        logger.info(f"Limiting to first {args.max} tracks (--max flag)")
 
-        # Skip if already downloaded (unless force)
-        if row['audio_path'] and Path(row['audio_path']).exists() and not args.force:
-            logger.debug(f"Already downloaded: {row['audio_path']}")
-            continue
+    if args.delay > 0:
+        logger.info(f"Using exponential backoff with base delay: {args.delay}s")
 
-        logger.info(f"[{idx + 1}/{len(df)}] Processing: {row['artist']} - {row['title']}")
+    # Download tracks with exponential backoff
+    success_count = 0
+    failed_count = 0
+    current_delay = args.delay
+    consecutive_failures = 0
+    max_delay = args.delay * 16  # Maximum delay is 16x base delay
 
-        audio_path = None
+    for i, track in enumerate(tracks, 1):
+        logger.info(f"[{i}/{len(tracks)}] Downloading: {track['name']}")
 
-        # Download from URL
-        if row['download_url']:
-            audio_path = dl.download_and_convert(
-                url=row['download_url'],
-                artist=row['artist'],
-                title=row['title'],
-                source_id=row['ytmusic_video_id'],
-            )
+        success = download_track(
+            video_id=track['video_id'],
+            track_name=track['name'],
+            output_dir=OUTPUT_DIR,
+            force=args.force,
+        )
 
-        # Copy local file
-        elif row['local_path']:
-            audio_path = dl.copy_local_file(
-                local_path=row['local_path'],
-                artist=row['artist'],
-                title=row['title'],
-            )
-
-        # Update manifest
-        if audio_path:
-            df.at[idx, 'audio_path'] = audio_path
+        if success:
+            success_count += 1
+            logger.success(f"✓ Downloaded: {track['name']}")
+            consecutive_failures = 0
+            # Gradually reduce delay back to base on success
+            current_delay = max(args.delay, current_delay * 0.9)
         else:
-            logger.warning(f"Failed to download/copy: {row['raw_line'][:80]}")
+            failed_count += 1
+            logger.warning(f"✗ Failed: {track['name']}")
+            consecutive_failures += 1
+            # Exponentially increase delay on failure
+            current_delay = min(max_delay, current_delay * 2)
 
-    # Save updated manifest
-    df.to_parquet(manifest_path, index=False)
-    logger.info(f"Updated manifest: {manifest_path}")
+        # Rate limiting: wait between downloads with exponential backoff
+        if i < len(tracks) and args.delay > 0:
+            if consecutive_failures > 0:
+                logger.info(f"Waiting {current_delay:.1f}s before next download (backoff due to failures)...")
+            else:
+                logger.debug(f"Waiting {current_delay:.1f}s before next download...")
+            time.sleep(current_delay)
 
-    downloaded_count = df['audio_path'].notna().sum()
-    logger.info(f"Downloaded/copied {downloaded_count}/{len(df)} tracks")
-    logger.info("DOWNLOAD complete")
+    # Summary
+    logger.info("=" * 80)
+    logger.info("Summary:")
+    logger.info(f"  Total: {len(tracks)}")
+    logger.info(f"  ✓ Downloaded: {success_count}")
+    logger.info(f"  ✗ Failed: {failed_count}")
+    logger.info("=" * 80)
 
 
 if __name__ == "__main__":
