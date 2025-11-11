@@ -1733,11 +1733,11 @@
 - WhaleDontSleep - 化粧と - Daily Makeup (feat. Aomushi)
 - WhaleDontSleep - 抱きしめたいほど美しい日々に - Beautiful Day
 - WhaleDontSleep - 金木犀 - Osmanthus (feat. Ado)
-- & JAPAN - ENDLESS RAIN (Remaster) - Endless Rain
-- & JAPAN - Forever Love
-- & JAPAN - Kurenai (紅 KURENAI)
-- & JAPAN - Tears
-- & JAPAN - 紅（イントロ ストリングス） (Remaster) - Kurenai (Intro strings) (Remaster)
+- X JAPAN - ENDLESS RAIN (Remaster) - Endless Rain
+- X JAPAN - Forever Love
+- X JAPAN - Kurenai (紅 KURENAI)
+- X JAPAN - Tears
+- X JAPAN - 紅（イントロ ストリングス） (Remaster) - Kurenai (Intro strings) (Remaster)
 - YOASOBI - 祝福
 - Yorushika - Forget it 忘れてください
 - Yorushika - Howl at the Moon 月に吠える
@@ -1749,6 +1749,28 @@
 - Yurie Kokubu - Just A Joke
 - ZUTOMAYO - Byoushin wo Kamu 秒針を噛む
 - ZUTOMAYO - Stay Foolish ばかじゃないのに
+
+- Hololive (Nerissa) - Meltdown
+- Hololive (Nerissa) - Sweetest Scarlet
+- Horimiya COVER - Iro Kousui
+- Andora – Fragments (note that "WaMi – Fragments" is different)
+- Hololive (Advent) - Sirens
+- Hololive (AZKi x Mio) – ninelie
+- Hololive (Botan) COVER – 人間みたいね
+- Hololive (FLOW GLOW) COVER - One
+- Hololive (FLOW GLOW) COVER – good enough
+- Hololive (FLOW GLOW) COVER – ゆれる
+- Hololive (Kobo Kanaeru) – Fond Memories
+- Hololive (Koyori) COVER – 愛♡スクリ～ム！
+- Hololive (Sora) COVER – ゴーストルール
+- Hololive (Sora) COVER – ゴーストルール
+- Hololive (虎金妃笑虎) COVER – BRAIN
+- Hololive (虎金妃笑虎) COVER – アスノヨゾラ哨戒班
+- Toko Inui COVER – B級
+- Toko Inui COVER – 踊り子
+- VShojo (Michi) COVER – BRAIN
+- Yoei COVER – 水星
+
 
 ## Korean
 - CM - To Reach You (너에게 닿기를) - To Reach You (너에게 닿기를)

@@ -1752,6 +1752,27 @@ Japanese
 - Yurie Kokubu - Just A Joke
 - ZUTOMAYO - Byoushin wo Kamu 秒針を噛む
 - ZUTOMAYO - Stay Foolish ばかじゃないのに
+- Hololive (Nerissa) - Meltdown
+- Hololive (Nerissa) - Sweetest Scarlet
+- Horimiya COVER - Iro Kousui
+- Andora – Fragments (note that "WaMi – Fragments" is different)
+- Hololive (Advent) - Sirens
+- Hololive (AZKi x Mio) – ninelie
+- Hololive (Botan) COVER – 人間みたいね
+- Hololive (FLOW GLOW) COVER - One
+- Hololive (FLOW GLOW) COVER – good enough
+- Hololive (FLOW GLOW) COVER – ゆれる
+- Hololive (Kobo Kanaeru) – Fond Memories
+- Hololive (Koyori) COVER – 愛♡スクリ～ム！
+- Hololive (Sora) COVER – ゴーストルール
+- Hololive (Sora) COVER – ゴーストルール
+- Hololive (虎金妃笑虎) COVER – BRAIN
+- Hololive (虎金妃笑虎) COVER – アスノヨゾラ哨戒班
+- Toko Inui COVER – B級
+- Toko Inui COVER – 踊り子
+- VShojo (Michi) COVER – BRAIN
+- Yoei COVER – 水星
+
 
 Korean
 - 10CM - To Reach You (너에게 닿기를) - To Reach You (너에게 닿기를)
