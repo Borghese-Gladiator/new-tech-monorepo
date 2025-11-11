@@ -14,6 +14,7 @@ import os
 import sys
 from pathlib import Path
 
+import pandas as pd
 from loguru import logger
 from ytmusicapi import YTMusic
 
@@ -36,6 +37,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 INPUT_FILE = PROJECT_ROOT / "data" / "01_B_cleaned_playlist.md"
 OUTPUT_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_ids.txt"
 FAILED_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_failed_tracks.txt"
+MANIFEST_FILE = PROJECT_ROOT / "data" / "02_A_ytmusic_track_manifest.parquet"
 # YTMusic browser headers file - generate with: ytmusicapi browser
 BROWSER_FILE = PROJECT_ROOT / "browser.json"
 
@@ -190,6 +192,7 @@ def main():
     results = []
     failed = []
     skipped = 0
+    manifest_data = []  # For parquet manifest
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     FAILED_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -223,11 +226,19 @@ def main():
         if original in existing_tracks:
             logger.debug(f"[{i}/{len(lines)}] Skipping (already found): {artist} - {title}")
             results.append((original, None))  # Count it but don't search
+            # Note: We'll load existing video IDs from file later for manifest
             continue
 
         if original in existing_failed:
             logger.debug(f"[{i}/{len(lines)}] Skipping (previously failed): {artist} - {title}")
             failed.append(original)  # Count it but don't search
+            manifest_data.append({
+                'original_line': original,
+                'artist': artist,
+                'title': title,
+                'resolved': False,
+                'ytmusic_video_id': None
+            })
             continue
 
         # Progress logging
@@ -244,12 +255,26 @@ def main():
             results.append((original, video_id))
             with OUTPUT_FILE.open('a', encoding='utf-8') as f:
                 f.write(f"{original}  # ID: {video_id}\n")
+            manifest_data.append({
+                'original_line': original,
+                'artist': artist,
+                'title': title,
+                'resolved': True,
+                'ytmusic_video_id': video_id
+            })
             logger.success(f"✓ Found ID: {video_id}")
         else:
             # Failed - write immediately
             failed.append(original)
             with FAILED_FILE.open('a', encoding='utf-8') as f:
                 f.write(f"{original}\n")
+            manifest_data.append({
+                'original_line': original,
+                'artist': artist,
+                'title': title,
+                'resolved': False,
+                'ytmusic_video_id': None
+            })
             logger.warning(f"✗ Not found: {artist} - {title}")
 
     # Update headers with final counts
@@ -288,6 +313,63 @@ def main():
                     f.write(line)
 
         logger.warning(f"✗ Failed tracks written to: {FAILED_FILE}")
+
+    # Create manifest parquet file
+    logger.info("=" * 80)
+    logger.info("Creating manifest file...")
+
+    # Parse the output file to get all tracks with video IDs
+    all_tracks_map = {}  # track -> video_id
+    if OUTPUT_FILE.exists():
+        with OUTPUT_FILE.open('r', encoding='utf-8') as f:
+            for line in f:
+                if not line.startswith('#') and '# ID:' in line:
+                    parts = line.split('# ID:')
+                    track = parts[0].strip()
+                    video_id = parts[1].strip()
+                    all_tracks_map[track] = video_id
+
+    # Parse the failed file to get all failed tracks
+    all_failed_tracks = set()
+    if FAILED_FILE.exists():
+        with FAILED_FILE.open('r', encoding='utf-8') as f:
+            for line in f:
+                if not line.startswith('#'):
+                    all_failed_tracks.add(line.strip())
+
+    # Build complete manifest from ALL tracks in input file
+    complete_manifest = []
+    with INPUT_FILE.open('r', encoding='utf-8') as f:
+        for line in f:
+            original, artist, title = parse_track_line(line)
+            if not artist or not title:
+                continue
+
+            if original in all_tracks_map:
+                complete_manifest.append({
+                    'original_line': original,
+                    'artist': artist,
+                    'title': title,
+                    'resolved': True,
+                    'ytmusic_video_id': all_tracks_map[original]
+                })
+            elif original in all_failed_tracks:
+                complete_manifest.append({
+                    'original_line': original,
+                    'artist': artist,
+                    'title': title,
+                    'resolved': False,
+                    'ytmusic_video_id': None
+                })
+
+    # Create DataFrame and save as parquet
+    df = pd.DataFrame(complete_manifest)
+    MANIFEST_FILE.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(MANIFEST_FILE, index=False)
+    logger.info(f"✓ Manifest written to: {MANIFEST_FILE}")
+    logger.info(f"  Total tracks in manifest: {len(df)}")
+    logger.info(f"  Resolved: {df['resolved'].sum()}")
+    logger.info(f"  Unresolved: {(~df['resolved']).sum()}")
 
     # Summary
     logger.info("=" * 80)
