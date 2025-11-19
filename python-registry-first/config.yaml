@@ -1,0 +1,12 @@
+# config.yaml
+enabled_plugins:
+  resize: true
+  compress: true
+  watermark: false
+
+plugin_config:
+  resize:
+    default_width: 800
+    default_height: 600
+  compress:
+    quality: 80
