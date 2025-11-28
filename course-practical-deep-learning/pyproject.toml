@@ -1,0 +1,15 @@
+[project]
+name = "course-practical-deep-learning"
+version = "0.1.0"
+description = ""
+authors = []
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "numpy (>=2.3.5,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
