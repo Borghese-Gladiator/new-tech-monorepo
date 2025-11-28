@@ -10,8 +10,14 @@ Machine Learning
 - deploy application to web
   - Hugging Face Space w/ Gradio
 
-## Implementation
-```
-poetry init
-poetry env use 3.11.13
-```
+## Local - VSCode w/ Notebook setup
+- ```
+  poetry init
+  poetry env use 3.11.13
+  poetry run pip install ipykernel
+  ```
+- VSCode 
+  - install Jupyter extension
+  - select interpreter and set path
+    - run `poetry env info` to get path
+- create `.ipynb` file

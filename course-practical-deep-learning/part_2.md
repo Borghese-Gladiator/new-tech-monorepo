@@ -1,0 +1,1 @@
+Part 2 looks to be showing latest techniques in Deep Learning
