@@ -22,6 +22,9 @@ export class ViewModelRenderer {
       2.0    // Short far plane (only render weapon)
     );
 
+    // Add camera to scene so weapons can be attached as children
+    this.viewModelScene.add(this.viewModelCamera);
+
     // Handle window resize
     window.addEventListener('resize', () => {
       this.viewModelCamera.aspect = window.innerWidth / window.innerHeight;
@@ -30,17 +33,18 @@ export class ViewModelRenderer {
   }
 
   /**
-   * Add weapon model to view model scene
+   * Add weapon model to view model scene (as child of camera)
    */
   addWeaponModel(model: THREE.Group): void {
-    this.viewModelScene.add(model);
+    // Add weapon as child of camera so it moves with camera
+    this.viewModelCamera.add(model);
   }
 
   /**
-   * Remove weapon model from view model scene
+   * Remove weapon model from camera
    */
   removeWeaponModel(model: THREE.Group): void {
-    this.viewModelScene.remove(model);
+    this.viewModelCamera.remove(model);
   }
 
   /**
@@ -50,6 +54,9 @@ export class ViewModelRenderer {
     // Copy position and rotation from player camera
     this.viewModelCamera.position.copy(playerCamera.position);
     this.viewModelCamera.quaternion.copy(playerCamera.quaternion);
+
+    // Update view model camera matrix
+    this.viewModelCamera.updateMatrixWorld(true);
   }
 
   /**

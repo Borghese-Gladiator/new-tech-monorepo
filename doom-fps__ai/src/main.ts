@@ -24,8 +24,8 @@ class Game {
     this.input = new InputManager(app);
     this.player = new Player(this.input, this.collision, this.world.scene);
 
-    // Set view model scene for weapon manager
-    this.player.weaponManager.setViewModelScene(this.viewModelRenderer.getScene());
+    // Set view model renderer for weapon manager
+    this.player.weaponManager.setViewModelRenderer(this.viewModelRenderer);
 
     // Equip default weapons with types
     this.player.weaponManager.addWeapon(

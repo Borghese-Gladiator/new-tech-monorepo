@@ -5,6 +5,7 @@ import { WeaponViewModel } from '../viewmodel/WeaponViewModel';
 import { WeaponAnimator } from '../viewmodel/WeaponAnimator';
 import { WeaponModelFactory } from '../viewmodel/models/WeaponModelFactory';
 import { WeaponType } from './WeaponFactory';
+import { ViewModelRenderer } from '../viewmodel/ViewModelRenderer';
 
 interface WeaponEntry {
   weapon: Weapon;
@@ -18,17 +19,17 @@ export class WeaponManager {
   private currentWeaponIndex = 0;
   private hitEffect: HitEffect;
   private isFiring = false;
-  private viewModelScene?: THREE.Scene;
+  private viewModelRenderer?: ViewModelRenderer;
 
   constructor(scene: THREE.Scene) {
     this.hitEffect = new HitEffect(scene);
   }
 
   /**
-   * Set the view model scene (for rendering weapons)
+   * Set the view model renderer (for rendering weapons)
    */
-  setViewModelScene(scene: THREE.Scene): void {
-    this.viewModelScene = scene;
+  setViewModelRenderer(renderer: ViewModelRenderer): void {
+    this.viewModelRenderer = renderer;
   }
 
   /**
@@ -42,9 +43,9 @@ export class WeaponManager {
 
     const animator = new WeaponAnimator(weapon.getReloadTime());
 
-    // Add to view model scene if available
-    if (this.viewModelScene) {
-      this.viewModelScene.add(viewModel.getModel());
+    // Add to view model renderer if available
+    if (this.viewModelRenderer) {
+      this.viewModelRenderer.addWeaponModel(viewModel.getModel());
       // Hide initially (show only current weapon)
       if (this.weaponEntries.length > 0) {
         viewModel.getModel().visible = false;
