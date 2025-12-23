@@ -2,12 +2,17 @@ import * as THREE from 'three';
 import { InputManager } from '../utils/Input';
 import { CollisionSystem } from './Collision';
 import { WeaponManager } from './weapons/WeaponManager';
+import { PlayerHealth } from './PlayerHealth';
+import { DamageFeedback } from './DamageFeedback';
 
 export class Player {
   camera: THREE.PerspectiveCamera;
   weaponManager: WeaponManager;
+  health: PlayerHealth;
+  damageFeedback: DamageFeedback;
   private velocity = new THREE.Vector3();
   private position: THREE.Vector3;
+  private spawnPosition: THREE.Vector3;
   private rotation = { x: 0, y: 0 }; // pitch and yaw
   private onGround = false;
 
@@ -30,8 +35,10 @@ export class Player {
     private input: InputManager,
     private collision: CollisionSystem,
     scene: THREE.Scene,
+    container: HTMLElement,
     spawnPosition = new THREE.Vector3(0, 2, 0)
   ) {
+    this.spawnPosition = spawnPosition.clone();
     this.position = spawnPosition.clone();
     this.camera = new THREE.PerspectiveCamera(
       75,
@@ -44,6 +51,12 @@ export class Player {
     // Initialize weapon manager
     this.weaponManager = new WeaponManager(scene);
 
+    // Initialize health system
+    this.health = new PlayerHealth(100);
+
+    // Initialize damage feedback
+    this.damageFeedback = new DamageFeedback(container);
+
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
@@ -53,9 +66,17 @@ export class Player {
   update(deltaTime: number, scene: THREE.Scene): void {
     if (!this.input.getPointerLocked()) return;
 
+    // Don't update if dead
+    if (this.health.getIsDead()) return;
+
     this.updateRotation();
     this.updateMovement(deltaTime);
     this.updateWeapons(deltaTime, scene);
+    this.updateDamageFeedback(deltaTime);
+  }
+
+  private updateDamageFeedback(deltaTime: number): void {
+    this.damageFeedback.update(deltaTime, this.camera);
   }
 
   private updateWeapons(deltaTime: number, scene: THREE.Scene): void {
@@ -199,5 +220,25 @@ export class Player {
 
   getPosition(): THREE.Vector3 {
     return this.position.clone();
+  }
+
+  /**
+   * Take damage (called by enemies)
+   */
+  takeDamage(amount: number): void {
+    this.health.takeDamage(amount);
+    this.damageFeedback.flashDamage(0.3);
+    this.damageFeedback.triggerShake(0.05);
+  }
+
+  /**
+   * Respawn player at spawn position
+   */
+  respawn(): void {
+    this.health.respawn();
+    this.position.copy(this.spawnPosition);
+    this.camera.position.copy(this.position);
+    this.velocity.set(0, 0, 0);
+    this.damageFeedback.hideDeathScreen();
   }
 }

@@ -4,9 +4,17 @@ import { Enemy } from './Enemy';
 export class EnemyManager {
   private enemies: Enemy[] = [];
   private scene: THREE.Scene;
+  private onPlayerDamageCallback?: (damage: number) => void;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
+  }
+
+  /**
+   * Set callback for when enemies damage the player
+   */
+  setOnPlayerDamage(callback: (damage: number) => void): void {
+    this.onPlayerDamageCallback = callback;
   }
 
   /**
@@ -14,6 +22,12 @@ export class EnemyManager {
    */
   spawnEnemy(position: THREE.Vector3): Enemy {
     const enemy = new Enemy(position);
+
+    // Set attack callback to damage player
+    if (this.onPlayerDamageCallback) {
+      enemy.setOnAttack(this.onPlayerDamageCallback);
+    }
+
     this.enemies.push(enemy);
     this.scene.add(enemy.getModel());
     console.log(`Enemy spawned at (${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)})`);

@@ -139,11 +139,23 @@ export class Enemy {
   }
 
   /**
-   * Perform attack (placeholder - could trigger player damage)
+   * Perform attack and return damage amount
    */
   private performAttack(): void {
     console.log(`Enemy attacks for ${this.ATTACK_DAMAGE} damage!`);
-    // TODO: Could emit event or callback to damage player
+    // Emit attack event if callback is set
+    if (this.onAttackCallback) {
+      this.onAttackCallback(this.ATTACK_DAMAGE);
+    }
+  }
+
+  private onAttackCallback?: (damage: number) => void;
+
+  /**
+   * Set attack callback (called when enemy attacks)
+   */
+  setOnAttack(callback: (damage: number) => void): void {
+    this.onAttackCallback = callback;
   }
 
   /**
