@@ -4,6 +4,7 @@ import { Player } from './game/Player';
 import { World } from './game/World';
 import { WeaponFactory, WeaponType } from './game/weapons/WeaponFactory';
 import { ViewModelRenderer } from './game/viewmodel/ViewModelRenderer';
+import { EnemyManager } from './game/enemies/EnemyManager';
 
 class Game {
   private input: InputManager;
@@ -11,6 +12,7 @@ class Game {
   private player: Player;
   private world: World;
   private viewModelRenderer: ViewModelRenderer;
+  private enemyManager: EnemyManager;
   private lastTime = 0;
 
   constructor() {
@@ -27,6 +29,10 @@ class Game {
     // Set view model renderer for weapon manager
     this.player.weaponManager.setViewModelRenderer(this.viewModelRenderer);
 
+    // Initialize enemy manager
+    this.enemyManager = new EnemyManager(this.world.scene);
+    this.player.weaponManager.setEnemyManager(this.enemyManager);
+
     // Equip default weapons with types
     this.player.weaponManager.addWeapon(
       WeaponFactory.createWeapon(WeaponType.PISTOL),
@@ -36,6 +42,10 @@ class Game {
       WeaponFactory.createWeapon(WeaponType.RIFLE),
       WeaponType.RIFLE
     );
+
+    // Spawn test enemies
+    const spawnPositions = this.world.getEnemySpawnPositions();
+    this.enemyManager.spawnEnemies(spawnPositions);
 
     console.log('=== Browser FPS Ready ===');
     console.log('Controls:');
@@ -61,6 +71,9 @@ class Game {
 
     // Update game state
     this.player.update(deltaTime, this.world.scene);
+
+    // Update enemies
+    this.enemyManager.update(deltaTime, this.player.getPosition());
 
     // Update view model camera to match player camera
     this.viewModelRenderer.updateCamera(this.player.camera);

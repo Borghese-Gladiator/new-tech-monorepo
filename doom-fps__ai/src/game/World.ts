@@ -87,6 +87,19 @@ export class World {
     this.createWall(-halfSize, 0, 0, 1, boundaryHeight, groundSize, 0x808080);
   }
 
+  /**
+   * Get enemy spawn positions in the level
+   */
+  getEnemySpawnPositions(): THREE.Vector3[] {
+    return [
+      new THREE.Vector3(10, 0, 10),
+      new THREE.Vector3(-10, 0, -10),
+      new THREE.Vector3(15, 0, -5),
+      new THREE.Vector3(-15, 0, 5),
+      new THREE.Vector3(0, 0, -15)
+    ];
+  }
+
   private createWall(
     x: number,
     y: number,

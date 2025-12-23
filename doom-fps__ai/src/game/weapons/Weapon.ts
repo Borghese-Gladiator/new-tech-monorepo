@@ -22,6 +22,7 @@ export interface WeaponEventCallbacks {
   onReload?: () => void;
   onEmpty?: () => void;
   onHit?: (point: THREE.Vector3, normal: THREE.Vector3) => void;
+  onEnemyHit?: (object: THREE.Object3D) => void;
 }
 
 export abstract class Weapon {

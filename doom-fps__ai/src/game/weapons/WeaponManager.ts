@@ -6,6 +6,7 @@ import { WeaponAnimator } from '../viewmodel/WeaponAnimator';
 import { WeaponModelFactory } from '../viewmodel/models/WeaponModelFactory';
 import { WeaponType } from './WeaponFactory';
 import { ViewModelRenderer } from '../viewmodel/ViewModelRenderer';
+import { EnemyManager } from '../enemies/EnemyManager';
 
 interface WeaponEntry {
   weapon: Weapon;
@@ -20,9 +21,17 @@ export class WeaponManager {
   private hitEffect: HitEffect;
   private isFiring = false;
   private viewModelRenderer?: ViewModelRenderer;
+  private enemyManager?: EnemyManager;
 
   constructor(scene: THREE.Scene) {
     this.hitEffect = new HitEffect(scene);
+  }
+
+  /**
+   * Set enemy manager for damage dealing
+   */
+  setEnemyManager(manager: EnemyManager): void {
+    this.enemyManager = manager;
   }
 
   /**
@@ -68,6 +77,13 @@ export class WeaponManager {
       },
       onHit: (point, normal) => {
         this.hitEffect.createImpact(point, normal);
+      },
+      onEnemyHit: (object) => {
+        // Deal damage to enemy
+        const enemy = object.userData.enemy;
+        if (enemy) {
+          enemy.takeDamage(weapon.getDamage());
+        }
       }
     });
 

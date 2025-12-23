@@ -39,6 +39,11 @@ export class HitscanWeapon extends Weapon {
     // Trigger callbacks
     this.callbacks.onFire?.();
     if (hitResult.hit && hitResult.point && hitResult.normal) {
+      // Check if hit an enemy
+      if (hitResult.object && hitResult.object.userData.enemy) {
+        this.callbacks.onEnemyHit?.(hitResult.object);
+      }
+      // Always create impact effect
       this.callbacks.onHit?.(hitResult.point, hitResult.normal);
     }
 
