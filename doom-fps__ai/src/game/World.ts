@@ -142,6 +142,8 @@ export class World {
   }
 
   render(camera: THREE.Camera): void {
+    // Clear buffers manually (autoClear disabled for multi-pass rendering)
+    this.renderer.clear(true, true, true);
     this.renderer.render(this.scene, camera);
   }
 

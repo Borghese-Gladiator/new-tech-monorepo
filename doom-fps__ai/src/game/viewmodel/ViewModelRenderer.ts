@@ -8,6 +8,9 @@ export class ViewModelRenderer {
   constructor(renderer: THREE.WebGLRenderer) {
     this.renderer = renderer;
 
+    // Disable auto clear so we can render multiple scenes
+    this.renderer.autoClear = false;
+
     // Create separate scene for weapon
     this.viewModelScene = new THREE.Scene();
 
