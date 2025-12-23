@@ -9,6 +9,10 @@ export class HUD {
   private crosshair: HTMLDivElement;
   private deathScreen: HTMLDivElement;
   private respawnButton: HTMLButtonElement;
+  private waveDisplay: HTMLDivElement;
+  private waveCountdownDisplay: HTMLDivElement;
+  private waveStartTimer = 0;
+  private showingWaveStart = false;
 
   constructor(parentContainer: HTMLElement) {
     // Create HUD container
@@ -141,6 +145,31 @@ export class HUD {
       this.respawnButton.style.backgroundColor = '#333';
     });
     this.deathScreen.appendChild(this.respawnButton);
+
+    // Create wave display (top-center)
+    this.waveDisplay = document.createElement('div');
+    this.waveDisplay.style.position = 'absolute';
+    this.waveDisplay.style.top = '20px';
+    this.waveDisplay.style.left = '50%';
+    this.waveDisplay.style.transform = 'translateX(-50%)';
+    this.waveDisplay.style.fontSize = '24px';
+    this.waveDisplay.style.fontWeight = 'bold';
+    this.waveDisplay.style.textShadow = '3px 3px 6px rgba(0,0,0,0.9)';
+    this.waveDisplay.textContent = 'WAVE 1';
+    this.container.appendChild(this.waveDisplay);
+
+    // Create wave countdown display (center, large)
+    this.waveCountdownDisplay = document.createElement('div');
+    this.waveCountdownDisplay.style.position = 'absolute';
+    this.waveCountdownDisplay.style.top = '40%';
+    this.waveCountdownDisplay.style.left = '50%';
+    this.waveCountdownDisplay.style.transform = 'translate(-50%, -50%)';
+    this.waveCountdownDisplay.style.fontSize = '72px';
+    this.waveCountdownDisplay.style.fontWeight = 'bold';
+    this.waveCountdownDisplay.style.color = '#ffaa00';
+    this.waveCountdownDisplay.style.textShadow = '4px 4px 8px rgba(0,0,0,1)';
+    this.waveCountdownDisplay.style.display = 'none';
+    this.container.appendChild(this.waveCountdownDisplay);
   }
 
   /**
@@ -200,6 +229,54 @@ export class HUD {
    */
   onRespawn(callback: () => void): void {
     this.respawnButton.addEventListener('click', callback);
+  }
+
+  /**
+   * Update wave number
+   */
+  updateWave(wave: number, enemyCount: number): void {
+    this.waveDisplay.textContent = `WAVE ${wave}`;
+  }
+
+  /**
+   * Show wave countdown
+   */
+  showWaveCountdown(seconds: number): void {
+    // Don't show countdown if showing wave start
+    if (this.showingWaveStart) return;
+
+    if (seconds > 0 && seconds <= 5) {
+      this.waveCountdownDisplay.textContent = `Next Wave: ${Math.ceil(seconds)}`;
+      this.waveCountdownDisplay.style.display = 'block';
+      this.waveCountdownDisplay.style.color = '#ffaa00';
+    } else {
+      this.waveCountdownDisplay.style.display = 'none';
+    }
+  }
+
+  /**
+   * Show wave start message
+   */
+  showWaveStart(wave: number): void {
+    this.waveCountdownDisplay.textContent = `WAVE ${wave}`;
+    this.waveCountdownDisplay.style.display = 'block';
+    this.waveCountdownDisplay.style.color = '#ff0000';
+    this.showingWaveStart = true;
+    this.waveStartTimer = 2.0; // Show for 2 seconds
+  }
+
+  /**
+   * Update HUD timers (call every frame)
+   */
+  update(deltaTime: number): void {
+    if (this.showingWaveStart && this.waveStartTimer > 0) {
+      this.waveStartTimer -= deltaTime;
+      if (this.waveStartTimer <= 0) {
+        this.waveCountdownDisplay.style.display = 'none';
+        this.waveCountdownDisplay.style.color = '#ffaa00';
+        this.showingWaveStart = false;
+      }
+    }
   }
 
   /**

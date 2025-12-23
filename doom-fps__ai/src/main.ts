@@ -5,6 +5,7 @@ import { World } from './game/World';
 import { WeaponFactory, WeaponType } from './game/weapons/WeaponFactory';
 import { ViewModelRenderer } from './game/viewmodel/ViewModelRenderer';
 import { EnemyManager } from './game/enemies/EnemyManager';
+import { WaveSpawner } from './game/enemies/WaveSpawner';
 import { HUD } from './ui/HUD';
 
 class Game {
@@ -14,6 +15,7 @@ class Game {
   private world: World;
   private viewModelRenderer: ViewModelRenderer;
   private enemyManager: EnemyManager;
+  private waveSpawner: WaveSpawner;
   private hud: HUD;
   private lastTime = 0;
 
@@ -70,9 +72,24 @@ class Game {
       WeaponType.RIFLE
     );
 
-    // Spawn test enemies
+    // Setup wave spawner
     const spawnPositions = this.world.getEnemySpawnPositions();
-    this.enemyManager.spawnEnemies(spawnPositions);
+    this.waveSpawner = new WaveSpawner(this.enemyManager, spawnPositions);
+
+    // Setup wave callbacks
+    this.waveSpawner.setCallbacks({
+      onWaveStart: (wave, enemyCount) => {
+        console.log(`Wave ${wave} starting with ${enemyCount} enemies!`);
+        this.hud.updateWave(wave, enemyCount);
+        this.hud.showWaveStart(wave);
+      },
+      onWaveComplete: (wave) => {
+        console.log(`Wave ${wave} completed!`);
+      }
+    });
+
+    // Start wave spawning
+    this.waveSpawner.start();
 
     // Initialize HUD with current values
     this.hud.updateHealth(this.player.health.getHealth(), this.player.health.getMaxHealth());
@@ -98,12 +115,12 @@ class Game {
     this.hud.hideDeathScreen();
     this.hud.updateHealth(this.player.health.getHealth(), this.player.health.getMaxHealth());
 
-    // Respawn enemies
+    // Reset wave spawner and restart
     this.enemyManager.clearAll();
-    const spawnPositions = this.world.getEnemySpawnPositions();
-    this.enemyManager.spawnEnemies(spawnPositions);
+    this.waveSpawner.reset();
+    this.waveSpawner.start();
 
-    console.log('Player respawned!');
+    console.log('Player respawned! Restarting waves...');
   }
 
   private updateHUDWeaponInfo(): void {
@@ -131,8 +148,17 @@ class Game {
     // Update enemies
     this.enemyManager.update(deltaTime, this.player.getPosition());
 
+    // Update wave spawner
+    this.waveSpawner.update(deltaTime);
+
     // Update HUD with weapon info
     this.updateHUDWeaponInfo();
+
+    // Update HUD timers (for wave start text fadeout)
+    this.hud.update(deltaTime);
+
+    // Update wave countdown display (always call to handle hiding)
+    this.hud.showWaveCountdown(this.waveSpawner.getWaveDelayRemaining());
 
     // Update view model camera to match player camera
     this.viewModelRenderer.updateCamera(this.player.camera);
