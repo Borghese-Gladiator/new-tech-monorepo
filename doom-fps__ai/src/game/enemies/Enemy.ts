@@ -40,9 +40,9 @@ export class Enemy {
   }
 
   private createDemonModel(): void {
-    // Dark demonic body material
+    // Demonic body material - brighter for visibility
     this.bodyMaterial = new THREE.MeshStandardMaterial({
-      color: 0x441111, // Dark demon red
+      color: 0x883333, // Brighter demon red
       roughness: 0.8,
       metalness: 0.2
     });
@@ -70,9 +70,9 @@ export class Enemy {
     head.castShadow = true;
     this.model.add(head);
 
-    // Horns
+    // Horns - brighter
     const hornMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1a0a0a,
+      color: 0x3a2020,
       roughness: 0.6,
       metalness: 0.3
     });
@@ -124,10 +124,10 @@ export class Enemy {
     rightArm.castShadow = true;
     this.model.add(rightArm);
 
-    // Claws
+    // Claws - brighter
     const clawGeometry = new THREE.ConeGeometry(0.04, 0.15, 4);
     const clawMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2a1515,
+      color: 0x4a3030,
       roughness: 0.5,
       metalness: 0.4
     });
@@ -162,10 +162,10 @@ export class Enemy {
     rightLeg.castShadow = true;
     this.model.add(rightLeg);
 
-    // Hooves/feet
+    // Hooves/feet - brighter
     const hoofGeometry = new THREE.BoxGeometry(0.18, 0.08, 0.22);
     const hoofMaterial = new THREE.MeshStandardMaterial({
-      color: 0x0a0505,
+      color: 0x2a1515,
       roughness: 0.9
     });
     this.allMaterials.push(hoofMaterial);
@@ -191,7 +191,7 @@ export class Enemy {
       this.hitFlashTimer -= deltaTime;
       if (this.hitFlashTimer <= 0) {
         // Reset to base demon color
-        this.bodyMaterial.color.setHex(0x441111);
+        this.bodyMaterial.color.setHex(0x883333);
         this.bodyMaterial.emissive.setHex(0x000000);
         this.eyeMaterial.color.setHex(0xff0000);
       }

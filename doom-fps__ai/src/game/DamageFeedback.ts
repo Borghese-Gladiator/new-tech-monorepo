@@ -21,7 +21,7 @@ export class DamageFeedback {
     this.damageOverlay.style.zIndex = '100';
     container.appendChild(this.damageOverlay);
 
-    // Create permanent vignette overlay for DOOM atmosphere
+    // Create permanent vignette overlay for DOOM atmosphere (subtle for visibility)
     this.vignetteOverlay = document.createElement('div');
     this.vignetteOverlay.style.position = 'fixed';
     this.vignetteOverlay.style.top = '0';
@@ -33,9 +33,9 @@ export class DamageFeedback {
     this.vignetteOverlay.style.background = `
       radial-gradient(ellipse at center,
         transparent 0%,
-        transparent 50%,
-        rgba(10, 0, 0, 0.3) 80%,
-        rgba(10, 0, 0, 0.6) 100%
+        transparent 60%,
+        rgba(10, 0, 0, 0.15) 85%,
+        rgba(10, 0, 0, 0.3) 100%
       )
     `;
     container.appendChild(this.vignetteOverlay);
@@ -106,25 +106,25 @@ export class DamageFeedback {
   }
 
   /**
-   * Intensify vignette when low health
+   * Intensify vignette when low health (still allows visibility)
    */
   setLowHealthVignette(active: boolean): void {
     if (active) {
       this.vignetteOverlay.style.background = `
         radial-gradient(ellipse at center,
           transparent 0%,
-          transparent 30%,
-          rgba(40, 0, 0, 0.4) 60%,
-          rgba(20, 0, 0, 0.8) 100%
+          transparent 40%,
+          rgba(40, 0, 0, 0.25) 70%,
+          rgba(20, 0, 0, 0.5) 100%
         )
       `;
     } else {
       this.vignetteOverlay.style.background = `
         radial-gradient(ellipse at center,
           transparent 0%,
-          transparent 50%,
-          rgba(10, 0, 0, 0.3) 80%,
-          rgba(10, 0, 0, 0.6) 100%
+          transparent 60%,
+          rgba(10, 0, 0, 0.15) 85%,
+          rgba(10, 0, 0, 0.3) 100%
         )
       `;
     }

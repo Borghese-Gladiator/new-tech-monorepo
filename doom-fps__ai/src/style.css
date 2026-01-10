@@ -9,7 +9,7 @@ body {
   height: 100vh;
   overflow: hidden;
   font-family: 'Courier New', monospace;
-  background: #0a0000; /* Dark blood red instead of pure black */
+  background: #1a0808; /* Blood red background - brighter */
 }
 
 #app {

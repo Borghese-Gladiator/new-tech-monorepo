@@ -10,10 +10,10 @@ export class World {
     private collision: CollisionSystem,
     container: HTMLElement
   ) {
-    // Create scene - DOOM hellscape
+    // Create scene - DOOM hellscape (brighter for visibility)
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a0000); // Dark blood red sky
-    this.scene.fog = new THREE.Fog(0x0a0000, 5, 40); // Dense hellish fog
+    this.scene.background = new THREE.Color(0x2a0505); // Blood red sky - brighter
+    this.scene.fog = new THREE.Fog(0x1a0505, 15, 80); // Lighter fog, pushed back for visibility
 
     // Create renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -32,12 +32,12 @@ export class World {
   }
 
   private createLevel(): void {
-    // Dim red ambient light for hellish atmosphere
-    const ambientLight = new THREE.AmbientLight(0x331111, 0.3);
+    // Brighter red ambient light for hellish atmosphere with good visibility
+    const ambientLight = new THREE.AmbientLight(0x665544, 0.8);
     this.scene.add(ambientLight);
 
-    // Dim red directional light (blood moon)
-    const directionalLight = new THREE.DirectionalLight(0x992222, 0.4);
+    // Brighter directional light (blood moon) for better visibility
+    const directionalLight = new THREE.DirectionalLight(0xcc8866, 1.0);
     directionalLight.position.set(50, 100, 50);
     directionalLight.castShadow = true;
     directionalLight.shadow.camera.left = -50;
@@ -48,11 +48,11 @@ export class World {
     directionalLight.shadow.mapSize.height = 2048;
     this.scene.add(directionalLight);
 
-    // Create hellish ground
+    // Create hellish ground - brighter for visibility
     const groundSize = 50;
     const groundGeometry = new THREE.BoxGeometry(groundSize, 1, groundSize);
     const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1a0808, // Dark blood stone
+      color: 0x3a2020, // Brighter blood stone
       roughness: 0.9,
       metalness: 0.1
     });
@@ -67,22 +67,22 @@ export class World {
       max: new THREE.Vector3(groundSize / 2, 0, groundSize / 2)
     });
 
-    // Create demonic walls/obstacles
-    this.createWall(10, 0, -10, 4, 3, 1, 0x1a1a1a); // Dark metal wall
-    this.createWall(-10, 0, 10, 1, 3, 4, 0x1a1a1a);
-    this.createWall(5, 0, 5, 2, 2, 2, 0x2a0a0a); // Blood cube
+    // Create demonic walls/obstacles - brighter colors
+    this.createWall(10, 0, -10, 4, 3, 1, 0x3a3a3a); // Metal wall - brighter
+    this.createWall(-10, 0, 10, 1, 3, 4, 0x3a3a3a);
+    this.createWall(5, 0, 5, 2, 2, 2, 0x4a1a1a); // Blood cube - brighter
 
     // Create platform
-    this.createPlatform(15, 2, 0, 6, 0.5, 6, 0x222222);
+    this.createPlatform(15, 2, 0, 6, 0.5, 6, 0x444444);
 
-    // Create boundary walls - dark demonic metal
+    // Create boundary walls - demonic metal (brighter)
     const boundaryHeight = 5;
     const halfSize = groundSize / 2;
 
-    this.createWall(0, 0, -halfSize, groundSize, boundaryHeight, 1, 0x151515);
-    this.createWall(0, 0, halfSize, groundSize, boundaryHeight, 1, 0x151515);
-    this.createWall(halfSize, 0, 0, 1, boundaryHeight, groundSize, 0x151515);
-    this.createWall(-halfSize, 0, 0, 1, boundaryHeight, groundSize, 0x151515);
+    this.createWall(0, 0, -halfSize, groundSize, boundaryHeight, 1, 0x2a2a2a);
+    this.createWall(0, 0, halfSize, groundSize, boundaryHeight, 1, 0x2a2a2a);
+    this.createWall(halfSize, 0, 0, 1, boundaryHeight, groundSize, 0x2a2a2a);
+    this.createWall(-halfSize, 0, 0, 1, boundaryHeight, groundSize, 0x2a2a2a);
 
     // Add hellfire torch lights
     this.createTorch(-15, 3, -15);
@@ -134,10 +134,10 @@ export class World {
   }
 
   private createDemonicPillar(x: number, y: number, z: number): void {
-    // Main pillar body
+    // Main pillar body - brighter
     const pillarGeometry = new THREE.CylinderGeometry(0.5, 0.6, 4, 8);
     const pillarMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1a1a1a,
+      color: 0x3a3a3a,
       roughness: 0.7,
       metalness: 0.3
     });
