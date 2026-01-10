@@ -4,6 +4,7 @@ import { CollisionSystem } from './Collision';
 import { WeaponManager } from './weapons/WeaponManager';
 import { PlayerHealth } from './PlayerHealth';
 import { DamageFeedback } from './DamageFeedback';
+import { RecoilConfig } from './weapons/Weapon';
 
 export class Player {
   camera: THREE.PerspectiveCamera;
@@ -15,6 +16,10 @@ export class Player {
   private spawnPosition: THREE.Vector3;
   private rotation = { x: 0, y: 0 }; // pitch and yaw
   private onGround = false;
+
+  // Recoil state
+  private recoilOffset = { x: 0, y: 0 };  // Current recoil displacement (pitch, yaw)
+  private currentRecoilConfig: RecoilConfig | null = null;
 
   // Player physics constants
   private readonly MOVE_SPEED = 5.0;
@@ -72,6 +77,7 @@ export class Player {
     this.updateRotation();
     this.updateMovement(deltaTime);
     this.updateWeapons(deltaTime, scene);
+    this.updateRecoilRecovery(deltaTime);
     this.updateDamageFeedback(deltaTime);
   }
 
@@ -80,10 +86,13 @@ export class Player {
   }
 
   private updateWeapons(deltaTime: number, scene: THREE.Scene): void {
+    // Track if we fired this frame for recoil
+    let firedThisFrame = false;
+
     // Handle weapon firing
     if (this.input.isMouseButtonJustPressed(0)) {
       // Left click - fire weapon (semi-auto)
-      this.weaponManager.fire(this.camera, scene);
+      firedThisFrame = this.weaponManager.fire(this.camera, scene);
     }
 
     if (this.input.isMouseButtonPressed(0)) {
@@ -117,7 +126,26 @@ export class Player {
       this.input.isKeyPressed('KeyD');
 
     // Update weapon manager with animation parameters
+    // This also handles full-auto firing internally
+    const prevAmmo = this.weaponManager.getCurrentWeapon()?.getCurrentAmmo() ?? 0;
     this.weaponManager.update(deltaTime, this.camera, scene, mouseDelta, isMoving);
+    const currAmmo = this.weaponManager.getCurrentWeapon()?.getCurrentAmmo() ?? 0;
+
+    // Check if full-auto weapon fired during update
+    if (currAmmo < prevAmmo) {
+      firedThisFrame = true;
+    }
+
+    // Apply recoil if weapon fired
+    if (firedThisFrame) {
+      this.applyRecoil();
+    }
+
+    // Update current recoil config for recovery
+    const currentWeapon = this.weaponManager.getCurrentWeapon();
+    if (currentWeapon) {
+      this.currentRecoilConfig = currentWeapon.getRecoilConfig();
+    }
 
     // Clear just-pressed state after processing
     this.input.clearMouseJustPressed();
@@ -216,6 +244,113 @@ export class Player {
     // Update position
     this.position.copy(newPosition);
     this.camera.position.copy(this.position);
+  }
+
+  /**
+   * Apply recoil kick when firing
+   */
+  private applyRecoil(): void {
+    const weapon = this.weaponManager.getCurrentWeapon();
+    if (!weapon) return;
+
+    const recoil = weapon.getRecoilConfig();
+    const pattern = recoil.pattern || 'snappy';
+
+    // Convert degrees to radians
+    const verticalRad = (recoil.vertical * Math.PI) / 180;
+    const horizontalRad = (recoil.horizontal * Math.PI) / 180;
+
+    // Calculate recoil amounts based on pattern
+    let verticalKick: number;
+    let horizontalKick: number;
+
+    if (pattern === 'snappy') {
+      // Pistol-style: strong instant kick with fast recovery
+      verticalKick = verticalRad;
+      horizontalKick = (Math.random() - 0.5) * 2 * horizontalRad;
+    } else {
+      // Climbing pattern: recoil accumulates during sustained fire
+      // Add to existing recoil (creates climbing effect)
+      const currentRecoilMagnitude = Math.abs(this.recoilOffset.x);
+      const climbMultiplier = 1 + currentRecoilMagnitude * 2; // Increases as you spray
+
+      verticalKick = verticalRad * climbMultiplier;
+      // Horizontal becomes more erratic as spray continues
+      horizontalKick = (Math.random() - 0.5) * 2 * horizontalRad * climbMultiplier;
+    }
+
+    // Apply recoil to rotation (negative x = look up)
+    this.rotation.x -= verticalKick;
+    this.rotation.y += horizontalKick;
+
+    // Track recoil offset for recovery
+    this.recoilOffset.x += verticalKick;
+    this.recoilOffset.y += horizontalKick;
+
+    // Clamp pitch
+    this.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.rotation.x));
+
+    // Apply to camera immediately
+    this.camera.rotation.x = this.rotation.x;
+    this.camera.rotation.y = this.rotation.y;
+  }
+
+  /**
+   * Recover from recoil over time
+   */
+  private updateRecoilRecovery(deltaTime: number): void {
+    if (!this.currentRecoilConfig) return;
+
+    const recoveryRate = (this.currentRecoilConfig.recovery * Math.PI) / 180; // degrees to radians per second
+    const pattern = this.currentRecoilConfig.pattern || 'snappy';
+
+    // Different recovery behavior based on pattern
+    if (pattern === 'snappy') {
+      // Fast recovery back to original position
+      const recoveryAmount = recoveryRate * deltaTime;
+
+      // Recover vertical recoil
+      if (Math.abs(this.recoilOffset.x) > 0.001) {
+        const recoverX = Math.min(recoveryAmount, Math.abs(this.recoilOffset.x));
+        const signX = Math.sign(this.recoilOffset.x);
+        this.rotation.x += recoverX * signX;
+        this.recoilOffset.x -= recoverX * signX;
+      }
+
+      // Recover horizontal recoil
+      if (Math.abs(this.recoilOffset.y) > 0.001) {
+        const recoverY = Math.min(recoveryAmount, Math.abs(this.recoilOffset.y));
+        const signY = Math.sign(this.recoilOffset.y);
+        this.rotation.y -= recoverY * signY;
+        this.recoilOffset.y -= recoverY * signY;
+      }
+    } else {
+      // Climbing pattern: slower recovery, doesn't fully reset while firing
+      const isFiring = this.weaponManager.getIsFiring();
+      const effectiveRecovery = isFiring ? recoveryRate * 0.3 : recoveryRate; // Slower while firing
+
+      const recoveryAmount = effectiveRecovery * deltaTime;
+
+      // Recover vertical
+      if (Math.abs(this.recoilOffset.x) > 0.001) {
+        const recoverX = Math.min(recoveryAmount, Math.abs(this.recoilOffset.x));
+        const signX = Math.sign(this.recoilOffset.x);
+        this.rotation.x += recoverX * signX;
+        this.recoilOffset.x -= recoverX * signX;
+      }
+
+      // Recover horizontal
+      if (Math.abs(this.recoilOffset.y) > 0.001) {
+        const recoverY = Math.min(recoveryAmount, Math.abs(this.recoilOffset.y));
+        const signY = Math.sign(this.recoilOffset.y);
+        this.rotation.y -= recoverY * signY;
+        this.recoilOffset.y -= recoverY * signY;
+      }
+    }
+
+    // Apply recovered rotation to camera
+    this.camera.rotation.x = this.rotation.x;
+    this.camera.rotation.y = this.rotation.y;
   }
 
   getPosition(): THREE.Vector3 {

@@ -11,7 +11,13 @@ export class Pistol extends HitscanWeapon {
       spread: 2,               // 2 degrees spread (accurate)
       maxAmmo: 12,             // 12 round magazine
       reloadTime: 1.5,         // 1.5 seconds to reload
-      fireMode: FireMode.SEMI_AUTO
+      fireMode: FireMode.SEMI_AUTO,
+      recoil: {
+        vertical: 1.8,         // Moderate upward kick
+        horizontal: 0.5,       // Slight random horizontal
+        recovery: 12,          // Fast recovery between shots
+        pattern: 'snappy'      // Quick kick that resets fast
+      }
     });
   }
 }

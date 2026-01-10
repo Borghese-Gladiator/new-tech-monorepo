@@ -6,6 +6,13 @@ export enum FireMode {
   FULL_AUTO = 'full-auto'      // Continuous fire while held
 }
 
+export interface RecoilConfig {
+  vertical: number;        // Upward kick in degrees
+  horizontal: number;      // Random horizontal deviation in degrees
+  recovery: number;        // How fast recoil recovers (degrees per second)
+  pattern?: 'snappy' | 'climbing';  // Recoil behavior pattern
+}
+
 export interface WeaponConfig {
   name: string;
   fireRate: number;        // Rounds per minute
@@ -15,6 +22,7 @@ export interface WeaponConfig {
   maxAmmo: number;         // Magazine capacity
   reloadTime: number;      // Time to reload in seconds
   fireMode: FireMode;
+  recoil: RecoilConfig;    // Recoil behavior
 }
 
 export interface WeaponEventCallbacks {
@@ -125,5 +133,9 @@ export abstract class Weapon {
 
   getReloadTime(): number {
     return this.config.reloadTime;
+  }
+
+  getRecoilConfig(): RecoilConfig {
+    return this.config.recoil;
   }
 }
