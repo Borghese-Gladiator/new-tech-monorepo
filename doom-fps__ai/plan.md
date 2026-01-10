@@ -1,78 +1,152 @@
-# Browser FPS - Tech Stack & Implementation Plan
+# DOOM-Style Arcade Visual Overhaul Plan
 
 ## Brief
-Create a minimal, modern browser-based FPS that runs entirely client-side with focus on performance, fast iteration, and simplicity. Desktop-first (mouse + keyboard), with 3D rendering, basic physics/collision, and pointer lock.
-
-## Recommended Stack
-
-### Core Engine & Rendering
-- **Three.js** (r160+)
-  - Why: Industry standard, excellent performance, massive ecosystem, handles WebGL complexity
-  - Alternatives considered: Babylon.js (heavier), raw WebGL (too low-level)
-
-### Physics & Collision
-- **Custom AABB collision**
-  - Why: FPS games need fast, predictable collision for player movement (not full physics sim)
-  - Why not Cannon.js/Rapier: Overkill for basic FPS movement, adds bundle size
-
-### Build & Dev Tools
-- **Vite** (v5+)
-  - Why: Lightning-fast HMR, native ES modules, minimal config, excellent Three.js support
-  - Why not Webpack: Slower, more complex config
-  - Why not Parcel: Less Three.js ecosystem support
-
-### Language
-- **TypeScript**
-  - Why: Type safety for game logic, better refactoring, modern JS features
-  - Minimal tsconfig for fast iteration
-
-### Package Manager
-- **npm** (comes with Node)
-  - Why: Standard, no extra installation needed
-
-## File Structure
-```
-first-ai-proj/
-├── src/
-│   ├── main.ts              # Entry point, game loop
-│   ├── game/
-│   │   ├── Player.ts        # FPS player controller (movement, camera, pointer lock)
-│   │   ├── World.ts         # Scene setup, level geometry
-│   │   └── Collision.ts     # AABB collision detection
-│   ├── utils/
-│   │   └── Input.ts         # Keyboard/mouse input manager
-│   └── style.css            # Minimal styles (fullscreen, no margins)
-├── public/                  # Static assets (none initially)
-├── index.html               # Entry HTML
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-└── README.md
-```
+Transform the current Three.js FPS game from a clean, modern aesthetic into a classic DOOM-style arcade experience with hellish environments, demonic enemies, retro HUD elements, and visceral combat feedback.
 
 ## Change List
-1. Initialize npm project with Vite + TypeScript + Three.js
-2. Configure Vite for optimal dev experience
-3. Set up TypeScript with strict mode
-4. Create HTML entry point with canvas
-5. Implement input manager (WASD, mouse, pointer lock)
-6. Implement FPS player controller (physics-based movement)
-7. Implement basic AABB collision system
-8. Create initial world/level (ground plane, walls for testing)
-9. Wire up game loop with delta time
-10. Add basic crosshair and HUD
+
+### 1. World & Environment (`src/game/World.ts`)
+- [ ] **Sky/Background**: Change from sky blue (0x87ceeb) to hellish dark red (0x1a0000)
+- [ ] **Fog**: Darken fog color to match hellscape, reduce visibility for claustrophobic feel
+- [ ] **Lighting**:
+  - Change ambient light to dim red/orange tint
+  - Add flickering point lights for hellfire torches effect
+  - Darken overall scene significantly
+- [ ] **Ground**: Replace green (0x3a8c3a) with dark blood-red stone texture (0x2a0a0a)
+- [ ] **Walls**: Replace brown with dark metallic/demonic colors (0x1a1a1a, 0x2a1515)
+- [ ] **Add Hell Props**: Create demonic pillars, skull decorations, lava pools (emissive materials)
+
+### 2. Enemy Visuals (`src/game/enemies/Enemy.ts`)
+- [ ] **Replace Box Geometry**: Create demon-like shapes using combined geometries:
+  - Horned head (sphere + cone horns)
+  - Muscular torso (box/cylinder)
+  - Clawed arms
+- [ ] **Color Palette**: Dark red/purple body (0x661111) with glowing eyes (0xff0000 emissive)
+- [ ] **Hit Feedback**: Change white flash to blood-red burst with brief emissive glow
+- [ ] **Death Effect**: Add dissolve/explosion effect when killed
+- [ ] **State Visuals**: Subtle visual changes between IDLE/CHASE/ATTACK states
+
+### 3. HUD Overhaul (`src/ui/HUD.ts`)
+- [ ] **Health Bar**:
+  - Replace green fill with blood-red gradient
+  - Add skull icon beside health
+  - Use pixelated/retro font styling
+  - Add "pulsing" effect when low health
+- [ ] **Ammo Counter**:
+  - Style with demonic red text
+  - Add bullet/shell icon
+- [ ] **Crosshair**:
+  - Replace dot with aggressive cross or demonic symbol
+  - Add red tint
+- [ ] **Wave Display**:
+  - Change to "DEMON WAVE X"
+  - Blood-red color with heavy shadow
+- [ ] **Death Screen**:
+  - Change "YOU DIED" to "SLAUGHTERED" or "RIPPED APART"
+  - Darker red overlay with blood drip effect
+- [ ] **Add DOOM Face**: Optional - add player face icon that reacts to health
+
+### 4. Weapon Visuals (`src/game/viewmodel/models/WeaponModelFactory.ts`, `src/game/viewmodel/WeaponViewModel.ts`)
+- [ ] **Pistol Redesign**:
+  - Bulkier, more aggressive shape
+  - Add glowing demonic runes (emissive material accents)
+  - Darker metals with red/orange highlights
+- [ ] **Rifle Redesign**:
+  - Transform into plasma/demonic rifle aesthetic
+  - Add glowing barrel element
+  - More angular, aggressive silhouette
+- [ ] **Muzzle Flash**: Change orange/yellow to hellfire green (0x44ff44) or demonic purple (0xff44ff)
+- [ ] **Increase Bob/Sway**: Make weapon movement feel heavier and more impactful
+- [ ] **Add Idle Animation**: Subtle breathing/pulsing glow on weapons
+
+### 5. Combat Effects (`src/game/weapons/effects/HitEffect.ts`, `src/game/DamageFeedback.ts`)
+- [ ] **Bullet Holes**: Darken decals, add slight red tint for blood splatter look
+- [ ] **Spark Particles**:
+  - Change to hellfire colors (green/purple or blood red)
+  - Increase particle count and spread
+  - Longer trails
+- [ ] **Damage Feedback**:
+  - Intensify red flash (darker red: 0x440000, higher opacity: 0.5)
+  - Increase camera shake intensity (0.15 vs current 0.05)
+  - Add screen vignette darkening on damage
+- [ ] **Enemy Hit Sparks**: Add blood particle burst when hitting enemies
+
+### 6. CSS & Global Styling (`src/style.css`)
+- [ ] **Background**: Change from pure black to very dark red (#0a0000)
+- [ ] **Font**: Add retro/aggressive font import (or use system fonts that feel retro)
+- [ ] **Crosshair CSS**: Update to match new demonic design
+- [ ] **Add Scanline Effect**: Optional subtle CRT scanline overlay for retro feel
+- [ ] **Add Vignette**: Permanent subtle edge darkening
+
+### 7. New Visual Systems (New Files)
+- [ ] **Create `src/game/effects/BloodParticles.ts`**: Reusable blood spray system for enemy hits
+- [ ] **Create `src/game/effects/HellAmbience.ts`**: Flickering lights, ambient particle effects
+- [ ] **Update `src/game/enemies/WaveSpawner.ts`**: Add demonic portal visual when spawning enemies
 
 ## Testing
-### Manual Test Scripts
-- [ ] Launch dev server (`npm run dev`)
-- [ ] Click canvas → pointer lock activates
-- [ ] Mouse look works (smooth camera rotation)
-- [ ] WASD movement works (forward/back/strafe)
-- [ ] Space jumps
-- [ ] Collision prevents walking through walls
-- [ ] ESC releases pointer lock
-- [ ] No console errors
-- [ ] 60fps on modern desktop browser
 
-### Unit Tests
-Not required for initial prototype - visual testing is primary validation for game feel.
+### Visual Verification
+- [ ] Environment looks like a hellscape (dark reds, no bright colors)
+- [ ] Enemies are visually distinct and demonic
+- [ ] Weapons have aggressive, hellish appearance
+- [ ] HUD is readable but styled retro/demonic
+- [ ] Combat feels visceral with strong feedback
+- [ ] Performance remains smooth (target 60fps)
+
+### Manual Test Scripts
+
+**Test 1: Environment Check**
+1. Launch game
+2. Verify sky is dark red, not blue
+3. Verify ground is dark/bloody, not green
+4. Verify lighting has red/orange tint
+5. Verify fog creates oppressive atmosphere
+
+**Test 2: Enemy Visuals**
+1. Wait for enemies to spawn
+2. Verify enemies have demonic appearance (horns, claws, etc.)
+3. Shoot enemy - verify blood-red hit effect (not white)
+4. Kill enemy - verify death effect plays
+
+**Test 3: HUD Check**
+1. Verify health bar is red-themed
+2. Verify ammo counter has demonic styling
+3. Take damage - verify health bar updates with correct colors
+4. Die - verify death screen shows new text and styling
+
+**Test 4: Weapon Visuals**
+1. Verify pistol has new demonic design
+2. Verify rifle has new demonic design
+3. Fire weapon - verify hellfire muzzle flash (green/purple)
+4. Walk around - verify weapon bob feels heavier
+
+**Test 5: Combat Feedback**
+1. Take damage from enemy
+2. Verify screen flash is darker/more intense red
+3. Verify camera shake is more pronounced
+4. Shoot walls - verify spark effects are hellfire colored
+5. Shoot enemies - verify blood particle effects
+
+## Implementation Order (Recommended)
+
+1. **World.ts** - Environment sets the tone for everything else
+2. **Enemy.ts** - Core visual element players interact with
+3. **HUD.ts** - Player-facing UI needs to match theme
+4. **WeaponModelFactory.ts** - Weapons are always visible
+5. **HitEffect.ts / DamageFeedback.ts** - Combat feedback
+6. **style.css** - Final polish
+7. **New effect systems** - Optional enhancements
+
+## Color Palette Reference
+
+| Element | Current | DOOM Style |
+|---------|---------|------------|
+| Sky | 0x87ceeb (blue) | 0x1a0000 (dark red) |
+| Ground | 0x3a8c3a (green) | 0x2a0a0a (blood stone) |
+| Walls | 0x8b4513 (brown) | 0x1a1a1a (dark metal) |
+| Enemy Body | 0xff4444 (red) | 0x661111 (dark demon red) |
+| Enemy Eyes | - | 0xff0000 (emissive red) |
+| Muzzle Flash | 0xffaa00 (orange) | 0x44ff44 (hellfire green) |
+| Health Bar | 0x00ff00 (green) | 0xaa0000 (blood red) |
+| Damage Flash | 0xff0000 | 0x440000 (darker) |
+| Sparks | 0xffaa00 (orange) | 0x44ff44 (hellfire) |
