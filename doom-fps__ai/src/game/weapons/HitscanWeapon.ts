@@ -39,9 +39,10 @@ export class HitscanWeapon extends Weapon {
     // Trigger callbacks
     this.callbacks.onFire?.();
     if (hitResult.hit && hitResult.point && hitResult.normal) {
-      // Check if hit an enemy
-      if (hitResult.object && hitResult.object.userData.enemy) {
-        this.callbacks.onEnemyHit?.(hitResult.object);
+      // Check if hit an enemy (traverse up parent chain to find enemy group)
+      const enemyObject = this.findEnemyInParents(hitResult.object);
+      if (enemyObject) {
+        this.callbacks.onEnemyHit?.(enemyObject);
       }
       // Always create impact effect
       this.callbacks.onHit?.(hitResult.point, hitResult.normal);
@@ -113,6 +114,20 @@ export class HitscanWeapon extends Weapon {
     }
 
     return { hit: false };
+  }
+
+  /**
+   * Find enemy object by traversing up the parent chain
+   */
+  private findEnemyInParents(object?: THREE.Object3D): THREE.Object3D | null {
+    let current: THREE.Object3D | null = object || null;
+    while (current) {
+      if (current.userData.enemy) {
+        return current;
+      }
+      current = current.parent;
+    }
+    return null;
   }
 
   /**
