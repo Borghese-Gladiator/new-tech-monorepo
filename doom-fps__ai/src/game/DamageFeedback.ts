@@ -2,41 +2,66 @@ import * as THREE from 'three';
 
 export class DamageFeedback {
   private damageOverlay: HTMLDivElement;
+  private vignetteOverlay: HTMLDivElement;
   private shakeIntensity = 0;
-  private shakeDecay = 5.0; // How fast shake fades
+  private shakeDecay = 4.0; // How fast shake fades - slower for DOOM feel
 
   constructor(container: HTMLElement) {
-    // Create red damage overlay
+    // Create dark blood red damage overlay - DOOM style
     this.damageOverlay = document.createElement('div');
     this.damageOverlay.style.position = 'fixed';
     this.damageOverlay.style.top = '0';
     this.damageOverlay.style.left = '0';
     this.damageOverlay.style.width = '100%';
     this.damageOverlay.style.height = '100%';
-    this.damageOverlay.style.backgroundColor = 'red';
+    this.damageOverlay.style.backgroundColor = '#440000'; // Darker blood red
     this.damageOverlay.style.opacity = '0';
     this.damageOverlay.style.pointerEvents = 'none';
-    this.damageOverlay.style.transition = 'opacity 0.3s ease-out';
+    this.damageOverlay.style.transition = 'opacity 0.2s ease-out';
     this.damageOverlay.style.zIndex = '100';
     container.appendChild(this.damageOverlay);
+
+    // Create permanent vignette overlay for DOOM atmosphere
+    this.vignetteOverlay = document.createElement('div');
+    this.vignetteOverlay.style.position = 'fixed';
+    this.vignetteOverlay.style.top = '0';
+    this.vignetteOverlay.style.left = '0';
+    this.vignetteOverlay.style.width = '100%';
+    this.vignetteOverlay.style.height = '100%';
+    this.vignetteOverlay.style.pointerEvents = 'none';
+    this.vignetteOverlay.style.zIndex = '99';
+    this.vignetteOverlay.style.background = `
+      radial-gradient(ellipse at center,
+        transparent 0%,
+        transparent 50%,
+        rgba(10, 0, 0, 0.3) 80%,
+        rgba(10, 0, 0, 0.6) 100%
+      )
+    `;
+    container.appendChild(this.vignetteOverlay);
   }
 
   /**
-   * Flash red screen when taking damage
+   * Flash dark red screen when taking damage - DOOM style visceral feedback
    */
-  flashDamage(intensity: number = 0.3): void {
+  flashDamage(intensity: number = 0.5): void {
+    // Higher opacity for more visceral feel
     this.damageOverlay.style.opacity = intensity.toString();
 
-    // Fade out after a short delay
+    // Quick flash followed by fade
+    setTimeout(() => {
+      this.damageOverlay.style.opacity = (intensity * 0.3).toString();
+    }, 80);
+
     setTimeout(() => {
       this.damageOverlay.style.opacity = '0';
-    }, 50);
+    }, 200);
   }
 
   /**
-   * Trigger camera shake
+   * Trigger camera shake - more intense for DOOM feel
    */
-  triggerShake(intensity: number = 0.05): void {
+  triggerShake(intensity: number = 0.15): void {
     this.shakeIntensity = intensity;
   }
 
@@ -45,17 +70,17 @@ export class DamageFeedback {
    */
   update(deltaTime: number, camera: THREE.Camera): void {
     if (this.shakeIntensity > 0.001) {
-      // Random offset
-      const offsetX = (Math.random() - 0.5) * this.shakeIntensity;
-      const offsetY = (Math.random() - 0.5) * this.shakeIntensity;
+      // Random offset - more pronounced
+      const offsetX = (Math.random() - 0.5) * this.shakeIntensity * 2;
+      const offsetY = (Math.random() - 0.5) * this.shakeIntensity * 2;
 
-      // Apply shake to camera rotation
-      camera.rotation.z = offsetX;
-      camera.position.x += offsetX * 0.1;
-      camera.position.y += offsetY * 0.1;
+      // Apply shake to camera rotation and position
+      camera.rotation.z = offsetX * 0.5;
+      camera.position.x += offsetX * 0.15;
+      camera.position.y += offsetY * 0.15;
 
       // Decay shake
-      this.shakeIntensity -= this.shakeDecay * deltaTime;
+      this.shakeIntensity *= Math.pow(0.1, deltaTime * this.shakeDecay);
     } else {
       this.shakeIntensity = 0;
       camera.rotation.z = 0;
@@ -63,19 +88,46 @@ export class DamageFeedback {
   }
 
   /**
-   * Show death overlay
+   * Show death overlay - DOOM style
    */
   showDeathScreen(): void {
-    this.damageOverlay.style.opacity = '0.5';
-    this.damageOverlay.style.transition = 'opacity 1s ease-in';
+    this.damageOverlay.style.backgroundColor = '#220000';
+    this.damageOverlay.style.opacity = '0.7';
+    this.damageOverlay.style.transition = 'opacity 0.8s ease-in';
   }
 
   /**
    * Hide death overlay (on respawn)
    */
   hideDeathScreen(): void {
+    this.damageOverlay.style.backgroundColor = '#440000';
     this.damageOverlay.style.opacity = '0';
     this.damageOverlay.style.transition = 'opacity 0.3s ease-out';
+  }
+
+  /**
+   * Intensify vignette when low health
+   */
+  setLowHealthVignette(active: boolean): void {
+    if (active) {
+      this.vignetteOverlay.style.background = `
+        radial-gradient(ellipse at center,
+          transparent 0%,
+          transparent 30%,
+          rgba(40, 0, 0, 0.4) 60%,
+          rgba(20, 0, 0, 0.8) 100%
+        )
+      `;
+    } else {
+      this.vignetteOverlay.style.background = `
+        radial-gradient(ellipse at center,
+          transparent 0%,
+          transparent 50%,
+          rgba(10, 0, 0, 0.3) 80%,
+          rgba(10, 0, 0, 0.6) 100%
+        )
+      `;
+    }
   }
 
   /**
@@ -83,5 +135,6 @@ export class DamageFeedback {
    */
   dispose(): void {
     this.damageOverlay.remove();
+    this.vignetteOverlay.remove();
   }
 }

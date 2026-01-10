@@ -12,15 +12,15 @@ export class WeaponViewModel {
   private bobOffset = new THREE.Vector3();
   private recoilOffset = new THREE.Vector3();
 
-  // Sway parameters
-  private readonly SWAY_AMOUNT = 0.02;
-  private readonly SWAY_SMOOTH = 10;
+  // Sway parameters - heavier DOOM feel
+  private readonly SWAY_AMOUNT = 0.025;
+  private readonly SWAY_SMOOTH = 8;
   private targetSwayOffset = new THREE.Vector3();
 
-  // Bob parameters
-  private readonly BOB_FREQUENCY = 2.0;
-  private readonly BOB_HORIZONTAL = 0.03;
-  private readonly BOB_VERTICAL = 0.04;
+  // Bob parameters - heavier DOOM feel
+  private readonly BOB_FREQUENCY = 1.8;
+  private readonly BOB_HORIZONTAL = 0.04;
+  private readonly BOB_VERTICAL = 0.05;
   private bobTime = 0;
 
   constructor(model: THREE.Group, position = new THREE.Vector3(0.3, -0.2, -0.5)) {
@@ -35,18 +35,18 @@ export class WeaponViewModel {
   }
 
   /**
-   * Create muzzle flash effect
+   * Create muzzle flash effect - DOOM hellfire style
    */
   private createMuzzleFlash(): void {
-    // Point light for illumination
-    this.muzzleFlash = new THREE.PointLight(0xffaa00, 0, 5);
+    // Point light for hellfire illumination (green/red mix)
+    this.muzzleFlash = new THREE.PointLight(0x44ff44, 0, 8);
     this.muzzleFlash.visible = false;
     this.model.add(this.muzzleFlash);
 
-    // Visual flash sprite
-    const flashGeometry = new THREE.PlaneGeometry(0.1, 0.1);
+    // Visual flash sprite - hellfire green
+    const flashGeometry = new THREE.PlaneGeometry(0.15, 0.15);
     const flashMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
+      color: 0x44ff44, // Hellfire green
       transparent: true,
       opacity: 0,
       side: THREE.DoubleSide,

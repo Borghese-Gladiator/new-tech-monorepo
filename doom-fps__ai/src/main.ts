@@ -151,6 +151,9 @@ class Game {
     // Update wave spawner
     this.waveSpawner.update(deltaTime);
 
+    // Update world effects (torch flickering)
+    this.world.updateTorchFlicker(deltaTime);
+
     // Update HUD with weapon info
     this.updateHUDWeaponInfo();
 
