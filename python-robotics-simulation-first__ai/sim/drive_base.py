@@ -6,6 +6,7 @@ import math
 import numpy as np
 
 from sim.robot import Robot
+from sim.encoders import Encoder
 
 
 class DriveBase:
@@ -28,6 +29,11 @@ class DriveBase:
         max_wheel_speed: Maximum |angular velocity| per wheel in rad/s.
         max_wheel_accel: Optional acceleration limit in rad/s^2.
                          None means instantaneous (no ramp).
+        ticks_per_rev: Encoder ticks per full wheel revolution.
+
+    Attributes:
+        left_encoder: Encoder instance for the left wheel.
+        right_encoder: Encoder instance for the right wheel.
     """
 
     def __init__(
@@ -37,6 +43,7 @@ class DriveBase:
         wheelbase: float = 0.20,
         max_wheel_speed: float = 20.0,
         max_wheel_accel: float | None = None,
+        ticks_per_rev: int = 360,
     ) -> None:
         if wheel_radius <= 0:
             raise ValueError(f"wheel_radius must be positive, got {wheel_radius}")
