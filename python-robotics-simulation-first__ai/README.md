@@ -85,3 +85,76 @@ Key parameters in `run_simulation()` and `BeaconFollower`:
 - numpy
 - bleak
 - pytest
+Since your project is named `python-robotics-simulation-first__ai`, it sounds like the beginning of a larger exploration into autonomous systems. Here is a clean, professional README to match that energy, followed by some "bleak" real-world hardware challenges for your next scripts.
+
+---
+
+# Python Robotics Simulation: First AI
+
+A lightweight, 2D kinematic simulation of a differential drive robot (Mobile Box) designed to track a dynamic target using basic proportional control. This project serves as a foundational "sandbox" for testing navigation algorithms before deploying to physical hardware.
+
+## 🚀 Features
+
+* **Differential Drive Kinematics**: Simulates robot movement based on left and right wheel velocities ().
+* **Dynamic Target Tracking**: A "Phone Path" target that moves in a circular trajectory.
+* **Proportional Control**: Uses a  controller to minimize heading error and maintain a following distance.
+* **Live Visualization**: Real-time plotting using Matplotlib, including path trails and heading vectors.
+
+## 🛠️ Requirements
+
+* Python 3.11+
+* `numpy`
+* `matplotlib`
+* `poetry` (optional, for environment management)
+
+## 🏃 Getting Started
+
+1. Clone the repository:
+```bash
+git clone https://github.com/Timot/new-tech-monorepo.git
+cd python-robotics-simulation-first__ai
+
+```
+
+
+2. Run the simulation:
+```bash
+python main.py
+
+```
+
+
+
+## 🤖 Control Logic
+
+The robot calculates the Euclidean distance and the angular difference () between its current pose and the target. The velocities are adjusted as follows:
+
+
+---
+
+## 🛰️ Suggested Next Steps
+
+If you want to move from "perfect simulation" to the "bleak reality" of robotics, here are three scripts I suggest you write next:
+
+### 1. The "Bleak Bluetooth Latency" Simulator
+
+In a real setup (like a phone controlling a robot via BLE), your control signals don't arrive instantly.
+
+* **The Task**: Modify your `follow_controller` to introduce a random delay (e.g., 50ms to 200ms) or a "buffer" where the robot reacts to where the target *was* 5 frames ago.
+* **The Lesson**: You'll see the robot start to "fishtail" or oscillate wildly. This will teach you why high-frequency updates are vital.
+
+### 2. The Sensor Noise & Drift Script
+
+Real robots don't know their  coordinates perfectly; they guess based on messy sensors.
+
+* **The Task**: Add `np.random.normal()` noise to your `robot["x"]` and `robot["y"]` readings within the controller.
+* **The Lesson**: You'll realize that "Control" is 50% math and 50% dealing with the fact that your sensors are lying to you.
+
+### 3. PID Velocity Ramp
+
+Right now, your robot hits `base_speed` instantly. In the real world, this snaps axles or slips wheels.
+
+* **The Task**: Implement **Acceleration Limiting**. The robot's velocity cannot change by more than a small `max_accel` constant per `dt`.
+* **The Lesson**: This introduces "inertia," making the tracking much harder but significantly more realistic.
+
+**Would you like me to help you draft the code for that Bluetooth Latency simulator to see how much it breaks your current logic?**
