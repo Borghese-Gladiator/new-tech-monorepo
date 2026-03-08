@@ -5,7 +5,7 @@ import pytest
 import pybullet as p
 import pybullet_data
 
-from sim.robot import DiffDriveRobot
+from maze_robot.robot import DiffDriveRobot
 
 
 @pytest.fixture()

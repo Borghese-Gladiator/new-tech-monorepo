@@ -1,5 +1,5 @@
 [project]
-name = "python-robotics-simulation-first-ai"
+name = "maze-robot"
 version = "0.2.0"
 description = "PyBullet differential-drive robot maze navigation"
 authors = [
@@ -18,4 +18,7 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-package-mode = false
+packages = [{include = "maze_robot", from = "src"}]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

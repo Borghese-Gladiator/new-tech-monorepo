@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from control.controller import WallFollower, WheelCommand
+from maze_robot.control.controller import WallFollower, WheelCommand
 
 
 CONTROLLER = WallFollower(

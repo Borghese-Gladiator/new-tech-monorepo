@@ -5,8 +5,8 @@ from __future__ import annotations
 import time as _time
 
 from sim.world import World
-from sensors.ray_sensor import RaySensor
-from control.controller import WallFollower
+from maze_robot.sensors.ray_sensor import RaySensor
+from maze_robot.control.controller import WallFollower
 
 
 def run_simulation(

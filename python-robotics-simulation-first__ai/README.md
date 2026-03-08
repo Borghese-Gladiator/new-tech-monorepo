@@ -5,26 +5,29 @@ A two-wheeled differential-drive robot that navigates procedurally generated maz
 ## Architecture
 
 ```
-sim/
-  robot.py       # DiffDriveRobot — URDF loader, wheel velocity control, pose readback
-  maze.py        # Maze — recursive-backtracker generation, PyBullet wall spawning
-  world.py       # World — physics server, ground plane, maze, robot, goal marker
-  runner.py      # run_simulation() — sense → decide → act → step loop
+src/maze_robot/              # installable Python package
+  __init__.py                # re-exports DiffDriveRobot, WallFollower, RaySensor
+  robot.py                   # DiffDriveRobot — inline URDF, wheel control, pose readback
+  sensors/
+    ray_sensor.py            # RaySensor — N ray-casts via pybullet.rayTestBatch
+  control/
+    controller.py            # WallFollower — left-hand-rule, outputs WheelCommand
 
-sensors/
-  ray_sensor.py  # RaySensor — N ray-casts via pybullet.rayTestBatch
+sim/                         # simulation harness (depends on maze_robot)
+  maze.py                    # Maze — recursive-backtracker generation, PyBullet wall spawning
+  world.py                   # World — physics server, ground plane, maze, robot, goal marker
+  runner.py                  # run_simulation() — sense → decide → act → step loop
 
-control/
-  controller.py  # WallFollower — left-hand-rule wall follower, outputs WheelCommand
-
-main.py          # CLI entry point (argparse)
+main.py                      # CLI entry point (argparse)
 
 tests/
-  test_maze.py        # Maze validity, determinism, boundaries
-  test_ray_sensor.py  # Empty-world max range, wall detection accuracy
-  test_controller.py  # Turn-right/straight/turn-left behaviour
-  test_robot.py       # Spawn position, forward motion, rotation
+  test_maze.py               # Maze validity, determinism, boundaries
+  test_ray_sensor.py         # Empty-world max range, wall detection accuracy
+  test_controller.py         # Turn-right/straight/turn-left behaviour
+  test_robot.py              # Spawn position, forward motion, rotation
 ```
+
+The `maze_robot` package contains the robot model, sensors, and control logic — no dependency on the simulation harness. The `sim/` directory wires everything together with PyBullet physics, maze generation, and the main loop.
 
 ## Robot Specification
 

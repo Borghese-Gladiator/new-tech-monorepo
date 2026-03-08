@@ -6,7 +6,7 @@ import pybullet as p
 import pybullet_data
 
 from sim.maze import Maze
-from sim.robot import DiffDriveRobot
+from maze_robot.robot import DiffDriveRobot
 
 
 class World:

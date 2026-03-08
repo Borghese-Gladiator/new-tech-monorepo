@@ -6,7 +6,7 @@ import pytest
 import pybullet as p
 import pybullet_data
 
-from sensors.ray_sensor import RaySensor
+from maze_robot.sensors.ray_sensor import RaySensor
 
 
 @pytest.fixture()
