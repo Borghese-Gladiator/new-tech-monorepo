@@ -1,75 +1,87 @@
-"""Simulation runner: ticks the world, reads BLE, runs controller, moves robot."""
+"""Simulation runner: sense → decide → act → step loop."""
 
 from __future__ import annotations
 
-import numpy as np
+import time as _time
 
-from sim.robot import Robot
 from sim.world import World
-from sensors.simulated_ble import SimulatedBLEReceiver
-from control.controller import BeaconFollower
+from sensors.ray_sensor import RaySensor
+from control.controller import WallFollower
 
 
 def run_simulation(
-    steps: int = 100,
-    dt: float = 0.1,
-    beacon_position: np.ndarray | None = None,
-    robot_start: np.ndarray | None = None,
+    rows: int = 5,
+    cols: int = 5,
+    cell_size: float = 0.5,
+    seed: int | None = None,
+    max_steps: int = 50_000,
+    dt: float = 1 / 240,
+    gui: bool = False,
     verbose: bool = True,
-) -> tuple[Robot, World]:
-    """Run the beacon-following simulation.
+) -> bool:
+    """Run the maze-solving simulation.
 
     Args:
-        steps: Number of simulation steps.
-        dt: Time step in seconds.
-        beacon_position: (x, y) of the BLE beacon. Defaults to (5, 5).
-        robot_start: (x, y) starting position. Defaults to (0, 0).
-        verbose: Print position each step.
+        rows: Maze rows.
+        cols: Maze columns.
+        cell_size: Cell side length in metres.
+        seed: Maze RNG seed.
+        max_steps: Maximum physics steps before giving up.
+        dt: Physics timestep (default PyBullet 1/240).
+        gui: Open the PyBullet viewer.
+        verbose: Print progress.
 
     Returns:
-        (robot, world) after the simulation finishes.
+        True if the robot reached the goal, False if it timed out.
     """
-    if beacon_position is None:
-        beacon_position = np.array([5.0, 5.0])
-    if robot_start is None:
-        robot_start = np.array([0.0, 0.0])
+    world = World(rows=rows, cols=cols, cell_size=cell_size, seed=seed, gui=gui)
 
-    robot = Robot(position=robot_start)
-    world = World(beacon_position=beacon_position, robot=robot)
-
-    ble = SimulatedBLEReceiver(
-        beacon_position=beacon_position,
-        robot_position_fn=lambda: robot.position.copy(),
-        noise_std=0.5,
-        rng=np.random.default_rng(42),
+    sensor = RaySensor(
+        client=world.client,
+        robot_id=world.robot.body_id,
+        num_rays=7,
+        max_range=1.0,
     )
-    controller = BeaconFollower(kp=0.8, max_speed=1.5, goal_distance=0.3)
+    controller = WallFollower()
 
-    for step in range(steps):
-        reading = ble.read()
-        cmd = controller.compute(
-            reading,
-            robot_position=robot.position,
-            robot_heading=robot.heading,
-            beacon_position=beacon_position,
-        )
-        robot.turn(cmd.turn * dt)
-        robot.move(cmd.speed, dt)
+    gx, gy = world.goal_position
+    reached = False
+    report_every = max(1, max_steps // 20)
 
-        dist = world.distance_to_beacon()
-        if verbose:
-            print(
-                f"step {step:3d} | pos=({robot.position[0]:6.2f}, {robot.position[1]:6.2f})"
-                f" | dist={dist:.2f}m | speed={cmd.speed:.2f} | turn={cmd.turn:.2f}"
-            )
-        if dist <= controller.goal_distance:
-            if verbose:
-                print(f"  -> Reached beacon at step {step}!")
-            break
+    try:
+        for step in range(max_steps):
+            rays = sensor.read()
+            cmd = controller.compute(rays)
+            world.robot.set_wheel_velocities(cmd.left, cmd.right)
+            world.step()
 
-    return robot, world
+            if gui:
+                _time.sleep(dt)
+
+            if step % report_every == 0 and verbose:
+                rx, ry, yaw = world.robot.get_pose()
+                print(
+                    f"step {step:6d} | pos=({rx:6.2f}, {ry:6.2f}) "
+                    f"| goal=({gx:.2f}, {gy:.2f}) | front={rays[len(rays)//2]:.2f}m"
+                )
+
+            if world.is_at_goal():
+                rx, ry, _ = world.robot.get_pose()
+                if verbose:
+                    print(f"  -> Reached goal at step {step}! pos=({rx:.2f}, {ry:.2f})")
+                reached = True
+                break
+
+        if not reached and verbose:
+            rx, ry, _ = world.robot.get_pose()
+            print(f"  -> Timed out after {max_steps} steps. pos=({rx:.2f}, {ry:.2f})")
+
+    finally:
+        if not gui:
+            world.close()
+
+    return reached
 
 
 if __name__ == "__main__":
-    robot, world = run_simulation(steps=200, dt=0.1, verbose=True)
-    print(f"\nFinal distance to beacon: {world.distance_to_beacon():.3f} m")
+    run_simulation(gui=False, verbose=True)

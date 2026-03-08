@@ -1,17 +1,16 @@
 [project]
 name = "python-robotics-simulation-first-ai"
-version = "0.1.0"
-description = ""
+version = "0.2.0"
+description = "PyBullet differential-drive robot maze navigation"
 authors = [
-    {name = "Your Name",email = "you@example.com"}
+    {name = "Your Name", email = "you@example.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "numpy (>=2.4.2,<3.0.0)",
     "pytest (>=9.0.2,<10.0.0)",
-    "bleak (>=2.1.1,<3.0.0)",
-    "matplotlib (>=3.10.8,<4.0.0)"
+    "pybullet (>=3.2.6,<4.0.0)",
 ]
 
 [build-system]
