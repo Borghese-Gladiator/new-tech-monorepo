@@ -1,0 +1,33 @@
+maze:
+  rows: 5
+  cols: 5
+  cell_size: 0.5
+  seed: null
+  wall_height: 0.25
+  wall_thickness: 0.06
+
+robot:
+  wheel_radius: 0.04
+  wheelbase: 0.22
+  chassis_half_size: [0.15, 0.10, 0.025]
+  max_wheel_speed: 10.0
+  actuator_kv: 0.5
+
+sensors:
+  num_rays: 7
+  max_range: 1.0
+  fov: 3.14159  # pi radians (180 degrees)
+  # ray_height is derived from robot.wheel_radius + robot.chassis_half_size[2]
+
+controller:
+  desired_wall_dist: 0.20
+  front_threshold: 0.25
+  clear_threshold: 0.35
+  base_speed: 3.0
+  turn_speed: 4.0
+  wall_kp: 10.0
+
+simulation:
+  timestep: 0.001
+  max_steps: 100000
+  goal_tolerance: 0.15

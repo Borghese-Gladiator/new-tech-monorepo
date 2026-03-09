@@ -1,0 +1,8 @@
+- Sensors - read physically meaningful values directly from sim like join position/velocity, accelrometer/gyro-style signals, touch/contact-related values, and other dervied measurements through `sensordata`
+- Contact inspection - inspect how many contacts exist at a step, which geoms are involved, and what forces are being resolved
+- Jacobians - jacobians connect joint-space motion to end-effector motion
+- Inverse Dynamics
+  - Forward Dynamics - answers given force, what acceleration happens
+  - Inverse Dynamics - given desired acceleration, what forces are required
+- Operational-space control - use Jacobian to map desired end-effector behavior into joint torques. 
+- Trajectory tracking - follow time-varying target usually with feedback plus feedforward
