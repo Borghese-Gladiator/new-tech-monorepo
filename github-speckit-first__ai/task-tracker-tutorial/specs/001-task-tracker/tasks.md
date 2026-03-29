@@ -19,11 +19,11 @@
 
 **Purpose**: Project initialization and Vite + React + TypeScript scaffold
 
-- [ ] T001 Initialize Vite project with React + TypeScript template, configure package.json scripts (dev, build, preview, test, test:e2e)
-- [ ] T002 [P] Define Task interface and Filter type in src/types.ts
-- [ ] T003 [P] Create global CSS with custom properties, reset, and responsive breakpoints in src/index.css
-- [ ] T004 [P] Configure Vitest in vite.config.ts (or vitest.config.ts) with jsdom environment
-- [ ] T005 [P] Install and configure Playwright for E2E tests with webServer config in playwright.config.ts
+- [x] T001 Initialize Vite project with React + TypeScript template, configure package.json scripts (dev, build, preview, test, test:e2e)
+- [x] T002 [P] Define Task interface and Filter type in src/types.ts
+- [x] T003 [P] Create global CSS with custom properties, reset, and responsive breakpoints in src/index.css
+- [x] T004 [P] Configure Vitest in vite.config.ts (or vitest.config.ts) with jsdom environment
+- [x] T005 [P] Install and configure Playwright for E2E tests with webServer config in playwright.config.ts
 
 **Checkpoint**: Project builds, dev server runs, test runners execute with zero tests.
 
@@ -33,11 +33,11 @@
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
-- [ ] T006 Implement all pure helper functions in src/taskHelpers.ts: createTask, toggleTask, editTask, deleteTask, filterTasks (per contracts/ui-contracts.md signatures)
-- [ ] T007 Implement useLocalStorage hook in src/hooks/useLocalStorage.ts with JSON parse/stringify, corrupt data recovery (FR-009), and QuotaExceededError handling (FR-012)
-- [ ] T008 [P] Write unit tests for taskHelpers in tests/unit/taskHelpers.test.ts: happy-path tests for each function (create, toggle, edit, delete, filter) and failure-path tests (empty title, missing id, invalid filter)
-- [ ] T009 [P] Write unit tests for useLocalStorage in tests/unit/useLocalStorage.test.ts: happy-path (read/write round-trip) and failure-path (corrupt JSON recovery, QuotaExceededError handling)
-- [ ] T010 Implement Toast component in src/components/Toast.tsx with role="status", aria-live="polite", auto-dismiss after 3s (FR-015)
+- [x] T006 Implement all pure helper functions in src/taskHelpers.ts: createTask, toggleTask, editTask, deleteTask, filterTasks (per contracts/ui-contracts.md signatures)
+- [x] T007 Implement useLocalStorage hook in src/hooks/useLocalStorage.ts with JSON parse/stringify, corrupt data recovery (FR-009), and QuotaExceededError handling (FR-012)
+- [x] T008 [P] Write unit tests for taskHelpers in tests/unit/taskHelpers.test.ts: happy-path tests for each function (create, toggle, edit, delete, filter) and failure-path tests (empty title, missing id, invalid filter)
+- [x] T009 [P] Write unit tests for useLocalStorage in tests/unit/useLocalStorage.test.ts: happy-path (read/write round-trip) and failure-path (corrupt JSON recovery, QuotaExceededError handling)
+- [x] T010 Implement Toast component in src/components/Toast.tsx with role="status", aria-live="polite", auto-dismiss after 3s (FR-015)
 
 **Checkpoint**: Foundation ready — all pure logic tested, storage hook tested, toast available. Unit tests pass.
 
@@ -51,12 +51,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implement TaskForm component in src/components/TaskForm.tsx: text input with label, submit button, empty-title validation with inline feedback, clears on success (per contracts)
-- [ ] T012 [US1] Implement TaskList component in src/components/TaskList.tsx: renders <ul> of TaskItem components, shows empty state message when no tasks
-- [ ] T013 [US1] Implement TaskItem component in src/components/TaskItem.tsx: displays task title, renders checkbox and edit/delete buttons with noop placeholder callbacks (actual toggle handler added in T017/US2, edit/delete handlers in T021-T023/US3)
-- [ ] T014 [US1] Implement App component in src/components/App.tsx: owns tasks state via useLocalStorage, owns toast state, renders TaskForm and TaskList, handles addTask callback with focus management to new task (FR-013)
-- [ ] T015 [US1] Wire main.tsx entry point to render App, import index.css
-- [ ] T016 [US1] Add component layout styles in src/App.css: task list layout, form styling, empty state, long-title overflow handling (word-break)
+- [x] T011 [US1] Implement TaskForm component in src/components/TaskForm.tsx: text input with label, submit button, empty-title validation with inline feedback, clears on success (per contracts)
+- [x] T012 [US1] Implement TaskList component in src/components/TaskList.tsx: renders <ul> of TaskItem components, shows empty state message when no tasks
+- [x] T013 [US1] Implement TaskItem component in src/components/TaskItem.tsx: displays task title, renders checkbox and edit/delete buttons with noop placeholder callbacks (actual toggle handler added in T017/US2, edit/delete handlers in T021-T023/US3)
+- [x] T014 [US1] Implement App component in src/components/App.tsx: owns tasks state via useLocalStorage, owns toast state, renders TaskForm and TaskList, handles addTask callback with focus management to new task (FR-013)
+- [x] T015 [US1] Wire main.tsx entry point to render App, import index.css
+- [x] T016 [US1] Add component layout styles in src/App.css: task list layout, form styling, empty state, long-title overflow handling (word-break)
 
 **Checkpoint**: User can create tasks and see them in a list. Empty titles rejected. Tasks persist on refresh (via useLocalStorage from Phase 2). App runs in browser.
 
@@ -70,10 +70,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Add toggle completion behavior to TaskItem in src/components/TaskItem.tsx: checkbox onChange calls onToggle, completed tasks show strikethrough styling
-- [ ] T018 [US2] Implement FilterControls component in src/components/FilterControls.tsx: button group (desktop ≥480px) + native select (mobile <480px), aria-pressed on active button, label on select (FR-011, FR-014)
-- [ ] T019 [US2] Update App component in src/components/App.tsx: add filter state (useState<Filter>("all")), pass filtered tasks to TaskList using filterTasks helper, render FilterControls
-- [ ] T020 [US2] Add responsive filter styles in src/App.css: media query at 480px to show/hide button group vs select dropdown, active filter button styling
+- [x] T017 [US2] Add toggle completion behavior to TaskItem in src/components/TaskItem.tsx: checkbox onChange calls onToggle, completed tasks show strikethrough styling
+- [x] T018 [US2] Implement FilterControls component in src/components/FilterControls.tsx: button group (desktop ≥480px) + native select (mobile <480px), aria-pressed on active button, label on select (FR-011, FR-014)
+- [x] T019 [US2] Update App component in src/components/App.tsx: add filter state (useState<Filter>("all")), pass filtered tasks to TaskList using filterTasks helper, render FilterControls
+- [x] T020 [US2] Add responsive filter styles in src/App.css: media query at 480px to show/hide button group vs select dropdown, active filter button styling
 
 **Checkpoint**: User can toggle tasks complete/active. Filter controls switch views correctly. Desktop shows buttons, mobile shows dropdown.
 
@@ -87,10 +87,10 @@
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] Add inline edit mode to TaskItem in src/components/TaskItem.tsx: edit button toggles input, save on Enter/blur, cancel on Escape, reject empty titles (FR-005, FR-008)
-- [ ] T022 [US3] Add delete behavior to TaskItem in src/components/TaskItem.tsx: delete button calls onDelete, parent shows toast (FR-006)
-- [ ] T023 [US3] Update App component in src/components/App.tsx: add handleEdit and handleDelete callbacks using editTask/deleteTask helpers, trigger toast on delete, manage focus to next task after delete (FR-013)
-- [ ] T024 [US3] Add edit mode styles in src/App.css: inline edit input styling, delete button styling, toast positioning
+- [x] T021 [US3] Add inline edit mode to TaskItem in src/components/TaskItem.tsx: edit button toggles input, save on Enter/blur, cancel on Escape, reject empty titles (FR-005, FR-008)
+- [x] T022 [US3] Add delete behavior to TaskItem in src/components/TaskItem.tsx: delete button calls onDelete, parent shows toast (FR-006)
+- [x] T023 [US3] Update App component in src/components/App.tsx: add handleEdit and handleDelete callbacks using editTask/deleteTask helpers, trigger toast on delete, manage focus to next task after delete (FR-013)
+- [x] T024 [US3] Add edit mode styles in src/App.css: inline edit input styling, delete button styling, toast positioning
 
 **Checkpoint**: User can edit task titles inline (save/cancel/reject empty). User can delete tasks with toast feedback. Focus moves correctly after delete.
 
@@ -104,9 +104,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T025 [US4] Code review persistence wiring in App: confirm useLocalStorage setter is called on every task mutation (create, toggle, edit, delete) — no new tests needed here; E2E coverage is in T027
-- [ ] T026 [US4] Add storage-full toast trigger in App: when useLocalStorage reports quota error, show toast warning via existing Toast component (FR-012)
-- [ ] T027 [US4] Write E2E test in tests/e2e/taskTracker.spec.ts: create task → mark complete → filter Active (task hidden) → filter All (task visible) → refresh page → verify task still complete and visible
+- [x] T025 [US4] Code review persistence wiring in App: confirm useLocalStorage setter is called on every task mutation (create, toggle, edit, delete) — no new tests needed here; E2E coverage is in T027
+- [x] T026 [US4] Add storage-full toast trigger in App: when useLocalStorage reports quota error, show toast warning via existing Toast component (FR-012)
+- [x] T027 [US4] Write E2E test in tests/e2e/taskTracker.spec.ts: create task → mark complete → filter Active (task hidden) → filter All (task visible) → refresh page → verify task still complete and visible
 
 **Checkpoint**: All persistence scenarios verified. E2E test passes the full create → complete → filter → refresh flow.
 
@@ -116,11 +116,11 @@
 
 **Purpose**: Accessibility hardening, responsive refinement, edge cases
 
-- [ ] T028 [P] Add keyboard navigation audit: verify all interactive elements are reachable via Tab, Enter, Escape across all components (FR-010)
-- [ ] T029 [P] Add aria-labels to edit/delete buttons in TaskItem (e.g., "Edit Buy groceries", "Delete Buy groceries") for screen reader context
-- [ ] T030 [P] Test responsive layout at 320px viewport: verify no horizontal scroll, touch targets ≥44x44px, filter dropdown renders (SC-004)
-- [ ] T031 [P] Handle long task titles: verify word-break CSS works for 500+ character titles without layout break
-- [ ] T032 Run quickstart.md manual validation checklist end-to-end
+- [x] T028 [P] Add keyboard navigation audit: verify all interactive elements are reachable via Tab, Enter, Escape across all components (FR-010)
+- [x] T029 [P] Add aria-labels to edit/delete buttons in TaskItem (e.g., "Edit Buy groceries", "Delete Buy groceries") for screen reader context
+- [x] T030 [P] Test responsive layout at 320px viewport: verify no horizontal scroll, touch targets ≥44x44px, filter dropdown renders (SC-004)
+- [x] T031 [P] Handle long task titles: verify word-break CSS works for 500+ character titles without layout break
+- [x] T032 Run quickstart.md manual validation checklist end-to-end
 
 ---
 
