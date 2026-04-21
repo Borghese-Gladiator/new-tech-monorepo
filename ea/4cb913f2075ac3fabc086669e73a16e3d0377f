@@ -1,0 +1,66 @@
+agentic-development-task-system__ai/docs/plans/v0.3.6-mass-task-ingestion.md
+  3b77a297a9b6a812 1-326
+  e8cd5ee6c1483329 327-377
+agentic-development-task-system__ai/.claude/skills/taskboard-create-task/SKILL.md
+  e8cd5ee6c1483329 1-42
+agentic-development-task-system__ai/src/cli/ingest.ts
+  e8cd5ee6c1483329 11,23,33-38,44,47,49,53,62-63,66,308-533,536-546,561-575,593
+agentic-development-task-system__ai/src/cli/ingest.test.ts
+  e8cd5ee6c1483329 23-24,92-108,311,324,340,443,456-659
+agentic-development-task-system__ai/src/cli/ingest.main.ts
+  e8cd5ee6c1483329 9-10
+agentic-development-task-system__ai/.claude/skills/taskboard-delete-task/SKILL.md
+  e8cd5ee6c1483329 1-30
+agentic-development-task-system__ai/.claude/skills/taskboard-delete-epic/SKILL.md
+  e8cd5ee6c1483329 1-29
+agentic-development-task-system__ai/.claude/skills/taskboard-create-epic/SKILL.md
+  e8cd5ee6c1483329 3,6,10-12,30
+agentic-development-task-system__ai/.claude/skills/bulk-create/SKILL.md
+  e8cd5ee6c1483329 1-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "ea4cb913f2075ac3fabc086669e73a16e3d0377f",
+  "prompts": {
+    "3b77a297a9b6a812": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e37c8540-dd92-4d30-8c80-f247b7a9d961",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 326,
+      "total_deletions": 0,
+      "accepted_lines": 326,
+      "overriden_lines": 0
+    },
+    "e71a4041f5c55c37": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bab5dbac-e9b2-4390-a06f-909cf1e5b855",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 425,
+      "total_deletions": 0,
+      "accepted_lines": 425,
+      "overriden_lines": 0
+    },
+    "e8cd5ee6c1483329": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "77623b9d-4c10-4a19-947d-2e59b4a22a06",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 919,
+      "total_deletions": 37,
+      "accepted_lines": 754,
+      "overriden_lines": 0
+    }
+  }
+}
