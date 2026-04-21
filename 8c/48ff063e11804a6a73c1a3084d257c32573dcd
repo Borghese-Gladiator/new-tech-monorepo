@@ -1,0 +1,52 @@
+agentic-development-task-system__ai/docs/plans/v0.3.5-ingest-cli-deletes.md
+  3b77a297a9b6a812 1-334
+agentic-development-task-system__ai/src/cli/ingest.test.ts
+  3b77a297a9b6a812 16-19,351-436
+agentic-development-task-system__ai/src/server/ingest/processor.ts
+  3b77a297a9b6a812 5-7,266-331,348-350
+agentic-development-task-system__ai/src/shared/schemas.ts
+  3b77a297a9b6a812 126-140,156-158
+agentic-development-task-system__ai/package.json
+  3b77a297a9b6a812 3
+agentic-development-task-system__ai/src/server/db/repositories/initiatives.ts
+  3b77a297a9b6a812 42-45
+agentic-development-task-system__ai/src/cli/ingest.ts
+  3b77a297a9b6a812 36,163-247,313-328,330
+agentic-development-task-system__ai/src/server/db/repositories/work-items.ts
+  3b77a297a9b6a812 138-141
+agentic-development-task-system__ai/src/server/db/repositories/epics.ts
+  3b77a297a9b6a812 94-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "8c48ff063e11804a6a73c1a3084d257c32573dcd",
+  "prompts": {
+    "3b77a297a9b6a812": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e37c8540-dd92-4d30-8c80-f247b7a9d961",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 736,
+      "total_deletions": 8,
+      "accepted_lines": 630,
+      "overriden_lines": 0
+    },
+    "e8cd5ee6c1483329": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "77623b9d-4c10-4a19-947d-2e59b4a22a06",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 542,
+      "total_deletions": 216,
+      "accepted_lines": 326,
+      "overriden_lines": 0
+    }
+  }
+}
