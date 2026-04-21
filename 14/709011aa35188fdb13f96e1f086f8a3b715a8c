@@ -1,0 +1,81 @@
+agentic-development-task-system__ai/src/server/domain/review-prompts.test.ts
+  0f14fad17a10f728 36-45,54,59-71,74,76-81,84,86-91,94,96-100,102-104,107,117-123
+agentic-development-task-system__ai/docs/plans/v0.3.4-adversarial-review-comment-trim.md
+  0f14fad17a10f728 1-210
+agentic-development-task-system__ai/src/server/domain/review-prompts.ts
+  0f14fad17a10f728 11,13,15,17,19-20
+agentic-development-task-system__ai/package.json
+  0f14fad17a10f728 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "14709011aa35188fdb13f96e1f086f8a3b715a8c",
+  "prompts": {
+    "0f14fad17a10f728": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24b3429d-ce97-4b9a-9a24-5f3ded48450e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 275,
+      "total_deletions": 67,
+      "accepted_lines": 275,
+      "overriden_lines": 0
+    },
+    "438eec947ec02851": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "caf96034-40f2-4583-b869-0b9e12c25fd2",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 36,
+      "overriden_lines": 0
+    },
+    "49b31a5e1515195f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "643f5ba0-e185-459c-8131-240caaec0df3",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 64,
+      "total_deletions": 36,
+      "accepted_lines": 172,
+      "overriden_lines": 0
+    },
+    "5c41288d52cfbd26": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "793d71fd-2ed3-49db-bf31-ed80e6208440",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 14,
+      "overriden_lines": 0
+    },
+    "785b054c0bc9066f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bc0e306d-be10-497d-8861-ac8ba53731f7",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
