@@ -1,0 +1,90 @@
+agentic-development-task-system__ai/src/server/ingest/watcher.ts
+  24e1670eb72714da 24-29,215,219-232,261-267
+agentic-development-task-system__ai/src/cli/ingest.test.ts
+  24e1670eb72714da 474,643-646,662-859
+agentic-development-task-system__ai/package.json
+  24e1670eb72714da 3
+agentic-development-task-system__ai/src/server/db/repositories/work-items.ts
+  24e1670eb72714da 22-24,32-36,45-46,60,67,77,110-117,126-143
+agentic-development-task-system__ai/src/server/ingest/processor.ts
+  24e1670eb72714da 65-68,73-75,88-89,100-103
+agentic-development-task-system__ai/src/server/routes/epics.ts
+  24e1670eb72714da 30
+agentic-development-task-system__ai/src/client/components/WorkItemDrawer.tsx
+  24e1670eb72714da 71-91
+agentic-development-task-system__ai/tests/repo-ordering.test.ts
+  24e1670eb72714da 1-139
+agentic-development-task-system__ai/docs/plans/v0.3.8-board-ergonomics.md
+  24e1670eb72714da 1-425
+agentic-development-task-system__ai/src/server/db/migrations/003_ordering_and_lanes.sql
+  24e1670eb72714da 1-16
+agentic-development-task-system__ai/src/server/db/connection.ts
+  24e1670eb72714da 11-17
+agentic-development-task-system__ai/.claude/skills/bulk-create/SKILL.md
+  24e1670eb72714da 41-42,44-46,57-59,63-66,72-77
+agentic-development-task-system__ai/.claude/skills/create-task/SKILL.md
+  24e1670eb72714da 33-36,39-42
+  e8cd5ee6c1483329 43
+agentic-development-task-system__ai/src/shared/types.ts
+  24e1670eb72714da 68-72
+agentic-development-task-system__ai/src/server/routes/work-items.ts
+  24e1670eb72714da 34,42-43,73-75,130-137,142-157
+agentic-development-task-system__ai/docs/plans/v0.3.7-ordering-and-parallelism.md
+  24e1670eb72714da 1-401
+agentic-development-task-system__ai/src/client/services/hooks.ts
+  24e1670eb72714da 85-86,97-98,129-141
+agentic-development-task-system__ai/src/shared/schemas.ts
+  24e1670eb72714da 22-23,39-42
+agentic-development-task-system__ai/src/cli/ingest.ts
+  24e1670eb72714da 33-42,44-47,113-129,189-199,358-359,371,388-390,408-410,432-434,440-441,466-469,486-489,506-514,521,526-527,541-551,554-556,558-560,567-650,652-659,662-684,716,718-719,721-733,736,739-743
+agentic-development-task-system__ai/src/client/pages/BoardPage.tsx
+  24e1670eb72714da 68-87,96,99,108,117,121-129,151-164,174,178-180,183,260-261,272,408,410,412-434,436,439-451,463
+agentic-development-task-system__ai/src/server/db/repositories/epics.ts
+  24e1670eb72714da 13,29-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "e0034aecdd2ae5d7ff0fa4482c8698d48ecf9644",
+  "prompts": {
+    "24e1670eb72714da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "052e9e96-1111-417f-96f0-c82c62eb4178",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 1568,
+      "total_deletions": 120,
+      "accepted_lines": 1289,
+      "overriden_lines": 0
+    },
+    "836a43ae0e067e42": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7308e610-ed4b-4cfb-ac0e-aa9b83daed80",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 454,
+      "total_deletions": 0,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    },
+    "e8cd5ee6c1483329": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "77623b9d-4c10-4a19-947d-2e59b4a22a06",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 425,
+      "total_deletions": 0,
+      "accepted_lines": 130,
+      "overriden_lines": 0
+    }
+  }
+}
