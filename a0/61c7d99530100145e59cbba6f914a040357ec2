@@ -1,0 +1,50 @@
+agentic-development-task-system__ai/CHANGELOG.md
+  22bb146a8c1bef8d 7-20
+  e71a4041f5c55c37 1-6,21-362
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "a061c7d99530100145e59cbba6f914a040357ec2",
+  "prompts": {
+    "22bb146a8c1bef8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f0aca41e-3e04-4ae3-8332-a43315f6c5ad",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 14,
+      "total_deletions": 362,
+      "accepted_lines": 14,
+      "overriden_lines": 0
+    },
+    "e71a4041f5c55c37": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bab5dbac-e9b2-4390-a06f-909cf1e5b855",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 348,
+      "total_deletions": 0,
+      "accepted_lines": 348,
+      "overriden_lines": 0
+    },
+    "e8cd5ee6c1483329": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "77623b9d-4c10-4a19-947d-2e59b4a22a06",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 89,
+      "overriden_lines": 0
+    }
+  }
+}
