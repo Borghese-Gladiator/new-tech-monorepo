@@ -1,0 +1,10 @@
+name = "EvenSum"
+version = "0.1.0"
+defaultTargets = ["evensum"]
+
+[[lean_lib]]
+name = "EvenSum"
+
+[[lean_exe]]
+name = "evensum"
+root = "Main"
