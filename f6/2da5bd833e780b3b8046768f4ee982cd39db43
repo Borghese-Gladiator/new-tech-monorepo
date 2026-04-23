@@ -1,0 +1,38 @@
+agentic-development-task-system__ai/docs/plans/v0.3.7-ordering-and-parallelism.md
+  75bc8d69505278a7 395-477
+agentic-development-task-system__ai/src/server/routes/sessions.ts
+  75bc8d69505278a7 123,126,170-184,277-304
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "f62da5bd833e780b3b8046768f4ee982cd39db43",
+  "prompts": {
+    "75bc8d69505278a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0036e89f-4f6e-4615-9ba5-b48829820312",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 128,
+      "total_deletions": 1,
+      "accepted_lines": 128,
+      "overriden_lines": 0
+    },
+    "e8cd5ee6c1483329": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "77623b9d-4c10-4a19-947d-2e59b4a22a06",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 89,
+      "overriden_lines": 0
+    }
+  }
+}
