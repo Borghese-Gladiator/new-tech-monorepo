@@ -1,0 +1,294 @@
+agentic-development-task-system__ai/src/server/domain/work-items.ts
+  22bb146a8c1bef8d 1-18
+agentic-development-task-system__ai/docs/plans/v0.3.8-board-ergonomics.md
+  22bb146a8c1bef8d 1-425
+agentic-development-task-system__ai/src/server/db/repositories/comments.ts
+  22bb146a8c1bef8d 1-51
+agentic-development-task-system__ai/src/client/components/ui/InlineTextField.tsx
+  22bb146a8c1bef8d 1-134
+agentic-development-task-system__ai/src/server/routes/work-items.ts
+  22bb146a8c1bef8d 1-248
+agentic-development-task-system__ai/src/shared/schemas.ts
+  22bb146a8c1bef8d 1-165
+agentic-development-task-system__ai/src/client/components/Toast.tsx
+  22bb146a8c1bef8d 1-57
+agentic-development-task-system__ai/docs/plans/v0.0.7-hierarchy-and-cleanup.md
+  22bb146a8c1bef8d 1-490
+agentic-development-task-system__ai/.claude/skills/create-epic/SKILL.md
+  e8cd5ee6c1483329 1-30
+agentic-development-task-system__ai/src/server/domain/review-prompts.ts
+  22bb146a8c1bef8d 1-21
+agentic-development-task-system__ai/tests/fixtures/session-declared-valid.json
+  22bb146a8c1bef8d 1-23
+agentic-development-task-system__ai/src/client/services/hooks.ts
+  22bb146a8c1bef8d 1-319
+agentic-development-task-system__ai/tests/repo-ordering.test.ts
+  22bb146a8c1bef8d 1-139
+agentic-development-task-system__ai/src/client/pages/ActivityPage.tsx
+  22bb146a8c1bef8d 1-318
+agentic-development-task-system__ai/.claude/skills/delete-task/SKILL.md
+  e8cd5ee6c1483329 1-30
+agentic-development-task-system__ai/src/client/components/ui/switch.tsx
+  22bb146a8c1bef8d 1-36
+agentic-development-task-system__ai/src/server/ingest/watcher.ts
+  22bb146a8c1bef8d 1-285
+agentic-development-task-system__ai/tsconfig.json
+  22bb146a8c1bef8d 1-22
+agentic-development-task-system__ai/src/client/index.html
+  22bb146a8c1bef8d 1-18
+agentic-development-task-system__ai/docs/plans/v0.3.7-ordering-and-parallelism.md
+  22bb146a8c1bef8d 1-484
+agentic-development-task-system__ai/docs/plans/v0.1.1-top-tabs-layout.md
+  22bb146a8c1bef8d 1-263
+agentic-development-task-system__ai/docs/plans/v0.0.9-activity-and-websocket.md
+  22bb146a8c1bef8d 1-101
+agentic-development-task-system__ai/src/server/db/repositories/work-items.ts
+  22bb146a8c1bef8d 1-177
+agentic-development-task-system__ai/tsconfig.server.json
+  22bb146a8c1bef8d 1-8
+agentic-development-task-system__ai/tests/e2e-reject.ts
+  22bb146a8c1bef8d 1-43
+agentic-development-task-system__ai/tests/wipe.test.ts
+  22bb146a8c1bef8d 1-444
+agentic-development-task-system__ai/src/client/components/CommentList.tsx
+  22bb146a8c1bef8d 1-267
+agentic-development-task-system__ai/scripts/wipe.ts
+  22bb146a8c1bef8d 1-305
+agentic-development-task-system__ai/src/cli/ingest.test.ts
+  22bb146a8c1bef8d 1-936
+agentic-development-task-system__ai/docs/plans/v0.0.4__issue_editing_and_dnd__claude_code.md
+  22bb146a8c1bef8d 1-392
+agentic-development-task-system__ai/docs/plans/v0.3.4-adversarial-review-comment-trim.md
+  22bb146a8c1bef8d 1-210
+agentic-development-task-system__ai/src/server/ingest/validator.ts
+  22bb146a8c1bef8d 1-71
+agentic-development-task-system__ai/src/client/pages/BoardPage.tsx
+  22bb146a8c1bef8d 1-801
+agentic-development-task-system__ai/src/server/routes/agents.ts
+  22bb146a8c1bef8d 1-68
+agentic-development-task-system__ai/src/server/db/repositories/artifacts.ts
+  22bb146a8c1bef8d 1-51
+agentic-development-task-system__ai/src/server/domain/review-prompts.test.ts
+  22bb146a8c1bef8d 1-128
+agentic-development-task-system__ai/src/shared/types.ts
+  22bb146a8c1bef8d 1-178
+agentic-development-task-system__ai/docs/plans/v0.4.0-orchestration-parity.md
+  22bb146a8c1bef8d 1-172
+agentic-development-task-system__ai/src/client/index.css
+  22bb146a8c1bef8d 1-141
+agentic-development-task-system__ai/src/server/routes/activity.ts
+  22bb146a8c1bef8d 1-31
+agentic-development-task-system__ai/src/server/terminal/ws-relay.ts
+  22bb146a8c1bef8d 1-147
+agentic-development-task-system__ai/src/client/components/ui/textarea.tsx
+  22bb146a8c1bef8d 1-22
+agentic-development-task-system__ai/tests/e2e-ingest.ts
+  22bb146a8c1bef8d 1-51
+agentic-development-task-system__ai/.claude/skills/bulk-create/SKILL.md
+  22bb146a8c1bef8d 1-92
+agentic-development-task-system__ai/src/client/pages/TerminalPage.tsx
+  22bb146a8c1bef8d 1-220
+agentic-development-task-system__ai/src/client/components/ui/separator.tsx
+  22bb146a8c1bef8d 1-29
+agentic-development-task-system__ai/tests/fixtures/issue-proposed-valid.json
+  22bb146a8c1bef8d 1-46
+agentic-development-task-system__ai/src/server/db/repositories/initiatives.ts
+  22bb146a8c1bef8d 1-45
+agentic-development-task-system__ai/docs/plans/v0.3.0-task-ingestion-cli-and-skills.md
+  22bb146a8c1bef8d 1-287
+agentic-development-task-system__ai/docs/architecture.md
+  22bb146a8c1bef8d 1-106
+agentic-development-task-system__ai/docs/plans/v0.0.6__figma_ui_redesign_shadcn__claude_code.md
+  22bb146a8c1bef8d 1-181
+agentic-development-task-system__ai/src/client/pages/EpicsPage.tsx
+  22bb146a8c1bef8d 1-230
+agentic-development-task-system__ai/docs/plans/v0.3.5-ingest-cli-deletes.md
+  22bb146a8c1bef8d 1-334
+agentic-development-task-system__ai/docs/plans/v0.1.0-mvp-refactor.md
+  22bb146a8c1bef8d 1-551
+agentic-development-task-system__ai/src/client/components/ui/button.tsx
+  22bb146a8c1bef8d 1-57
+agentic-development-task-system__ai/package.json
+  22bb146a8c1bef8d 1-66
+agentic-development-task-system__ai/src/server/routes/initiatives.ts
+  22bb146a8c1bef8d 1-55
+agentic-development-task-system__ai/src/client/components/terminal/TerminalViewport.tsx
+  22bb146a8c1bef8d 1-139
+agentic-development-task-system__ai/src/server/db/repositories/activity-events.ts
+  22bb146a8c1bef8d 1-67
+agentic-development-task-system__ai/src/server/db/seed.ts
+  22bb146a8c1bef8d 1-216
+agentic-development-task-system__ai/src/client/router.tsx
+  22bb146a8c1bef8d 1-24
+agentic-development-task-system__ai/src/client/components/ui/dialog.tsx
+  22bb146a8c1bef8d 1-120
+agentic-development-task-system__ai/src/server/db/repositories/reviews.ts
+  22bb146a8c1bef8d 1-41
+agentic-development-task-system__ai/public/site.webmanifest
+  22bb146a8c1bef8d 1
+agentic-development-task-system__ai/src/cli/ingest.main.ts
+  22bb146a8c1bef8d 1-22
+agentic-development-task-system__ai/docs/plans/v0.3.6-mass-task-ingestion.md
+  22bb146a8c1bef8d 1-399
+agentic-development-task-system__ai/src/server/ingest/index.ts
+  22bb146a8c1bef8d 1-3
+agentic-development-task-system__ai/docs/plans/v0.0.3__sessions_reviews_artifacts__claude_code.md
+  22bb146a8c1bef8d 1-543
+agentic-development-task-system__ai/src/server/ingest/processor.ts
+  22bb146a8c1bef8d 1-381
+agentic-development-task-system__ai/public/logo.svg
+  22bb146a8c1bef8d 1-28
+agentic-development-task-system__ai/src/client/utils/time.ts
+  22bb146a8c1bef8d 1-37
+agentic-development-task-system__ai/src/server/db/repositories/ingest-files.ts
+  22bb146a8c1bef8d 1-54
+agentic-development-task-system__ai/src/cli/ingest.ts
+  22bb146a8c1bef8d 1-846
+agentic-development-task-system__ai/CHANGELOG.md
+  22bb146a8c1bef8d 1-362
+agentic-development-task-system__ai/src/server/routes/sessions.ts
+  22bb146a8c1bef8d 1-345
+agentic-development-task-system__ai/src/shared/constants.ts
+  22bb146a8c1bef8d 1-67
+agentic-development-task-system__ai/src/client/components/terminal/TerminalTabBar.tsx
+  22bb146a8c1bef8d 1-71
+agentic-development-task-system__ai/src/client/AGENTS.md
+  22bb146a8c1bef8d 1-26
+agentic-development-task-system__ai/docs/plans/v0.0.5__vision_projects_workflows_speckit__claude_code.md
+  22bb146a8c1bef8d 1-561
+agentic-development-task-system__ai/docs/plans/v0.0.8-terminal-emulator.md
+  22bb146a8c1bef8d 1-101
+agentic-development-task-system__ai/docs/plans/v0.1.2-favicon-and-branding.md
+  22bb146a8c1bef8d 1-14
+agentic-development-task-system__ai/src/server/index.ts
+  22bb146a8c1bef8d 1-79
+agentic-development-task-system__ai/AGENTS.md
+  22bb146a8c1bef8d 1-50
+agentic-development-task-system__ai/src/client/components/CommandPalette.tsx
+  22bb146a8c1bef8d 1-579
+agentic-development-task-system__ai/src/client/utils/colors.ts
+  22bb146a8c1bef8d 1-16
+agentic-development-task-system__ai/.claude/skills/create-task/SKILL.md
+  22bb146a8c1bef8d 1-50
+agentic-development-task-system__ai/src/server/db/migrations/003_ordering_and_lanes.sql
+  22bb146a8c1bef8d 1-16
+agentic-development-task-system__ai/src/server/db/repositories/work-item-tags.ts
+  22bb146a8c1bef8d 1-51
+agentic-development-task-system__ai/src/client/components/ui/select.tsx
+  22bb146a8c1bef8d 1-157
+agentic-development-task-system__ai/README.md
+  22bb146a8c1bef8d 1-264
+agentic-development-task-system__ai/docs/plans/v0.0.2__full_stack_dashboard__chatgpt.md
+  22bb146a8c1bef8d 1-1305
+agentic-development-task-system__ai/docs/plans/v0.0.5__impl_projects_workflows_conversations__claude_code.md
+  22bb146a8c1bef8d 1-658
+agentic-development-task-system__ai/src/server/AGENTS.md
+  22bb146a8c1bef8d 1-25
+agentic-development-task-system__ai/src/server/db/migrations/002_add_comments.sql
+  22bb146a8c1bef8d 1-12
+agentic-development-task-system__ai/src/client/components/ui/badge.tsx
+  22bb146a8c1bef8d 1-36
+agentic-development-task-system__ai/src/client/pages/EpicDetailPage.tsx
+  22bb146a8c1bef8d 1-140
+agentic-development-task-system__ai/docs/plans/v0.0.1__repo_structure_and_agentsmd__claude_code.md
+  22bb146a8c1bef8d 1-84
+agentic-development-task-system__ai/src/server/db/repositories/agents.ts
+  22bb146a8c1bef8d 1-55
+agentic-development-task-system__ai/src/server/routes/comments.ts
+  22bb146a8c1bef8d 1-136
+agentic-development-task-system__ai/src/server/db/migrations/001_add_claude_session_id.sql
+  22bb146a8c1bef8d 1-2
+agentic-development-task-system__ai/vite.config.ts
+  22bb146a8c1bef8d 1-33
+agentic-development-task-system__ai/docs/plans/v0.3.3-adversarial-review-comment.md
+  22bb146a8c1bef8d 1-288
+agentic-development-task-system__ai/.claude/skills/delete-epic/SKILL.md
+  e8cd5ee6c1483329 1-29
+agentic-development-task-system__ai/.gitignore
+  22bb146a8c1bef8d 1-10
+agentic-development-task-system__ai/src/server/db/repositories/sessions.ts
+  22bb146a8c1bef8d 1-80
+agentic-development-task-system__ai/src/server/routes/epics.ts
+  22bb146a8c1bef8d 1-70
+agentic-development-task-system__ai/tests/fixtures/task-status-changed-valid.json
+  22bb146a8c1bef8d 1-16
+agentic-development-task-system__ai/src/server/db/migrate.ts
+  22bb146a8c1bef8d 1-142
+agentic-development-task-system__ai/src/client/lib/utils.ts
+  22bb146a8c1bef8d 1-6
+agentic-development-task-system__ai/src/server/db/repositories/epics.ts
+  22bb146a8c1bef8d 1-98
+agentic-development-task-system__ai/src/client/services/client.ts
+  22bb146a8c1bef8d 1-60
+agentic-development-task-system__ai/src/client/main.tsx
+  22bb146a8c1bef8d 1-10
+agentic-development-task-system__ai/src/client/components/WorkItemDrawer.tsx
+  22bb146a8c1bef8d 1-265
+agentic-development-task-system__ai/src/server/db/schema.sql
+  22bb146a8c1bef8d 1-183
+agentic-development-task-system__ai/src/client/pages/WorkItemDetailPage.tsx
+  22bb146a8c1bef8d 1-294
+agentic-development-task-system__ai/src/server/terminal/tmux.ts
+  22bb146a8c1bef8d 1-70
+agentic-development-task-system__ai/tests/fixtures/issue-proposed-invalid.json
+  22bb146a8c1bef8d 1-8
+agentic-development-task-system__ai/src/server/db/connection.ts
+  22bb146a8c1bef8d 1-67
+agentic-development-task-system__ai/docs/plans/v0.3.2-session-cards.md
+  22bb146a8c1bef8d 1-207
+agentic-development-task-system__ai/src/client/pages/LibraryPage.tsx
+  22bb146a8c1bef8d 1-318
+agentic-development-task-system__ai/src/client/App.tsx
+  22bb146a8c1bef8d 1-86
+agentic-development-task-system__ai/src/client/components/terminal/SessionInfoBar.tsx
+  22bb146a8c1bef8d 1-75
+agentic-development-task-system__ai/src/client/components/ui/input.tsx
+  22bb146a8c1bef8d 1-22
+agentic-development-task-system__ai/src/server/db/repositories/task-session-links.ts
+  22bb146a8c1bef8d 1-33
+agentic-development-task-system__ai/docs/plans/v0.3.1-task-comments.md
+  22bb146a8c1bef8d 1-297
+agentic-development-task-system__ai/docs/plans/v0.0.7.1-ui-polish.md
+  22bb146a8c1bef8d 1-151
+agentic-development-task-system__ai/src/client/components/ui/label.tsx
+  22bb146a8c1bef8d 1-24
+agentic-development-task-system__ai/src/client/components/KindIcon.tsx
+  22bb146a8c1bef8d 1-13
+agentic-development-task-system__ai/docs/plans/v0.2.0-terminal-emulator.md
+  22bb146a8c1bef8d 1-518
+agentic-development-task-system__ai/src/client/components/StatusBadge.tsx
+  22bb146a8c1bef8d 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "f77d4578b048f91e860c8a8759d635e3afb55f28",
+  "prompts": {
+    "22bb146a8c1bef8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f0aca41e-3e04-4ae3-8332-a43315f6c5ad",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 23734,
+      "total_deletions": 0,
+      "accepted_lines": 23734,
+      "overriden_lines": 0
+    },
+    "e8cd5ee6c1483329": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "77623b9d-4c10-4a19-947d-2e59b4a22a06",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 89,
+      "overriden_lines": 0
+    }
+  }
+}
