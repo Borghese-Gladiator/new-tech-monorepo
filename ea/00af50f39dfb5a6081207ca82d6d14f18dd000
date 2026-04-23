@@ -1,0 +1,39 @@
+lean-first__ai/.github/workflows/lean_action_ci.yml
+  22bb146a8c1bef8d 1-14
+lean-first__ai/Main.lean
+  22bb146a8c1bef8d 1-4
+lean-first__ai/EvenSum.lean
+  22bb146a8c1bef8d 1-3
+lean-first__ai/lake-manifest.json
+  22bb146a8c1bef8d 1-5
+lean-first__ai/EvenSum/Basic.lean
+  22bb146a8c1bef8d 1-8
+lean-first__ai/.gitignore
+  22bb146a8c1bef8d 1
+lean-first__ai/README.md
+  22bb146a8c1bef8d 1-58
+lean-first__ai/lakefile.toml
+  22bb146a8c1bef8d 1-10
+lean-first__ai/lean-toolchain
+  22bb146a8c1bef8d 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "ea00af50f39dfb5a6081207ca82d6d14f18dd000",
+  "prompts": {
+    "22bb146a8c1bef8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f0aca41e-3e04-4ae3-8332-a43315f6c5ad",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 104,
+      "total_deletions": 0,
+      "accepted_lines": 104,
+      "overriden_lines": 0
+    }
+  }
+}
