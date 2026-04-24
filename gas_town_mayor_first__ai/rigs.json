@@ -1,5 +1,13 @@
 {
   "version": 1,
   "rigs": {
+    "poker_web__ai": {
+      "git_url": "file:///Users/timothy.shee/GitHub/poker_web__ai",
+      "added_at": "2026-04-24T16:15:00.522792-04:00",
+      "beads": {
+        "repo": "",
+        "prefix": "pwa"
+      }
+    }
   }
 }

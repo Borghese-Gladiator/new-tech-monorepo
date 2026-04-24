@@ -43,7 +43,9 @@
       "agent": "refinery",
       "enabled": true,
       "interval": "5m",
-      "rigs": []
+      "rigs": [
+        "poker_web__ai"
+      ]
     },
     "scheduled_maintenance": {
       "enabled": true,
@@ -61,7 +63,9 @@
       "agent": "witness",
       "enabled": true,
       "interval": "5m",
-      "rigs": []
+      "rigs": [
+        "poker_web__ai"
+      ]
     }
   },
   "type": "daemon-patrol-config",
