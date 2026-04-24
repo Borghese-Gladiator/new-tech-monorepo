@@ -1,0 +1,59 @@
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Secrets / credentials
+*.key
+*.pem
+.env
+.env.*
+.beads/.beads-credential-key
+
+# Runtime event/feed logs
+.events.jsonl
+.events.jsonl.lock
+.feed.jsonl
+.feed.jsonl.lock
+
+# Runtime dirs
+.runtime/
+daemon/
+**/.runtime/
+**/*.pid
+**/*.lock
+**/*.log
+
+# Beads / Dolt runtime state
+.beads/backup/
+.beads/dolt/
+.beads/embeddeddolt/
+.beads/dolt-server.*
+.beads/interactions.jsonl
+.beads/routes.jsonl
+
+# Local Beads metadata
+.beads/.local_version
+.beads/.gt-types-configured
+
+# Dolt data/runtime
+.dolt-data/
+**/.dolt/
+**/.doltcfg/
+**/dolt-server.port
+
+# Nested/local beads state
+beads/.beads/backup/
+beads/.beads/.local_version
+beads/.beads/dolt-server.port
+poker_web/.beads/.local_version
+poker_web/.beads/dolt-server.port
+
+# Heartbeats / generated status
+deacon/.deacon-heartbeat
+deacon/heartbeat.json
+deacon/dogs/**/.boot-status.json
+
+# Keep empty dirs intentionally
+!**/.gitkeep
