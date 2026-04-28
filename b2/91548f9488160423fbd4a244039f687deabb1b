@@ -1,0 +1,23 @@
+gas_town_mayor_first__ai/deacon/dogs/alpha/.dog.json
+  8fb7c075256fef77 4,10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "b291548f9488160423fbd4a244039f687deabb1b",
+  "prompts": {
+    "8fb7c075256fef77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9b23ab96-d3ba-4e6c-b4a7-35bed7c19823",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "timothysheee",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
