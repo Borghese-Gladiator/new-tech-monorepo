@@ -152,3 +152,37 @@ Gas City is the more general follow up version (and less opinionated)
 - Commands leave behind artifacts (e.g. `gt dolt init-rig <name>` creates a directory in the current repo). Run them from a deliberate working directory.
 - Keep `gt doctor --fix` in mind when state drifts.
 - You cannot just `rm -rf` to delete a project. There's a lot random folders that hold references to anything you create.
+
+## What Gas Town changed in `~/.claude/settings.json` (and what I removed)
+
+Installing Gas Town added two **global** Claude Code hooks that automatically committed dirty working trees as `WIP: checkpoint (auto)` after **every tool call** in **every Claude Code session, in every repo on the machine** — not just Gas Town worktrees. The hooks invoked `/Users/timothy.shee/.git-ai/bin/git-ai checkpoint claude --hook-input stdin`.
+
+I was only experimenting with Gas Town and did not want auto-committing across all my repos, so I removed both entries. Backup of the original settings is at `~/.claude/settings.json.bak.pre-git-ai-removal`.
+
+The two hook entries removed from `~/.claude/settings.json`:
+
+```jsonc
+// PostToolUse — fired after every tool use
+{
+  "matcher": "*",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "/Users/timothy.shee/.git-ai/bin/git-ai checkpoint claude --hook-input stdin"
+    }
+  ]
+}
+
+// PreToolUse — fired before every tool use
+{
+  "matcher": "*",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "/Users/timothy.shee/.git-ai/bin/git-ai checkpoint claude --hook-input stdin"
+    }
+  ]
+}
+```
+
+The `git-ai` binary itself (`~/.git-ai/`) was left in place — only the Claude Code hook wiring was removed. To re-enable, restore the entries above (or `cp ~/.claude/settings.json.bak.pre-git-ai-removal ~/.claude/settings.json`).
