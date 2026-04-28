@@ -142,6 +142,9 @@ begin implementation
 cd ~/GitHub/poker_web__ai
 claude
 ```
+> NOTE: Gas Town simply directs implementation in multiple directories. For example, I want to implement in poker_web_backend__ai AND poker_web_frontend__ai with communication. It does not inherently make implement poker_web_backend__ai faster.
+
+Gas City is the more general follow up version (and less opinionated)
 
 
 ## Notes & gotchas

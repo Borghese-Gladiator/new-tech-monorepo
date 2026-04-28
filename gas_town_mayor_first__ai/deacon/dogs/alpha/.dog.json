@@ -1,0 +1,12 @@
+{
+  "name": "alpha",
+  "state": "working",
+  "last_active": "2026-04-28T00:11:34.888003-04:00",
+  "work": "mol-dog-reaper",
+  "work_started_at": "2026-04-28T00:11:31.435809-04:00",
+  "worktrees": {
+    "poker_web__ai": "/Users/timothy.shee/GitHub/new-tech-monorepo/gas_town_mayor_first__ai/deacon/dogs/alpha/poker_web__ai"
+  },
+  "created_at": "2026-04-24T16:39:19.739796-04:00",
+  "updated_at": "2026-04-28T00:11:34.888003-04:00"
+}

@@ -1,0 +1,9 @@
+{
+  "channel": "witness",
+  "payload": {
+    "message": "POLECAT_DONE dementus exit=COMPLETED",
+    "source": "polecat"
+  },
+  "timestamp": "2026-04-27T22:39:54-04:00",
+  "type": "POLECAT_DONE"
+}

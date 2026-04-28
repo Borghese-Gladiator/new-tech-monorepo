@@ -1,0 +1,50 @@
+{
+  "beads": {
+    "pwa-3nt": {
+      "bead_id": "pwa-3nt",
+      "count": 1,
+      "last_respawn": "2026-04-28T02:19:03.151531Z"
+    },
+    "pwa-5g1": {
+      "bead_id": "pwa-5g1",
+      "count": 1,
+      "last_respawn": "2026-04-28T02:29:33.380095Z"
+    },
+    "pwa-7gs": {
+      "bead_id": "pwa-7gs",
+      "count": 1,
+      "last_respawn": "2026-04-28T02:19:33.49624Z"
+    },
+    "pwa-7zr": {
+      "bead_id": "pwa-7zr",
+      "count": 1,
+      "last_respawn": "2026-04-28T02:15:33.06947Z"
+    },
+    "pwa-abr": {
+      "bead_id": "pwa-abr",
+      "count": 1,
+      "last_respawn": "2026-04-28T02:12:02.752892Z"
+    },
+    "pwa-bwp": {
+      "bead_id": "pwa-bwp",
+      "count": 1,
+      "last_respawn": "2026-04-28T02:20:03.173256Z"
+    },
+    "pwa-c4g": {
+      "bead_id": "pwa-c4g",
+      "count": 1,
+      "last_respawn": "2026-04-28T02:53:33.307143Z"
+    },
+    "pwa-lc2": {
+      "bead_id": "pwa-lc2",
+      "count": 1,
+      "last_respawn": "2026-04-28T02:40:03.273069Z"
+    },
+    "pwa-net": {
+      "bead_id": "pwa-net",
+      "count": 1,
+      "last_respawn": "2026-04-28T02:20:33.265146Z"
+    }
+  },
+  "last_updated": "2026-04-28T02:53:33.307151Z"
+}
