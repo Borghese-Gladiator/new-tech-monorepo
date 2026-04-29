@@ -1,0 +1,5 @@
+[workspace]
+provider = "claude"
+
+[[rigs]]
+name = "gas-city-rig-first__ai"
