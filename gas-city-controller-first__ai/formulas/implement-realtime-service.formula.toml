@@ -1,0 +1,22 @@
+formula = "implement-realtime-service"
+description = "Implement authoritative Socket.IO multiplayer server in apps/server."
+
+[[steps]]
+id = "socket-contract"
+title = "Define socket events"
+description = "Define joinGame, leaveGame, playerAction, gameSnapshot, gameEvent, reconnectSession, and error events in packages/shared."
+
+[[steps]]
+id = "authority"
+title = "Keep server authoritative"
+description = "Clients submit intents only. Server validates actions through poker-core and broadcasts accepted state."
+
+[[steps]]
+id = "reconnect"
+title = "Support reconnection"
+description = "Use Socket.IO reconnect behavior plus persisted player session tokens for restoring seat state."
+
+[[steps]]
+id = "persistence"
+title = "Persist games"
+description = "Store game, player, seat, action log, and current snapshot through the db package."

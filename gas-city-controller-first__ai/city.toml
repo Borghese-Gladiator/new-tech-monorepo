@@ -1,5 +1,37 @@
 [workspace]
 provider = "claude"
 
+[project]
+name = "multiplayer-poker-poc"
+description = "Socket.IO + Drizzle multiplayer Texas Hold'em proof of concept"
+repo = "."
+stack = "typescript-monorepo"
+
+[defaults]
+package_manager = "pnpm"
+node_version = ">=20"
+
+[workspace_layout]
+web = "apps/web"
+server = "apps/server"
+core = "packages/poker-core"
+db = "packages/db"
+shared = "packages/shared"
+
+[quality]
+typecheck = "pnpm typecheck"
+lint = "pnpm lint"
+unit = "pnpm test"
+browser = "pnpm test:e2e"
+
+[constraints]
+real_money = false
+authentication = false
+multiplayer_networking = true
+persistence = true
+realtime_transport = "socket.io"
+orm = "drizzle"
+browser_testing = "playwright"
+
 [[rigs]]
 name = "gas-city-rig-first__ai"

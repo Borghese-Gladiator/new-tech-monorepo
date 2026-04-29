@@ -1,0 +1,17 @@
+formula = "implement-persistence"
+description = "Implement Drizzle persistence in packages/db."
+
+[[steps]]
+id = "schema"
+title = "Create schema"
+description = "Create tables for games, players, seats, game_snapshots, and game_events."
+
+[[steps]]
+id = "repo"
+title = "Create repository functions"
+description = "Create saveSnapshot, appendGameEvent, loadGame, listOpenGames, and restorePlayerSeat."
+
+[[steps]]
+id = "migrations"
+title = "Add migrations"
+description = "Wire drizzle-kit generate and migrate commands."

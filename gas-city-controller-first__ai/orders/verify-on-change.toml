@@ -1,0 +1,4 @@
+name = "verify-on-change"
+description = "Run verification after implementation changes."
+formula = "run-verification"
+agents = ["verification-engineer"]

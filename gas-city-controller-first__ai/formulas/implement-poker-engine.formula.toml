@@ -1,0 +1,17 @@
+formula = "implement-poker-engine"
+description = "Implement shared poker rules and state transitions in packages/poker-core (pure TypeScript, no socket or db imports)."
+
+[[steps]]
+id = "model"
+title = "Model game state"
+description = "Define typed GameState, PlayerState, Seat, Deck, Card, Action, Street, Pot, and GameEvent."
+
+[[steps]]
+id = "rules"
+title = "Implement state transitions"
+description = "Implement shuffle, deal, legal actions, betting rounds, fold/check/call/raise, and showdown hooks."
+
+[[steps]]
+id = "tests"
+title = "Add deterministic tests"
+description = "Test deck uniqueness, turn order, legal action validation, pot updates, and street transitions."

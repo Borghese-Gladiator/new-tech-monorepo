@@ -1,0 +1,17 @@
+formula = "review-change"
+description = "Review implementation before merge."
+
+[[steps]]
+id = "correctness"
+title = "Check correctness"
+description = "Look for invalid poker states, unsafe client authority, race conditions, and persistence gaps."
+
+[[steps]]
+id = "maintainability"
+title = "Check maintainability"
+description = "Look for unclear boundaries between web, server, poker-core, db, and shared packages."
+
+[[steps]]
+id = "missing-tests"
+title = "Identify missing tests"
+description = "Recommend unit, integration, or browser tests for uncovered behavior."
