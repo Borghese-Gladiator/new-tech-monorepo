@@ -106,3 +106,85 @@ Start by implementing:
 5. Playwright journeys
 
 
+---
+
+# Addendum — End-to-end sling verification (2026-05-04)
+
+This addendum records the working end-to-end sling pipeline and the orphan-bead diagnosis that preceded it. Refer back here whenever `gc sling` fails with `database not initialized` or beads appear to vanish.
+
+## Verified pipeline
+
+A hello-world bead was slung from the controller, picked up by an auto-spawned rig session, implemented, committed, and closed.
+
+```bash
+gc --city gas-city-controller-first__ai sling \
+  gas-city-rig-first__ai/claude \
+  "Create a hello.txt file in the rig root with the contents: hello from gas city"
+```
+
+Result:
+- Bead `gcrfa-cx5` created in the rig's Dolt DB (`gcrfa`).
+- Auto-convoy `gcrfa-7r9` and wisp `gcrfa-z3o` (formula `mol-do-work`) attached.
+- Session `hq-bho` (template `gas-city-rig-first__ai/claude`) auto-spawned by the controller. After the first session went idle without closing the bead, the reconciler spawned `hq-4jv` which finished the work.
+- `hello.txt` written to the rig root and committed: `d0903a3 feat: add hello.txt to rig root`.
+- Bead closed with note: `"Done: Created hello.txt in rig root with 'hello from gas city' content and committed."`
+
+## Beads topology
+
+There is **one** Dolt SQL server (`dolt sql-server`, port 40036) hosting multiple databases. Each `.beads/dolt-server.port` file in both controller and rig points at the same port.
+
+| Location | Database | Prefix | Purpose |
+|----------|----------|--------|---------|
+| `gas-city-controller-first__ai/.beads/` | `hq` | `hq` | Controller-side beads (orders, runtime, supervisor work) |
+| `gas-city-rig-first__ai/.beads/` | `gcrfa` | `gcrfa` | Rig-side application work |
+
+Use `gc bd context` to confirm which database `bd` is talking to from any cwd. The `--rig <name>` flag selects the rig DB; without it, you talk to the controller DB.
+
+## The orphan-bead bug
+
+**Symptom:** `gc sling` failed with `bd create: database not initialized: issue_prefix config is missing (run 'bd init --prefix <prefix>' for a new project, or 'bd bootstrap' to clone an existing remote)`. Beads from earlier slings appeared to be missing.
+
+**Root cause:** the `gcrfa` and `hq` Dolt databases were missing the `issue_prefix` row in the `config` table. `bd bootstrap --yes` printed `Created fresh database with prefix "gcrfa"` but did not actually persist that row to the running Dolt server. Every subsequent `bd create` failed before reaching the bead-creation path.
+
+**Secondary symptom:** the controller has a stale `.gc/beads.json` containing 76 orphaned beads (`gc-1` through `gc-76`) from a previous run that used the JSON backend. The active backend is now Dolt, so those beads are unreachable. They are not loaded by the supervisor, do not appear in `bd list`, and never execute. Safe to delete or archive.
+
+**Fix (idempotent, safe to re-run):**
+
+```bash
+# Rig DB
+gc --city gas-city-controller-first__ai --rig gas-city-rig-first__ai \
+  bd sql "INSERT INTO config (\`key\`, value) VALUES ('issue_prefix', 'gcrfa')"
+
+# Controller DB
+gc --city gas-city-controller-first__ai \
+  bd sql "INSERT INTO config (\`key\`, value) VALUES ('issue_prefix', 'hq')"
+```
+
+Verify:
+
+```bash
+gc --city gas-city-controller-first__ai --rig gas-city-rig-first__ai bd config get issue_prefix
+# → gcrfa
+gc --city gas-city-controller-first__ai bd config get issue_prefix
+# → hq
+```
+
+After this, `gc sling` works.
+
+## How to verify a sling end-to-end
+
+1. Sling: `gc --city <controller> sling <rig>/claude "<task text>"`. Note the bead id returned (e.g. `gcrfa-cx5`).
+2. Confirm bead is in the live Dolt DB (not orphaned in `.gc/beads.json`):
+
+   ```bash
+   gc --city <controller> --rig <rig> bd show <bead-id>
+   ```
+
+3. Confirm a session was auto-spawned: `gc --city <controller> session list`. Expect a row with template `<rig>/claude` and state `creating` → `active`.
+4. Watch for closure: poll `bd show <bead-id> --json` until `status` is `closed`. The reconciler may spawn a follow-up session if the first one goes idle without finishing — this is expected.
+5. Verify side effects: the file/commit the bead asked for is in the rig.
+
+## Next steps for the poker PoC
+
+The 8 implementation beads (monorepo skeleton, poker-core, db, shared, server, server verification, web, web verification, Playwright journeys, review) can now be slung the same way. Stale `.gc/beads.json` should be deleted before the run so it doesn't get confused with live beads.
+
