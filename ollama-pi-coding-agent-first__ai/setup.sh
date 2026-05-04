@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# One-shot setup for Ollama + Pi on macOS.
+# One-shot setup for Ollama + aider on macOS, Poetry-based.
 # Run: bash setup.sh
 set -euo pipefail
 
 MODEL="${MODEL:-mistral}"  # override: MODEL=codellama bash setup.sh
+
+# Resolve this script's directory so we always operate on the right project.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> Installing Ollama (if missing)"
 if ! command -v ollama >/dev/null 2>&1; then
@@ -18,25 +21,34 @@ if ! pgrep -x ollama >/dev/null 2>&1; then
   sleep 2
 fi
 
+echo "==> Verifying Ollama is reachable on http://localhost:11434"
+if ! curl -sf http://localhost:11434/api/tags >/dev/null; then
+  echo "ERROR: Ollama is not reachable on localhost:11434. Try 'ollama serve' in another tab."
+  exit 1
+fi
+
 echo "==> Pulling model: $MODEL"
 ollama pull "$MODEL"
 
-echo "==> Installing Pi agent"
-if ! command -v pi >/dev/null 2>&1; then
-  pip install pi-agent || {
-    echo "pip install failed — install Pi manually from source:"
-    echo "  git clone https://github.com/<pi-repo>.git && cd pi && pip install -e ."
-    exit 1
-  }
+echo "==> Verifying Poetry is installed"
+if ! command -v poetry >/dev/null 2>&1; then
+  echo "ERROR: Poetry is not installed."
+  echo "Install per-user (no system pollution):"
+  echo "  curl -sSL https://install.python-poetry.org | python3 -"
+  echo "Then re-run: bash setup.sh"
+  exit 1
 fi
+echo "poetry: $(poetry --version)"
 
-echo "==> Exporting env vars (this shell only)"
-export OPENAI_API_BASE=http://localhost:11434/v1
-export OPENAI_API_KEY=ollama
-export PI_MODEL="$MODEL"
+echo "==> Installing project dependencies via Poetry (creates ./.venv/)"
+poetry --directory="$SCRIPT_DIR" install
 
 echo
 echo "Done. Next steps:"
-echo "  1. cd into your project"
-echo "  2. Run: pi   (or: pi chat)"
+echo "  1. cd $SCRIPT_DIR"
+echo "  2. Run aider against Ollama (no global install needed):"
+echo "       poetry run aider --model ollama_chat/$MODEL"
 echo "  3. To make env vars permanent, append env.sample contents to ~/.zshrc"
+echo "  4. To use the embedding index:"
+echo "       poetry run python embeddings/index.py --stats"
+echo "       poetry run python embeddings/search.py --k 5 \"your query\""

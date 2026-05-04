@@ -1,10 +1,14 @@
 # Ollama Pi — Local Coding Agent Setup (macOS)
 
-A fully local, terminal-native coding agent built on **Ollama** (model runtime) + **Pi** (agent layer).
+A fully local, terminal-native coding agent built on **Ollama** (model runtime) + **aider** (agent layer).
 
 - **Ollama** = runs LLMs locally (Llama, Mistral, Code Llama, etc.)
-- **Pi** = agent on top of Ollama that reads/edits code, runs tools, iterates
+- **aider** = agent on top of Ollama that reads/edits code, runs tools, iterates
 - **You** = orchestrator via CLI
+
+> **Why aider, not "Pi"?** The folder name is historical. `pi-agent` on PyPI is ambiguous (multiple unrelated projects use that name and none is the well-known Ollama agent). [`aider`](https://aider.chat) is the mature, actively maintained terminal coding agent: native Ollama support via `--model ollama_chat/<name>`, filesystem + git integration built in, no ambiguity.
+
+> **Dependency management: Poetry, fully local.** All Python deps for this folder (aider + the embedding indexer) are pinned in a single `pyproject.toml` and installed into `./.venv/` inside this folder. No global pip installs, no site-packages pollution. The `.venv/` is gitignored.
 
 Benefits: fully offline, no API costs, better privacy, fast iteration, customizable.
 
@@ -36,68 +40,50 @@ Quick sanity check before adding Pi on top:
 ollama run mistral
 ```
 
-### 3. Install Pi (Ollama coding agent)
+### 3. Install Poetry (per-user, no system pollution)
 ```bash
-pip install pi-agent
+curl -sSL https://install.python-poetry.org | python3 -
 ```
-Or from source if the package fails:
+Verify:
 ```bash
-git clone https://github.com/<pi-repo>.git
-cd pi
-pip install -e .
-```
-> Note: Pi has multiple variants — confirm which repo/package before installing.
-
-If you hit Python env issues, use a virtualenv:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install pi-agent
+poetry --version
 ```
 
-### 4. Point Pi at Ollama
+### 4. Install the agent + embedding deps via Poetry
+From this folder:
+```bash
+cd ollama-pi-coding-agent-first__ai
+poetry config virtualenvs.in-project true --local   # already committed via poetry.toml
+poetry install
+```
+This creates `./.venv/` inside this folder and installs `aider-chat`, `lancedb`, `pyarrow`, `requests`. Python is pinned to `>=3.10,<3.13` (aider does not yet support 3.13). On this machine Poetry resolved to **Python 3.10.9** (pyenv).
+
+> Or run `bash setup.sh` for a one-shot bootstrap (Ollama + Poetry check + `poetry install`).
+
+### 5. Point aider at Ollama (env vars)
 ```bash
 export OPENAI_API_BASE=http://localhost:11434/v1
 export OPENAI_API_KEY=ollama
 ```
-This makes OpenAI-compatible tools talk to local Ollama.
+(Optional — aider auto-detects Ollama from the `ollama_chat/` model prefix, but these env vars are useful for other OpenAI-compatible tools.)
 
-### 5. Run Pi in a project
+### 6. Run aider in a project (no global install)
 ```bash
 cd your-project
-pi          # or: pi chat
+poetry --directory=/path/to/ollama-pi-coding-agent-first__ai run aider --model ollama_chat/qwen3-coder:30b
 ```
-
-### 6. Select a model
-Inside Pi:
-```
-/model codellama
-```
-Or via env:
+Or, if you `cd` into this folder first:
 ```bash
-export PI_MODEL=codellama
+poetry run aider --model ollama_chat/codellama:13b-instruct
 ```
+Pick whichever model you pulled in step 2. Aider's Ollama prefix is `ollama_chat/<name>`.
 
 ### 7. Use it
-Example prompts:
+Example prompts inside aider:
 - `Explain this repo`
 - `Refactor this function to be async`
 - `Add tests for the API routes`
 - `Fix this bug: <paste error>`
-
----
-
-## Optional Enhancements
-
-Filesystem access:
-```bash
-pi config set tools.filesystem true
-```
-
-Shell execution (use with caution):
-```bash
-pi config set tools.shell true
-```
 
 ---
 
@@ -123,11 +109,11 @@ ollama serve
 
 ## Resolved Questions
 
-### 1. Pi variant to standardize on
-Recommendation: **`aider`** as the Ollama-compatible coding agent.
-- `pi-agent` on PyPI is ambiguous (multiple unrelated projects use the name) and not the well-known Ollama agent.
-- `aider` (https://aider.chat) is the mature, actively maintained terminal coding agent, supports Ollama out of the box via `--model ollama/<name>`, has filesystem + git integration built in, and avoids the "which Pi" ambiguity entirely.
-- If we specifically want a project literally named "Pi," confirm the upstream repo URL before standardizing — otherwise prefer `aider`.
+### 1. Agent to standardize on
+**`aider`** is the Ollama-compatible coding agent we use here.
+- `pi-agent` on PyPI is ambiguous (multiple unrelated projects use that name) and is not the well-known Ollama agent.
+- `aider` (https://aider.chat) is the mature, actively maintained terminal coding agent, supports Ollama out of the box via `--model ollama_chat/<name>`, has filesystem + git integration built in, and avoids the "which Pi" ambiguity entirely.
+- Installed via **Poetry**, scoped to `./.venv/` in this folder — no global pip install.
 
 ### 2. Mac specs (this machine)
 - Chip: **Apple M2 Max** (arm64)
@@ -186,24 +172,24 @@ Decisions:
 - **Vector store:** `lancedb` (embedded, no server).
 
 #### Setup
+Embedding deps (`lancedb`, `pyarrow`, `requests`) are managed by the same root Poetry project as `aider` — no separate `requirements.txt`. After `poetry install`:
 ```bash
 cd ollama-pi-coding-agent-first__ai
-pip install -r embeddings/requirements.txt
 ollama serve   # in another tab if not already running
 ```
 
 #### Index (run on demand)
 ```bash
-python3 embeddings/index.py            # incremental (skips unchanged chunks by hash)
-python3 embeddings/index.py --rebuild  # wipe and reindex
-python3 embeddings/index.py --stats    # show row count + last index time
+poetry run python embeddings/index.py            # incremental (skips unchanged chunks by hash)
+poetry run python embeddings/index.py --rebuild  # wipe and reindex
+poetry run python embeddings/index.py --stats    # show row count + last index time
 ```
 
 #### Search
 ```bash
-python3 embeddings/search.py "where do we configure ollama"
-python3 embeddings/search.py --k 10 "embedding indexer"
-python3 embeddings/search.py --json "auth flow"     # machine-readable for agents
+poetry run python embeddings/search.py "where do we configure ollama"
+poetry run python embeddings/search.py --k 10 "embedding indexer"
+poetry run python embeddings/search.py --json "auth flow"     # machine-readable for agents
 ```
 
 #### Wiring into aider (optional)
@@ -281,9 +267,70 @@ Top hit is the multi-tenancy PoC; rank 3 is literally `test_tenant_isolation`. T
 
 Conclusion: the index returns semantically relevant chunks for paraphrased intent, not just keyword matches. That's what the agent needs.
 
+#### Verification (Poetry-based)
+
+Recorded after the Poetry migration. The existing LanceDB index at `embeddings/.lancedb/` was preserved through the migration — no rebuild needed.
+
+**1. Index intact (1211 rows):**
+```
+$ poetry run python embeddings/index.py --stats
+{
+  "last_indexed_at": 1777905088.1279738,
+  "repo_root": "/Users/timothy.shee/GitHub/new-tech-monorepo",
+  "embed_model": "embeddinggemma:latest",
+  "dim": 768,
+  "files_seen": 515,
+  "chunks_scanned": 1271,
+  "chunks_added": 1211
+}
+rows in code_chunks: 1211
+```
+
+**2. Semantic search still works:**
+```
+$ poetry run python embeddings/search.py --k 3 "function that pauses execution for a duration"
+langchain-python-first/utils.py:2  [log_execution_duration]  d=0.855
+  def log_execution_duration(func):
+
+react-abort-controller/src/utils/index.ts:1  [<file>]  d=0.891
+  export * from './wait';
+
+snakeviz-first/example_script.py:2  [slow_function]  d=0.926
+  def slow_function():
+      time.sleep(2)  # Simulates a slow operation
+```
+
+**3. aider is installed locally (not globally):**
+```
+$ poetry run aider --version
+aider 0.86.2
+```
+
+The aider binary lives in `./.venv/bin/aider` and is only on PATH inside `poetry run`. It is not installed globally.
+
+**4. aider answers prompts via local Ollama (end-to-end):**
+```
+$ poetry run aider --model ollama_chat/mistral:latest --no-git --yes \
+    --message "What is 2+2? Reply with just the number."
+Aider v0.86.2
+Model: ollama_chat/mistral:latest with whole edit format
+Git repo: none
+Repo-map: disabled
+
+4
+
+Tokens: 603 sent, 1 received.
+```
+
+That confirms the full chain: Poetry venv → aider → `ollama_chat/` provider → local Ollama on `:11434` → mistral 7B → correct one-token answer. Same prompt + same model went off-prompt under opencode's `plan` agent (system-prompt overload), but works cleanly through aider.
+
 ---
 
 ## Files in this folder
 - `README.md` — this guide
-- `env.sample` — sample env vars for Pi → Ollama
-- `setup.sh` — one-shot setup helper script
+- `env.sample` — sample env vars for aider → Ollama
+- `setup.sh` — one-shot setup helper script (Ollama + Poetry-based install)
+- `pyproject.toml` / `poetry.lock` — Poetry project + locked deps (aider, lancedb, pyarrow, requests)
+- `poetry.toml` — pins venv to `./.venv/` inside this folder
+- `.venv/` — local virtualenv (gitignored)
+- `embeddings/` — local LanceDB index + search scripts (see "Codebase Embeddings" above)

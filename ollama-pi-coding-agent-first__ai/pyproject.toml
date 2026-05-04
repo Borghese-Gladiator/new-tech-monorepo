@@ -1,0 +1,20 @@
+[project]
+name = "ollama-pi-coding-agent"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "timothysheee",email = "157530836+timothysheee@users.noreply.github.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "aider-chat (>=0.86.2,<0.87.0)",
+    "lancedb (>=0.30.2,<0.31.0)",
+    "pyarrow (>=24.0.0,<25.0.0)",
+    "requests (>=2.31.0,<2.33)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

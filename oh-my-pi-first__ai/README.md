@@ -153,7 +153,28 @@ Ran a series of `omp -p` (non-interactive) prompts on this machine after install
 4. **MCP-server load storm at every cold start.** omp inherits the global Claude Code MCP config. On this machine that means 11 servers (Atlassian, GitHub, Sentry, Linear, Glean, Figma, Buildkite, Klaviyo, etc.) all OAuth-fail with HTTP 401 every launch, and `npx mcp-remote ...` fails ENOENT. Logs are noisy in `~/.omp/logs/`. Pass `--no-extensions` to skip discovery, or prune the MCP config.
 5. **Ollama memory runaway when stacking timeouts.** During this round of testing the `qwen3-coder-next:latest` (79.7B, ~54 GB VRAM) timed out and was killed by `omp`'s wrapper, but Ollama did **not** release the model — the process stayed pinned at ~50–57 GB resident. Stacking more `omp -p` invocations made it worse. **Mitigation:** if you're running non-interactive tests, kill the Ollama model child process between rounds (`pkill -f "Ollama.app.*Resources"` or `kill <PID>` from `ps aux | grep Ollama`). For interactive use, the TUI keeps a single model warm across turns and avoids this.
 
-#### Recommended working configuration
+#### Failure mode analysis: model-normal vs. setup-specific
+
+| Failure | Normal for these models? | Specific to our setup? |
+| --- | --- | --- |
+| `llama3.1` hallucinating tool calls (the fake `irc.list`) | **Yes** — `llama3.1` is weak at function-calling. Berkeley Function-Calling Leaderboard puts ≤8B Llama variants below 65% on tool accuracy. Any agent harness will hit this. | No |
+| `qwen3-coder:30b` hallucinating `ls` output in omp | **Partly normal** at 30B. Berkeley's leaderboard puts mid-tier 30B coders around 70–80% on function-calls. **But** this same model + same Ollama backend ran the tool call correctly in opencode (real `ls` output, see `../opencode-first__ai/`). Same model, different harness, different result. | **Yes (the MCP storm).** omp loaded ~11 broken MCP servers (HTTP 401 / ENOENT) into the tool list every launch; the polluted schema almost certainly degraded tool selection. |
+| 180s+ timeouts on tool-using turns | **Largely normal** — 30B Q4_K_M on M2 Max decodes ~5–15 tok/s. A tool-using turn easily emits 200–800 output tokens × ~3 turns of internal reasoning + tool args + post-tool synthesis. 180s is genuinely tight. | Partly — the timeout I picked was too short. 300–600s is realistic for local 30B agents. |
+| `qwen3-coder-next` (79.7B) timing out | Expected — it barely fits in 64 GB unified memory and is too slow for interactive turns. Not a bug, a sizing mismatch. | Yes (we tried it anyway) |
+| Ollama pinning 50–57 GB after client kill | **Known Ollama behavior** with very-long-context models (`qwen3-coder-next` allocates a 262K-token KV cache). Documented across the Ollama issue tracker. | Partly — fixable with `OLLAMA_KEEP_ALIVE=0` or `OLLAMA_KEEP_ALIVE=30s` to force eviction. |
+
+**Roughly half the failures are inherent model limits at this size class; the other half are config issues we can fix** (MCP cleanup + `OLLAMA_KEEP_ALIVE` + longer client timeouts).
+
+#### Re-verification (2026-05-04, after Ollama restart with cleared memory)
+
+Smaller, faster retest after the runaway-kill:
+
+```
+$ omp -p --no-session --no-tools --no-extensions --model ollama/mistral:latest "What is 2+2? Reply with just the number."
+4
+```
+
+Confirms omp's basic Q&A path is healthy on the smallest viable Ollama model. Same prompt under opencode's `plan` agent went off-prompt (documented in `../opencode-first__ai/README.md`); under omp with `--no-tools --no-extensions` it's clean. omp's plain-Q&A path is robust as long as you bypass the MCP storm and don't ask local models to drive tools.
 
 For local-first-with-cloud-fallback, hybrid Ollama + Anthropic:
 

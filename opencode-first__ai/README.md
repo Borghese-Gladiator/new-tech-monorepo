@@ -145,6 +145,44 @@ Test 4 is the same prompt that omp's `qwen3-coder:30b` failed by **hallucinating
 3. **Local 30B is still the bottleneck.** Same constraint as omp testing: response latency on a 30B model makes interactive sessions slow and non-interactive matrix-runs prone to timeout/memory issues. For real work, hybrid Anthropic + local-`plan` is still the recommendation.
 4. **Use the TUI, not repeated `opencode run`.** The TUI keeps one model loaded across turns; repeated `run` invocations re-load and stack memory.
 
+#### Failure mode analysis: model-normal vs. setup-specific
+
+| Failure | Normal for these models? | Specific to our setup? |
+| --- | --- | --- |
+| 180s timeout on the arithmetic prompt | **Largely normal** — 30B Q4_K_M on M2 Max decodes ~5–15 tok/s; the model also burned tokens on internal reasoning before answering. | Partly — 180s is too tight. Bump to 300–600s for 30B local. |
+| `-f` flag swallowed the message arg | **No** — purely an opencode CLI quirk. `-f` is `array`-typed in yargs and greedy. | **Yes** (script bug). Fix is `opencode run -m … -f file -- "message"`. |
+| 171s for a single-token "PONG" reply | **Mostly model-normal.** Cold model load on first turn dominates here; subsequent turns in the same TUI session are far faster. The non-interactive `run` reloads the model every call. | Partly — using `opencode run` for a test matrix is the wrong shape. The TUI is the right shape for warm reuse. |
+| Tool call succeeded but turn still timed out (test 4) | **Mostly normal** — model called `ls`, got real output, then needed more tokens to format the final bulleted reply. 30B at ~10 tok/s ran out of clock. | Partly — same timeout caveat. |
+| Ollama pinning 50–57 GB after client kill | **Known Ollama behavior** with long-context models. Documented in Ollama's issue tracker. | Partly — fixable with `OLLAMA_KEEP_ALIVE=0` (or `30s`) to force eviction. |
+
+**On opencode vs omp for the same model:** the 30B model hallucinated under omp but **invoked the real tool under opencode**. Two plausible reasons:
+- omp's tool list was polluted by ~11 broken inherited Claude-Code MCP servers (HTTP 401 / ENOENT every launch), confusing the model's tool-selection.
+- opencode's local config has only one MCP server (`gitnexus`) and a clean tool surface.
+
+That suggests the omp tool-hallucination is **largely setup-specific** (MCP storm), not a flat model limitation. Pruning omp's MCP config or running with `--no-extensions` should narrow the gap.
+
+#### Re-verification (2026-05-04, after Ollama restart with cleared memory)
+
+Reran the smallest viable test to verify opencode+Ollama still works after we killed the runaway:
+
+```
+$ opencode run -m ollama/mistral:latest --agent plan "What is 2+2? Reply with just the number."
+9. Deploy app when PR is merged (use CI/CD pipeline)
+### 4. Risks
+- Edge case: user interface may be unresponsive or misaligned in certain dark mode settings
+...
+```
+
+That's **off-prompt nonsense.** Same model called three different ways:
+
+| Caller | Output |
+| --- | --- |
+| `command curl http://localhost:11434/api/generate -d '{"model":"mistral:latest","prompt":"What is 2+2? Reply with just the number."}'` | `4` ✅ |
+| `omp -p --no-tools --no-extensions --model ollama/mistral:latest "What is 2+2? ..."` | `4` ✅ |
+| `opencode run -m ollama/mistral:latest --agent plan "What is 2+2? ..."` | architectural-rant ❌ |
+
+**Conclusion:** opencode's `plan` agent injects a verbose architectural system prompt that swamps `mistral:latest`'s 7B instruction-following capacity. Mistral isn't broken; the system prompt is too heavy for it. **Use `--agent build` (lighter prompt) or a stronger model (`qwen3-coder:30b`+) when running opencode against small Ollama models.** Or skip opencode for very small local models and use bare Ollama / aider.
+
 ---
 
 ## Why try opencode (vs. omp / aider already in this monorepo)
