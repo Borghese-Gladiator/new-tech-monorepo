@@ -130,7 +130,7 @@ Test 4 is the same prompt that omp's `qwen3-coder:30b` failed by **hallucinating
 
 #### Caveats
 
-- **Memory pressure:** Running `qwen3-coder:30b` repeatedly via `opencode run` caused Ollama to balloon to ~50 GB resident. We killed the runaway process after test 4. The model may not release VRAM/RAM cleanly between non-interactive invocations on this hardware. **For interactive use, prefer the TUI** (`opencode`) over repeated `opencode run` calls — sessions reuse the loaded model.
+- **Memory pressure (Ollama-side, not opencode-specific):** Running `qwen3-coder:30b` repeatedly via `opencode run` (and earlier `omp -p` calls in `oh-my-pi-first__ai/`) left Ollama pinned at ~50–57 GB resident even after the client process was killed. Ollama does not always release the loaded model between non-interactive invocations on this hardware. **Mitigation:** kill the Ollama model child process between batch rounds (`ps aux | grep Ollama` then `kill <PID>`), or prefer the TUI (`opencode`) which keeps a single model warm across turns. The same caveat is documented in `../oh-my-pi-first__ai/README.md`.
 - **`-f` parsing:** the script's test 2 needs `--` between the file list and the message:
   ```bash
   opencode run -m ollama/qwen3-coder:30b -f path/to/file.py -- "Your prompt"
