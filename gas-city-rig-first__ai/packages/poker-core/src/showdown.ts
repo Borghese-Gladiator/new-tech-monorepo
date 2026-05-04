@@ -67,6 +67,7 @@ export function resolveHand(state: GameState): ShowdownResult {
     committedThisStreet: 0,
     committedTotal: 0,
     hasActedThisStreet: false,
+    actionReopened: true,
   }));
 
   events.push({ type: "hand-resolved", winners });

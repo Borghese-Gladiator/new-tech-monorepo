@@ -55,6 +55,7 @@ export function advanceStreet(state: GameState): AdvanceResult {
     ...p,
     committedThisStreet: 0,
     hasActedThisStreet: false,
+    actionReopened: true,
   }));
 
   const nextCurrentSeat =

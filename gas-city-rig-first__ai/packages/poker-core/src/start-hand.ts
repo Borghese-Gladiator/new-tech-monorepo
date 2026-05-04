@@ -26,6 +26,7 @@ export function startHand(opts: StartHandOptions): GameState {
     committedThisStreet: 0,
     committedTotal: 0,
     hasActedThisStreet: false,
+    actionReopened: true,
   }));
 
   const sb = smallBlindSeat(players, config.buttonSeat);

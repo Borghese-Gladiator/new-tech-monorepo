@@ -199,6 +199,7 @@ function makeShowdown(opts: {
     committedThisStreet: 0,
     committedTotal: p.total,
     hasActedThisStreet: true,
+    actionReopened: false,
   }));
   return {
     config: {

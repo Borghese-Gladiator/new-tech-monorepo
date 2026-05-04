@@ -39,7 +39,11 @@ export function legalActions(state: GameState, seat: Seat): LegalActionsResult {
   const minRaiseToRaw = state.currentBet + minRaiseIncrement;
   const maxRaiseTo = stackTotalCommittable;
   const minRaiseTo = Math.min(minRaiseToRaw, maxRaiseTo);
-  const canRaise = maxRaiseTo > state.currentBet && player.stack > toCall;
+  // Standard NL rule: a sub-minimum all-in does not reopen action for seats that
+  // already acted this street. Those seats are pulled back to face only the partial
+  // shortfall and may call or fold, but not raise. `actionReopened` tracks this per-seat.
+  const canRaise =
+    maxRaiseTo > state.currentBet && player.stack > toCall && player.actionReopened;
 
   return {
     canFold,

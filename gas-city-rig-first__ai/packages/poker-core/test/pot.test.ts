@@ -11,6 +11,7 @@ function p(seat: number, total: number, status: PlayerState["status"]): PlayerSt
     committedThisStreet: 0,
     committedTotal: total,
     hasActedThisStreet: true,
+    actionReopened: false,
   };
 }
 

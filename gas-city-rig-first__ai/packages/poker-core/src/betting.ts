@@ -25,7 +25,13 @@ export function applyAction(state: GameState, action: Action): ActionResult {
   const player = getPlayer(state, seat);
   if (!player) return { ok: false, reason: "no player at seat" };
 
-  let nextPlayer: PlayerState = { ...player, hasActedThisStreet: true };
+  // The acting player consumes their reopen privilege: until someone raises again,
+  // they may only call/check/fold on any subsequent re-prompt for the same street.
+  let nextPlayer: PlayerState = {
+    ...player,
+    hasActedThisStreet: true,
+    actionReopened: false,
+  };
   let nextCurrentBet = state.currentBet;
   let nextLastRaiseSize = state.lastRaiseSize;
   let chipsCommittedNow = 0;
@@ -78,12 +84,14 @@ export function applyAction(state: GameState, action: Action): ActionResult {
 
   let nextPlayers = replacePlayer(state.players, nextPlayer);
 
-  // If raise reopened action, every other still-active player must act again.
+  // If raise reopened action (full raise), every other still-active player must act again
+  // and regains the right to raise. A sub-minimum all-in does NOT reopen action for
+  // seats that already acted — they keep actionReopened=false (set by their prior action).
   if (action.kind === "raise" && raiseReopens) {
     nextPlayers = nextPlayers.map((p) => {
       if (p.seat === nextPlayer.seat) return p;
       if (p.status !== "active") return p;
-      return { ...p, hasActedThisStreet: false };
+      return { ...p, hasActedThisStreet: false, actionReopened: true };
     });
   }
 

@@ -31,6 +31,10 @@ export type PlayerState = {
   committedThisStreet: number;
   committedTotal: number;
   hasActedThisStreet: boolean;
+  // True iff this seat is allowed to raise on its next turn this street.
+  // A sub-minimum all-in does not reopen action for seats that already acted,
+  // so those seats keep actionReopened=false until a full raise comes in.
+  actionReopened: boolean;
 };
 
 export type ActionKind = "fold" | "check" | "call" | "raise";
