@@ -8,3 +8,13 @@
 
 # Node
 node_modules/
+
+# Build / runtime artifacts
+**/.next/
+apps/*/dist/
+apps/*/.data/
+
+# Playwright
+tests/journeys/test-results/
+tests/journeys/playwright-report/
+tests/journeys/.playwright/

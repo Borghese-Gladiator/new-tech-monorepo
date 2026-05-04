@@ -10,7 +10,8 @@
     "typecheck": "pnpm -r --if-present run typecheck",
     "lint": "pnpm -r --if-present run lint",
     "test": "pnpm -r --if-present run test",
-    "test:e2e": "pnpm -r --if-present run test:e2e"
+    "test:e2e": "pnpm --filter @gas-city/journeys run test:e2e",
+    "test:e2e:install": "pnpm --filter @gas-city/journeys run test:e2e:install"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["better-sqlite3"]
