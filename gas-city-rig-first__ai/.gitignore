@@ -5,3 +5,6 @@
 .gc/
 .runtime/
 .claude/
+
+# Node
+node_modules/
