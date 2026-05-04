@@ -8,6 +8,7 @@ import type {
 } from "@gas-city/shared";
 import { Rooms } from "./rooms.js";
 import { registerHandlers } from "./handlers/index.js";
+import { handleHttpRequest } from "./http.js";
 import type { ServerCtx } from "./engine.js";
 
 export type ServerOptions = {
@@ -35,7 +36,13 @@ export function createServer(opts: ServerOptions = {}): ServerHandle {
     migrate(dbHandle.db, { migrationsFolder: migrationsFolder() });
   }
 
-  const http = createHttpServer();
+  const http = createHttpServer((req, res) => {
+    if (!handleHttpRequest(dbHandle.db, req, res)) {
+      res.statusCode = 404;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: { code: "NOT_FOUND", message: "not found" } }));
+    }
+  });
   const io = new IOServer<ClientToServerEvents, ServerToClientEvents>(http, {
     cors: { origin: "*" },
   });
