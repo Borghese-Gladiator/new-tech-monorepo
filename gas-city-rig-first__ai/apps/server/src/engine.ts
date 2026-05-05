@@ -16,6 +16,7 @@ import {
 } from "@gas-city/poker-core";
 import {
   appendGameEvent,
+  runInTransaction,
   saveSnapshot,
   type Db,
 } from "@gas-city/db";
@@ -90,10 +91,9 @@ export function snapshotForSeat(
 }
 
 /**
- * Persist state + new events. Best-effort transaction — better-sqlite3 is
- * synchronous and supports `.transaction(fn)` via the underlying driver, but
- * @gas-city/db doesn't expose a tx helper. TODO(post-PoC): wrap in tx via the
- * sqlite handle.
+ * Persist state + new events atomically. The snapshot and all event rows are
+ * written inside one sqlite transaction so a mid-loop failure cannot leave a
+ * snapshot disagreeing with a partial event log.
  */
 export function persistStateAndEvents(
   db: Db,
@@ -101,10 +101,12 @@ export function persistStateAndEvents(
   state: GameState,
   newEvents: ReadonlyArray<GameEvent>,
 ): void {
-  saveSnapshot(db, gameId, state);
-  for (const event of newEvents) {
-    appendGameEvent(db, gameId, { type: event.type, payload: event });
-  }
+  runInTransaction(db, (tx) => {
+    saveSnapshot(tx, gameId, state);
+    for (const event of newEvents) {
+      appendGameEvent(tx, gameId, { type: event.type, payload: event });
+    }
+  });
 }
 
 /**

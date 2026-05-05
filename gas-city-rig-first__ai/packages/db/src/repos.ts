@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { GameState } from "@gas-city/poker-core";
-import type { Db } from "./db.js";
+import type { Db, DbOrTx } from "./db.js";
 import {
   gameEvents,
   gameSnapshots,
@@ -25,7 +25,7 @@ export type LoadedGame = {
 };
 
 function nextIndexFor(
-  db: Db,
+  db: DbOrTx,
   table: typeof gameSnapshots | typeof gameEvents,
   indexCol: typeof gameSnapshots.snapshotIndex | typeof gameEvents.eventIndex,
   gameId: number,
@@ -40,7 +40,7 @@ function nextIndexFor(
 }
 
 export function saveSnapshot(
-  db: Db,
+  db: DbOrTx,
   gameId: number,
   state: GameState,
 ): GameSnapshotRow {
@@ -66,7 +66,7 @@ export function saveSnapshot(
 }
 
 export function appendGameEvent(
-  db: Db,
+  db: DbOrTx,
   gameId: number,
   event: AppendableEvent,
 ): GameEventRow {

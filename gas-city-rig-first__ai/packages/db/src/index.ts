@@ -14,8 +14,8 @@ export type {
   GameEventRow,
 } from "./schema.js";
 
-export { createDb, resolveDatabasePath } from "./db.js";
-export type { Db, DbHandle } from "./db.js";
+export { createDb, resolveDatabasePath, runInTransaction } from "./db.js";
+export type { Db, DbHandle, DbOrTx, DbTx } from "./db.js";
 
 export {
   appendGameEvent,

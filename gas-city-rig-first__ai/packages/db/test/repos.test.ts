@@ -11,12 +11,14 @@ import {
 } from "@gas-city/poker-core";
 import {
   appendGameEvent,
+  gameEvents,
   gameSnapshots,
   games,
   listOpenGames,
   loadGame,
   players,
   restorePlayerSeat,
+  runInTransaction,
   saveSnapshot,
   seats,
   type Db,
@@ -202,5 +204,40 @@ describe("@gas-city/db repos", () => {
       // 8KB ceiling per snapshot — guards against quadratic regrowth.
       expect(row.state.length).toBeLessThan(8 * 1024);
     }
+  });
+
+  it("runInTransaction rolls back snapshot and events when the callback throws", () => {
+    const { db } = fx;
+
+    const game = db
+      .insert(games)
+      .values({ status: "open" })
+      .returning()
+      .get();
+    if (!game) throw new Error("game insert failed");
+
+    expect(() =>
+      runInTransaction(db, (tx) => {
+        saveSnapshot(tx, game.id, fakeState(1));
+        appendGameEvent(tx, game.id, {
+          type: "hand-started",
+          payload: { handId: 1 },
+        });
+        throw new Error("boom — simulate mid-write failure");
+      }),
+    ).toThrow(/boom/);
+
+    const snapRows = db
+      .select()
+      .from(gameSnapshots)
+      .where(eq(gameSnapshots.gameId, game.id))
+      .all();
+    const evRows = db
+      .select()
+      .from(gameEvents)
+      .where(eq(gameEvents.gameId, game.id))
+      .all();
+    expect(snapRows).toEqual([]);
+    expect(evRows).toEqual([]);
   });
 });
