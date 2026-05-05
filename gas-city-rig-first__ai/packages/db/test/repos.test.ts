@@ -142,6 +142,52 @@ describe("@gas-city/db repos", () => {
     expect(restorePlayerSeat(db, gameOpen.id, "missing")).toBeNull();
   });
 
+  it("rejects two seats sharing the same sessionToken (UNIQUE constraint)", () => {
+    const { db } = fx;
+
+    const game = db
+      .insert(games)
+      .values({ status: "open" })
+      .returning()
+      .get();
+    if (!game) throw new Error("game insert failed");
+
+    const alice = db
+      .insert(players)
+      .values({ displayName: "alice" })
+      .returning()
+      .get();
+    const bob = db
+      .insert(players)
+      .values({ displayName: "bob" })
+      .returning()
+      .get();
+    if (!alice || !bob) throw new Error("player inserts failed");
+
+    db.insert(seats)
+      .values({
+        gameId: game.id,
+        playerId: alice.id,
+        seatIndex: 0,
+        stack: 200,
+        sessionToken: "shared-token",
+      })
+      .run();
+
+    expect(() =>
+      db
+        .insert(seats)
+        .values({
+          gameId: game.id,
+          playerId: bob.id,
+          seatIndex: 1,
+          stack: 200,
+          sessionToken: "shared-token",
+        })
+        .run(),
+    ).toThrow(/UNIQUE constraint failed: seats\.session_token/);
+  });
+
   it("snapshot row stays small after many actions (no embedded events array)", () => {
     const { db } = fx;
 
