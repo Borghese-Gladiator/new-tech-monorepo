@@ -1,4 +1,4 @@
-import type { Pot as PotType } from "@gas-city/poker-core";
+import type { Pot as PotType } from "@gas-city/shared";
 
 export function Pot({ pots }: { pots: ReadonlyArray<PotType> }): JSX.Element {
   const total = pots.reduce((acc, p) => acc + p.amount, 0);

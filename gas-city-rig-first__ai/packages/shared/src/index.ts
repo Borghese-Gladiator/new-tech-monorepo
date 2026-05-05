@@ -12,4 +12,16 @@ export type {
   ServerToClientEvents,
 } from "./events.js";
 
+export type {
+  Card,
+  GameEvent,
+  GameState,
+  PlayerState,
+  Pot,
+  Rank,
+  Seat,
+  Street,
+  Suit,
+} from "@gas-city/poker-core";
+
 export { isJoinGamePayload } from "./guards.js";

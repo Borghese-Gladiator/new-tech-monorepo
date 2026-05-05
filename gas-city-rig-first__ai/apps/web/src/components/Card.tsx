@@ -1,4 +1,4 @@
-import type { Card as PokerCard } from "@gas-city/poker-core";
+import type { Card as PokerCard } from "@gas-city/shared";
 
 const SUIT_GLYPH: Record<PokerCard["suit"], string> = {
   c: "♣",

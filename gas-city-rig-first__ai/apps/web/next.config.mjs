@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   // Workspace packages are linked as source — Next must transpile them.
-  transpilePackages: ["@gas-city/shared", "@gas-city/poker-core"],
+  transpilePackages: ["@gas-city/shared"],
   async rewrites() {
     const target = process.env.SERVER_URL ?? "http://localhost:4000";
     return [

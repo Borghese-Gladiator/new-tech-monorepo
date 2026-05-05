@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { GameState, PlayerState } from "@gas-city/poker-core";
-import type { PlayerActionPayload } from "@gas-city/shared";
+import type {
+  GameState,
+  PlayerActionPayload,
+  PlayerState,
+} from "@gas-city/shared";
 
 type Action = PlayerActionPayload["action"];
 

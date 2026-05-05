@@ -1,4 +1,4 @@
-import type { Card as PokerCard, PlayerState, Seat as SeatNum } from "@gas-city/poker-core";
+import type { Card as PokerCard, PlayerState, Seat as SeatNum } from "@gas-city/shared";
 import { Card, CardBack } from "./Card";
 
 export type SeatViewProps = {

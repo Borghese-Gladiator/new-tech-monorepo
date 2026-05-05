@@ -44,9 +44,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@gas-city/poker-core':
-        specifier: workspace:*
-        version: link:../../packages/poker-core
       '@gas-city/shared':
         specifier: workspace:*
         version: link:../../packages/shared

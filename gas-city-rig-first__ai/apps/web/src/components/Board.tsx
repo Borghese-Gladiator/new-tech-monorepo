@@ -1,4 +1,4 @@
-import type { Card as PokerCard, Street } from "@gas-city/poker-core";
+import type { Card as PokerCard, Street } from "@gas-city/shared";
 import { Card, CardBack } from "./Card";
 
 const STREET_LABEL: Record<Street, string> = {
