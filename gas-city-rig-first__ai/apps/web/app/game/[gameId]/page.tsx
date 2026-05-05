@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type {
   AckResult,
   ConnectionStatusPayload,
@@ -67,6 +67,7 @@ function describeEvent(entry: EventLogEntry): string {
 export default function GamePage(): JSX.Element {
   const params = useParams<{ gameId: string }>();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const gameId = params?.gameId ?? "";
   const displayName = searchParams?.get("name") ?? "";
 
@@ -154,6 +155,10 @@ export default function GamePage(): JSX.Element {
         type: "error",
         message: `${payload.code}: ${payload.message}`,
       });
+      if (payload.code === "GAME_FULL") {
+        clearSessionToken(gameId);
+        router.replace("/");
+      }
     });
 
     return () => {
@@ -162,7 +167,7 @@ export default function GamePage(): JSX.Element {
       socket.close();
       socketRef.current = null;
     };
-  }, [gameId, displayName]);
+  }, [gameId, displayName, router]);
 
   // Auto-clear flash after a beat.
   useEffect(() => {

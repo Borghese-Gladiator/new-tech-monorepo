@@ -102,18 +102,17 @@ export function registerJoinGame(ctx: ServerCtx, socket: IOSocket): void {
       return;
     }
     if (gameRow.status !== "open") {
-      ack(cb, {
-        ok: false,
-        error: { code: ErrorCode.GAME_NOT_OPEN, message: "game not accepting joins" },
-      });
+      const err = { code: ErrorCode.GAME_FULL, message: "Game is full" };
+      socket.emit("playerError", err);
+      ack(cb, { ok: false, error: err });
       return;
     }
     const seatIndex = nextOpenSeat(ctx, gameId);
     if (seatIndex === null) {
-      ack(cb, {
-        ok: false,
-        error: { code: ErrorCode.NO_OPEN_SEATS, message: "no open seats" },
-      });
+      // Defensive belt-and-suspenders: status was 'open' but seat count is at max.
+      const err = { code: ErrorCode.GAME_FULL, message: "Game is full" };
+      socket.emit("playerError", err);
+      ack(cb, { ok: false, error: err });
       return;
     }
 
