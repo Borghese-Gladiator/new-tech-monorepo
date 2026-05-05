@@ -8,6 +8,13 @@
       "when": 1777919090680,
       "tag": "0000_special_princess_powerful",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1777993568672,
+      "tag": "0001_productive_photon",
+      "breakpoints": true
     }
   ]
 }

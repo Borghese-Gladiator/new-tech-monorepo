@@ -54,6 +54,9 @@ export const seats = sqliteTable(
       sql`${t.status} in ('active','folded','all_in','sitting_out')`,
     ),
     seatPerGame: uniqueIndex("seats_game_seat_idx").on(t.gameId, t.seatIndex),
+    sessionTokenUnique: uniqueIndex("seats_session_token_unique_idx")
+      .on(t.sessionToken)
+      .where(sql`session_token IS NOT NULL`),
   }),
 );
 
