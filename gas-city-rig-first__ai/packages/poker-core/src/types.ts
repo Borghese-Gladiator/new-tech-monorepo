@@ -91,5 +91,4 @@ export type GameState = {
   currentBet: number;
   lastRaiseSize: number;
   buttonSeat: Seat;
-  events: ReadonlyArray<GameEvent>;
 };

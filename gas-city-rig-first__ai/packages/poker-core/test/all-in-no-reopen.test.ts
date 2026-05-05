@@ -13,7 +13,7 @@ const baseCfg = {
 // Seats: button=0 → SB=1, BB=2. UTG (first to act preflop with 3 players) is seat 0.
 describe("sub-min all-in does not reopen action", () => {
   it("BTN may only call or fold after SB call + sub-min BB shove", () => {
-    let state = startHand({
+    let { state } = startHand({
       config: baseCfg,
       players: [
         { seat: 0, stack: 200 }, // BTN / UTG preflop
@@ -56,7 +56,7 @@ describe("sub-min all-in does not reopen action", () => {
   });
 
   it("full all-in DOES reopen action for prior actors", () => {
-    let state = startHand({
+    let { state } = startHand({
       config: baseCfg,
       players: [
         { seat: 0, stack: 200 },

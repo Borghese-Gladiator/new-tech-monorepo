@@ -169,7 +169,7 @@ export function registerJoinGame(ctx: ServerCtx, socket: IOSocket): void {
         .where(eq(seats.gameId, gameId))
         .all();
       const config = defaultGameConfig(gameId * 1000 + Date.now() % 1000);
-      const state = startHand({
+      const { state, events } = startHand({
         config,
         players: seatRows.map((s) => ({ seat: s.seatIndex, stack: s.stack })),
       });
@@ -179,9 +179,9 @@ export function registerJoinGame(ctx: ServerCtx, socket: IOSocket): void {
         .where(eq(games.id, gameId))
         .run();
       ctx.rooms.setState(gameId, state);
-      persistStateAndEvents(ctx.db, gameId, state, state.events);
+      persistStateAndEvents(ctx.db, gameId, state, events);
       broadcastSnapshot(ctx, gameId, state);
-      broadcastEvents(ctx, gameId, state.events);
+      broadcastEvents(ctx, gameId, events);
     }
   });
 }

@@ -11,7 +11,12 @@ export type StartHandOptions = {
   players?: ReadonlyArray<{ seat: Seat; stack: number }>;
 };
 
-export function startHand(opts: StartHandOptions): GameState {
+export type StartHandResult = {
+  state: GameState;
+  events: ReadonlyArray<GameEvent>;
+};
+
+export function startHand(opts: StartHandOptions): StartHandResult {
   const { config } = opts;
   const seedRng = mulberry32(config.seed);
   const shuffledDeck = shuffle(buildDeck(), seedRng);
@@ -90,7 +95,6 @@ export function startHand(opts: StartHandOptions): GameState {
     currentBet: config.blinds.bb,
     lastRaiseSize: config.blinds.bb,
     buttonSeat: config.buttonSeat,
-    events,
   };
-  return state;
+  return { state, events };
 }

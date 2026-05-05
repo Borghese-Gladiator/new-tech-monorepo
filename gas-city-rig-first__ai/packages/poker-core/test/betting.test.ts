@@ -11,7 +11,7 @@ const cfg = {
 
 describe("betting", () => {
   it("fold: player removed from contention; hand ends if only one left", () => {
-    let state = startHand({ config: cfg });
+    let { state } = startHand({ config: cfg });
     // UTG (seat 2) folds, button (seat 0) folds, SB (seat 1) wins uncontested.
     let r = applyAction(state, { kind: "fold" });
     expect(r.ok).toBe(true);
@@ -25,7 +25,7 @@ describe("betting", () => {
   });
 
   it("call: chips moved from stack to committed", () => {
-    const state = startHand({ config: cfg });
+    const { state } = startHand({ config: cfg });
     const utg = state.players.find((p) => p.seat === state.currentSeat);
     if (!utg) throw new Error("no utg");
     const r = applyAction(state, { kind: "call" });
@@ -38,7 +38,7 @@ describe("betting", () => {
   });
 
   it("raise: sets currentBet and lastRaiseSize; reopens action for others", () => {
-    const state = startHand({ config: cfg });
+    const { state } = startHand({ config: cfg });
     const r = applyAction(state, { kind: "raise", amount: 6 });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -55,7 +55,7 @@ describe("betting", () => {
   it("betting round closes when all active players matched and acted", () => {
     // 3 seats: button=0, SB=1, BB=2. Preflop order: 0 → 1 → 2.
     // Seat 0 calls, seat 1 calls, seat 2 (BB) checks option → round closed.
-    let state = startHand({ config: cfg });
+    let { state } = startHand({ config: cfg });
     let r = applyAction(state, { kind: "call" });
     if (!r.ok) throw new Error(r.reason);
     state = r.state;

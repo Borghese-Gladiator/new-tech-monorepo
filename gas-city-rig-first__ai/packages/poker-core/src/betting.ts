@@ -140,7 +140,6 @@ export function applyAction(state: GameState, action: Action): ActionResult {
     currentBet: nextCurrentBet,
     lastRaiseSize: nextLastRaiseSize,
     pots: nextPots,
-    events: [...state.events, ...events, { type: "pot-updated", pots: nextPots }],
   };
 
   return {

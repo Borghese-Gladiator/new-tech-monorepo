@@ -1,10 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import Database, { type Database as SqliteDatabase } from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import type { GameState } from "@gas-city/poker-core";
+import {
+  advanceStreet,
+  applyAction,
+  startHand,
+  type GameState,
+} from "@gas-city/poker-core";
 import {
   appendGameEvent,
+  gameSnapshots,
   games,
   listOpenGames,
   loadGame,
@@ -40,7 +47,6 @@ function fakeState(handId: number): GameState {
     currentBet: 0,
     lastRaiseSize: 0,
     buttonSeat: 0,
-    events: [],
   };
 }
 
@@ -132,5 +138,69 @@ describe("@gas-city/db repos", () => {
 
     expect(restorePlayerSeat(db, gameOpen.id, "tok-alice")?.id).toBe(seat.id);
     expect(restorePlayerSeat(db, gameOpen.id, "missing")).toBeNull();
+  });
+
+  it("snapshot row stays small after many actions (no embedded events array)", () => {
+    const { db } = fx;
+
+    const game = db
+      .insert(games)
+      .values({ status: "open" })
+      .returning()
+      .get();
+    if (!game) throw new Error("game insert failed");
+
+    const cfg = {
+      blinds: { sb: 1, bb: 2 },
+      startingStacks: 200,
+      numSeats: 3,
+      buttonSeat: 0,
+      seed: 42,
+    };
+    let { state } = startHand({ config: cfg });
+    saveSnapshot(db, game.id, state);
+
+    // Drive a long sequence across all four streets: each player raises and
+    // gets called, advancing one snapshot per action plus one per street.
+    // This produces ~30 snapshots — enough to expose quadratic growth if the
+    // events array were embedded.
+    let actionCount = 0;
+    while (actionCount < 30) {
+      if (state.currentSeat === null) {
+        const adv = advanceStreet(state);
+        if (!adv.ok) break;
+        state = adv.state;
+        saveSnapshot(db, game.id, state);
+        if (state.street === "showdown") break;
+        continue;
+      }
+      const player = state.players.find((p) => p.seat === state.currentSeat);
+      if (!player) break;
+      const toCall = state.currentBet - player.committedThisStreet;
+      const action =
+        toCall > 0 ? { kind: "call" as const } : { kind: "check" as const };
+      const r = applyAction(state, action);
+      if (!r.ok) break;
+      state = r.state;
+      saveSnapshot(db, game.id, state);
+      actionCount += 1;
+    }
+
+    const snapshotRows = db
+      .select()
+      .from(gameSnapshots)
+      .where(eq(gameSnapshots.gameId, game.id))
+      .all();
+    expect(snapshotRows.length).toBeGreaterThan(0);
+
+    for (const row of snapshotRows) {
+      // Each snapshot must not embed an events array.
+      const parsed = JSON.parse(row.state) as Partial<GameState> & {
+        events?: unknown;
+      };
+      expect(parsed.events).toBeUndefined();
+      // 8KB ceiling per snapshot — guards against quadratic regrowth.
+      expect(row.state.length).toBeLessThan(8 * 1024);
+    }
   });
 });

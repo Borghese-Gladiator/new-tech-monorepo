@@ -52,4 +52,4 @@ export { resolveHand } from "./showdown.js";
 export type { ShowdownResult } from "./showdown.js";
 
 export { startHand } from "./start-hand.js";
-export type { StartHandOptions } from "./start-hand.js";
+export type { StartHandOptions, StartHandResult } from "./start-hand.js";

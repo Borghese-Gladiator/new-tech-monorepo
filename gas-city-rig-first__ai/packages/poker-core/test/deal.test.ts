@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardId, startHand, advanceStreet, applyAction } from "../src/index.js";
+import { cardId, startHand, advanceStreet, applyAction, type GameState } from "../src/index.js";
 
 const cfg = {
   blinds: { sb: 1, bb: 2 },
@@ -11,14 +11,14 @@ const cfg = {
 
 describe("deal", () => {
   it("deals 2 hole cards to each player", () => {
-    const state = startHand({ config: cfg });
+    const { state } = startHand({ config: cfg });
     for (const p of state.players) {
       expect(p.holeCards.length).toBe(2);
     }
   });
 
   it("draws community cards from the same deck (no duplicates with hole cards)", () => {
-    let state = startHand({ config: cfg });
+    let { state } = startHand({ config: cfg });
     // everyone calls / checks through to the river
     while (state.street !== "river" || !canAdvance(state)) {
       if (state.currentSeat === null) {
@@ -50,7 +50,7 @@ describe("deal", () => {
   });
 
   it("flop has 3 cards, turn 1, river 1", () => {
-    let state = startHand({ config: cfg });
+    let { state } = startHand({ config: cfg });
     state = drainBettingRound(state);
     let adv = advanceStreet(state);
     expect(adv.ok).toBe(true);
@@ -70,11 +70,11 @@ describe("deal", () => {
   });
 });
 
-function canAdvance(state: ReturnType<typeof startHand>): boolean {
+function canAdvance(state: GameState): boolean {
   return state.currentSeat === null;
 }
 
-function drainBettingRound(state: ReturnType<typeof startHand>): ReturnType<typeof startHand> {
+function drainBettingRound(state: GameState): GameState {
   let s = state;
   while (s.currentSeat !== null) {
     const seat = s.currentSeat;

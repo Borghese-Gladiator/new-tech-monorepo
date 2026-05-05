@@ -219,6 +219,5 @@ function makeShowdown(opts: {
     currentBet: 0,
     lastRaiseSize: 0,
     buttonSeat: 0,
-    events: [],
   };
 }

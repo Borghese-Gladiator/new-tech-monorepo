@@ -78,7 +78,6 @@ export function resolveHand(state: GameState): ShowdownResult {
     pots: [],
     currentSeat: null,
     street: "showdown",
-    events: [...state.events, ...events],
   };
   return { state: nextState, events };
 }

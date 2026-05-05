@@ -74,7 +74,6 @@ export function advanceStreet(state: GameState): AdvanceResult {
     currentSeat: nextCurrentSeat,
     currentBet: 0,
     lastRaiseSize: 0,
-    events: [...state.events, ...events],
   };
   return { ok: true, state: nextState, events };
 }

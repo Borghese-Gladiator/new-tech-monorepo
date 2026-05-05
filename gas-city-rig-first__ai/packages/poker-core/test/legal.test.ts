@@ -11,7 +11,7 @@ const cfg = {
 
 describe("legal actions", () => {
   it("UTG facing the BB cannot check, must call/raise/fold", () => {
-    const state = startHand({ config: cfg });
+    const { state } = startHand({ config: cfg });
     const opts = legalActions(state, state.currentSeat ?? -1);
     expect(opts.canCheck).toBe(false);
     expect(opts.canCall).toBe(true);
@@ -20,26 +20,26 @@ describe("legal actions", () => {
   });
 
   it("min raise after BB equals 2*BB total committed-to (raise-to)", () => {
-    const state = startHand({ config: cfg });
+    const { state } = startHand({ config: cfg });
     const opts = legalActions(state, state.currentSeat ?? -1);
     // BB is 2; min raise increment is BB; so min raise-to = 4
     expect(opts.minRaiseTo).toBe(4);
   });
 
   it("rejects raise below min-raise (and not all-in)", () => {
-    const state = startHand({ config: cfg });
+    const { state } = startHand({ config: cfg });
     const r = applyAction(state, { kind: "raise", amount: 3 });
     expect(r.ok).toBe(false);
   });
 
   it("accepts a min raise to 4", () => {
-    const state = startHand({ config: cfg });
+    const { state } = startHand({ config: cfg });
     const r = applyAction(state, { kind: "raise", amount: 4 });
     expect(r.ok).toBe(true);
   });
 
   it("after a raise, next actor cannot check (facing a bet)", () => {
-    const state = startHand({ config: cfg });
+    const { state } = startHand({ config: cfg });
     const r1 = applyAction(state, { kind: "raise", amount: 6 });
     if (!r1.ok) throw new Error(r1.reason);
     const opts = legalActions(r1.state, r1.state.currentSeat ?? -1);
@@ -49,7 +49,7 @@ describe("legal actions", () => {
   });
 
   it("postflop with no bet: can check, cannot call, can bet (raise from 0)", () => {
-    let state = startHand({ config: cfg });
+    let { state } = startHand({ config: cfg });
     // Everyone calls/checks to the flop.
     while (state.currentSeat !== null) {
       const seat = state.currentSeat;

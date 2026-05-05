@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceStreet, applyAction, startHand } from "../src/index.js";
+import { advanceStreet, applyAction, startHand, type GameState } from "../src/index.js";
 
 const cfg = {
   blinds: { sb: 1, bb: 2 },
@@ -11,13 +11,13 @@ const cfg = {
 
 describe("street advance", () => {
   it("refuses to advance while betting round still open", () => {
-    const state = startHand({ config: cfg });
+    const { state } = startHand({ config: cfg });
     const r = advanceStreet(state);
     expect(r.ok).toBe(false);
   });
 
   it("advances after round closes; resets street betting", () => {
-    let state = startHand({ config: cfg });
+    let { state } = startHand({ config: cfg });
     while (state.currentSeat !== null) {
       const seat = state.currentSeat;
       const p = state.players.find((pp) => pp.seat === seat);
@@ -39,7 +39,7 @@ describe("street advance", () => {
   });
 
   it("advances flop → turn → river → showdown", () => {
-    let state = startHand({ config: cfg });
+    let { state } = startHand({ config: cfg });
     state = drain(state);
     let adv = advanceStreet(state);
     if (!adv.ok) throw new Error(adv.reason);
@@ -63,7 +63,7 @@ describe("street advance", () => {
   });
 });
 
-function drain(state: ReturnType<typeof startHand>): ReturnType<typeof startHand> {
+function drain(state: GameState): GameState {
   let s = state;
   while (s.currentSeat !== null) {
     const seat = s.currentSeat;
