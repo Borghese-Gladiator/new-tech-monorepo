@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "chrome-devtools-mcp",
+      "args": []
+    }
+  },
+  "_notes": {
+    "absolute_path": "If your client requires an absolute path, replace command with the output of `which chrome-devtools-mcp`, e.g. /usr/local/bin/chrome-devtools-mcp or /opt/homebrew/bin/chrome-devtools-mcp.",
+    "custom_port": "To use a non-default port, set args to [\"--port\", \"3001\", \"--chrome-url\", \"http://localhost:9222\"].",
+    "client_config_locations": {
+      "claude_desktop_macos": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "claude_desktop_windows": "%APPDATA%/Claude/claude_desktop_config.json",
+      "claude_code": "~/.claude/settings.json or project .claude/settings.json"
+    }
+  }
+}
