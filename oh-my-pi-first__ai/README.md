@@ -245,3 +245,45 @@ Trade-off: heavier to install (needs Bun) and more moving parts than aider, but 
 1. Decide which terminal we're standardizing on (iTerm2 is already installed and works out of the box — easiest).
 2. Wrap the existing `embeddings/search.py` as an `omp` custom slash command so retrieval is one keystroke inside the TUI.
 3. Decide a default project context file (`.omp/AGENTS.md` or similar) for the monorepo root so `omp` picks up house rules automatically.
+
+---
+
+## Addendum — Cross-agent comparison (session findings)
+
+Findings from a single test session that bootstrapped and ran three coding agents (aider, omp, opencode) against the same local Ollama on this machine. Same content is mirrored in `../opencode-first__ai/README.md` and `../ollama-pi-coding-agent-first__ai/README.md` so any one of these folders is self-sufficient.
+
+### A/B/C/D test on the same model (`mistral:latest`, ~7B) and same prompt
+
+Prompt: `"What is 2+2? Reply with just the number."` Expected: `4`.
+
+| Caller | Result | Notes |
+| --- | :---: | --- |
+| `command curl http://localhost:11434/api/generate ...` (bare Ollama) | ✅ `4` | Baseline. The model itself is fine. |
+| `omp -p --no-tools --no-extensions --model ollama/mistral:latest "..."` | ✅ `4` | omp's plain-Q&A path is healthy when the MCP storm is bypassed and tools are off. |
+| `opencode run -m ollama/mistral:latest --agent plan "..."` | ❌ off-prompt rant about CI/CD, dark mode, CSRF tokens | opencode's `plan` agent injects a verbose architectural system prompt. mistral 7B's instruction-following collapses under the weight; it pattern-completes on the system prompt instead of answering the user. |
+| `aider --model ollama_chat/mistral:latest --no-git --yes --message "..."` | ✅ `4` | aider's system prompt is light; the model has room to actually answer. |
+
+### Layer-isolation finding
+
+When the bare Ollama API returns the right answer but a wrapper agent does not, the failure is in the **harness**, not the model. Two distinct harness-layer failure modes were observed in this session:
+
+- **omp:** ~11 inherited Claude-Code MCP servers (HTTP 401 / ENOENT every cold start) polluted the tool list and likely degraded function-calling on `qwen3-coder:30b` (the model hallucinated a fake monorepo listing). Same model + same Ollama under opencode's clean tool list invoked `ls -a` correctly.
+- **opencode:** the `plan` agent's heavy system prompt overwhelms small (≤7B) instruction-following. `--agent build` has a lighter prompt; `qwen3-coder:30b` and larger handle either.
+
+### Recommended pairing matrix
+
+Picking by hardware/model size on this machine (M2 Max, 64 GB):
+
+| Model class | Best agent here | Why |
+| --- | --- | --- |
+| ≤ 7B local (`mistral`, `llama3.2`) | **aider** (Poetry venv in `../ollama-pi-coding-agent-first__ai/`) | Lightest system prompt, cleanest tool surface. Avoids opencode's `plan`-prompt overload and omp's MCP storm. |
+| 13–30B local (`qwen3-coder:30b`, `qwen2.5:14b`) | **opencode** | Tool-call reliability beats omp on the same model (real `ls` vs hallucinated). Use `--agent plan` for read-only or `--agent build` for full access. |
+| 30B+ local with tool-using sessions | Hybrid: cloud default, local `smol` | Local 30B at ~10 tok/s is too slow for productive agentic loops; pin a cloud model to the default role and keep Ollama for cheap exploration subagents. |
+| Cloud frontier (Claude Opus/Sonnet, GPT-4-class) | **omp** or **opencode** (parity at this tier) | Both have feature-rich TUIs; pick by feature preference (omp: TTSR, IPython kernel, native engine; opencode: client/server, GitHub PR fetch, web UI). |
+
+### Permanent setup mitigations worth doing
+
+- **`OLLAMA_KEEP_ALIVE=30s`** — set before `ollama serve` starts. Prevents the 50–57 GB pinned-after-kill state we hit with `qwen3-coder-next` (79.7B / 262K context).
+- **omp:** prune `~/.claude/` MCP servers you don't actually use, or `alias omp='omp --no-extensions'` to skip discovery entirely.
+- **opencode:** use `--agent build` for small models; reserve `--agent plan` for ≥30B or cloud.
+- **Timeouts:** budget 300–600s per turn for local 30B agentic sessions, not 180s.
