@@ -250,7 +250,7 @@ export default function GamePage(): JSX.Element {
               })}
             </div>
 
-            <Pot pots={gameState.pots} />
+            <Pot pots={gameState.pots} players={gameState.players} />
             <Board community={gameState.community} street={gameState.street} />
           </section>
 
