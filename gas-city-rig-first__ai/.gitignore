@@ -9,6 +9,10 @@
 # Node
 node_modules/
 
+# Override parent .gitignore "lib/" Python rule for our app source dirs
+!apps/*/src/lib/
+!apps/*/src/lib/**
+
 # Build / runtime artifacts
 **/.next/
 apps/*/dist/
