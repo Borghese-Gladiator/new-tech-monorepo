@@ -84,3 +84,28 @@ This may be intentional (`listOpenGames` filters by status, and maybe the server
 1. **Fix BUG-V1** — server-side `GAME_FULL` rejection in `joinGame.ts` + web error-toast plumbing.
 2. **Fix BUG-V2** — side-pot count rendering in `Pot.tsx`.
 3. **Document or fix** the resolved-hands-disappear-from-lobby behavior.
+
+---
+
+## Re-validation run (2026-05-05, after BUG-V1 + BUG-V2 fixes landed)
+
+Replayed the same browser flows after commits `fabacdf` (BUG-V1) and `9150422` (BUG-V2).
+
+### BUG-V1 — fixed ✅
+- Loaded the lobby. Game `#24` showed `in_progress · 2/2 seated` (full).
+- Typed `Carol` + `24` + clicked Join.
+- Result: page navigated to `/game/24?name=Carol` momentarily, then **redirected back to `/`**. The `router.replace('/')` on `GAME_FULL` works as designed.
+- Compare to the original repro (`validation-carol-stuck.png`) where Carol was permanently stranded on the table page with "Waiting for opponent…".
+- Screenshot: `validation2-bug-v1-fixed.png`
+
+### BUG-V2 — fixed ✅
+- Created game `#25` as Alice. Bob joined from a second tab. Hand auto-started.
+- Pot panel rendered exactly:
+  ```
+  Pot
+  3
+  ```
+- **No "2 side pots" subtext.** The `meaningfulSidePotCount` helper correctly returns 0 for the SB+BB heads-up preflop case.
+- Screenshot: `validation2-bug-v2-fixed.png`
+
+Both fixes hold up live. The two screenshots above sit alongside the original `validation-carol-stuck.png` and `validation-bob-reconnecting.png` for before/after comparison.
