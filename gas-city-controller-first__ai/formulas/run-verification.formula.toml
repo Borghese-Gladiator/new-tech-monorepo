@@ -1,0 +1,22 @@
+formula = "run-verification"
+description = "Run automated verification and route failures."
+
+[[steps]]
+id = "install"
+title = "Install dependencies"
+description = "Run pnpm install if needed."
+
+[[steps]]
+id = "static"
+title = "Run static checks"
+description = "Run pnpm typecheck and pnpm lint."
+
+[[steps]]
+id = "unit"
+title = "Run unit and integration tests"
+description = "Run pnpm test."
+
+[[steps]]
+id = "report"
+title = "Report failures"
+description = "Summarize failing command, file, test name, expected behavior, actual behavior, and likely owner."

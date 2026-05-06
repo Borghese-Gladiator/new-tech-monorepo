@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `seats_session_token_unique_idx` ON `seats` (`session_token`) WHERE session_token IS NOT NULL;

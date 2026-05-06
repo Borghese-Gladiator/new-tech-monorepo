@@ -1,0 +1,17 @@
+formula = "implement-web-client"
+description = "Implement Next.js poker UI in apps/web."
+
+[[steps]]
+id = "lobby"
+title = "Build lobby"
+description = "Create game, join game, resume game, and list open games."
+
+[[steps]]
+id = "table"
+title = "Build table"
+description = "Render seats, hole cards, community cards, pot, current player, street, and action controls."
+
+[[steps]]
+id = "socket-client"
+title = "Connect Socket.IO client"
+description = "Handle connection status, reconnect, snapshots, game events, and error messages."

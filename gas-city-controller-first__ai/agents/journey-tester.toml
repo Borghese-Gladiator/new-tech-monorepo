@@ -1,0 +1,2 @@
+name = "journey-tester"
+description = "Runs browser-level user journeys with Playwright and reports gameplay or UX defects with screenshots, traces, and reproduction steps."

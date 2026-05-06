@@ -1,0 +1,17 @@
+formula = "run-browser-journeys"
+description = "Run Playwright multiplayer acceptance journeys."
+
+[[steps]]
+id = "boot"
+title = "Start app"
+description = "Start server and web app for browser testing."
+
+[[steps]]
+id = "journeys"
+title = "Run journeys"
+description = "Run Playwright scenarios for two-player join, reconnect, fold, call, raise, and showdown smoke paths."
+
+[[steps]]
+id = "evidence"
+title = "Collect evidence"
+description = "Attach screenshots, traces, console errors, and exact reproduction steps."

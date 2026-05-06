@@ -1,0 +1,24 @@
+# Gas City
+.beads/*
+!.beads/config.yaml
+!.beads/metadata.json
+.gc/
+.runtime/
+.claude/
+
+# Node
+node_modules/
+
+# Override parent .gitignore "lib/" Python rule for our app source dirs
+!apps/*/src/lib/
+!apps/*/src/lib/**
+
+# Build / runtime artifacts
+**/.next/
+apps/*/dist/
+apps/*/.data/
+
+# Playwright
+tests/journeys/test-results/
+tests/journeys/playwright-report/
+tests/journeys/.playwright/

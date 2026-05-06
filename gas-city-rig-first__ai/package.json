@@ -1,0 +1,19 @@
+{
+  "name": "gas-city-rig-first-ai",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "pnpm -r --if-present run lint",
+    "test": "pnpm -r --if-present run test",
+    "test:e2e": "pnpm --filter @gas-city/journeys run test:e2e",
+    "test:e2e:install": "pnpm --filter @gas-city/journeys run test:e2e:install"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3"]
+  }
+}

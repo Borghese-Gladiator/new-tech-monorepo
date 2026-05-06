@@ -1,0 +1,5 @@
+issue_prefix: gccfa
+issue-prefix: gccfa
+dolt.auto-start: false
+gc.endpoint_origin: managed_city
+gc.endpoint_status: verified

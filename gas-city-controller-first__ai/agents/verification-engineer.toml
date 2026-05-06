@@ -1,0 +1,2 @@
+name = "verification-engineer"
+description = "Runs static checks, unit tests, and integration tests, and returns actionable failures with file/test/expected/actual context."

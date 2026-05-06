@@ -1,0 +1,2 @@
+name = "code-steward"
+description = "Reviews changes for correctness, maintainability, security, package-boundary hygiene, and missing edge cases or tests."

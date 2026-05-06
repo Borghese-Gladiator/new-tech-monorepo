@@ -1,0 +1,4 @@
+name = "review-before-merge"
+description = "Review completed changes before merge."
+formula = "review-change"
+agents = ["code-steward"]
