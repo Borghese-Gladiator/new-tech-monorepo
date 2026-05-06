@@ -297,3 +297,12 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+#=====================
+#  AI TOOLS
+#=====================
+# Aider local conversation history
+.aider*
+
+# Beads issue tracker (used in subprojects, not at monorepo root)
+.beads/
