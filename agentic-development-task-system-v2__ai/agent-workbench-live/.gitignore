@@ -1,0 +1,8 @@
+# Worktrees live here (managed by `agent-workbench start`).
+# Track the folder marker but not the contents.
+/worktrees/*
+!/worktrees/.gitkeep
+
+# Local-only / transient
+.claude/scheduled_tasks.lock
+.playwright-mcp/
