@@ -18,6 +18,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!agentic-development-task-system-v2__ai/agent-workbench-live/lib/
 lib64/
 parts/
 sdist/
