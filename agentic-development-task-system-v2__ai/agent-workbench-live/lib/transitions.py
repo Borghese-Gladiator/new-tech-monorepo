@@ -188,6 +188,7 @@ def _secondary_payload(event_type: str, evidence: dict, meta: dict) -> dict | No
             "bounce_reason": evidence.get("bounce_reason"),
             "requested_by": evidence.get("requested_by"),
             "handoff_path": evidence.get("handoff_path"),
+            "change_request_path": evidence.get("change_request_path"),
         }
     return None
 

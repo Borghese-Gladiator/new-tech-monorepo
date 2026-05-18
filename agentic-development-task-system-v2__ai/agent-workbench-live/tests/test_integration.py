@@ -164,17 +164,18 @@ class TestHappyPath(IntegrationCase):
 
 
 class TestBounceLoop(IntegrationCase):
-    def test_bounce_back_to_building(self):
+    def _drive_to_human_review(self) -> tuple[str, pathlib.Path]:
+        """Drive a fresh run to human_review and return (run_id, run_dir)."""
         repo = self._repo()
-        idea = self.tmp / "idea.md"
+        idea = self.tmp / f"idea-{repo.name}.md"
         idea.write_text("bounce test\n")
 
         r = cli(self.tmp, "new-run", "--repo-path", str(repo),
-                "--worktree-name", "bounce-test", "--idea-file", str(idea))
+                "--worktree-name", f"bounce-test-{repo.name}",
+                "--idea-file", str(idea))
         run_id = r.stdout.strip()
         run_dir = self.tmp / "runs" / run_id
 
-        # Drive to human_review
         cli(self.tmp, "shape", run_id, "--init")
         (run_dir / "brief.md").write_text("# Brief\nB.\n")
         cli(self.tmp, "shape", run_id)
@@ -190,17 +191,76 @@ class TestBounceLoop(IntegrationCase):
             (run_dir / n).write_text(f"# {n}\nx\n")
         (run_dir / "qa" / "report.md").write_text("# QA\nx\n")
         cli(self.tmp, "validate", run_id)
+        return run_id, run_dir
 
-        # Bounce
+    def test_bounce_back_to_building(self):
+        run_id, run_dir = self._drive_to_human_review()
+
+        # Backwards-compat: bounce with no --change-request-path still works.
         r = cli(self.tmp, "bounce", run_id,
                 "--reason", "needs tests",
                 "--requested-by", "tester")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("human_review -> building", r.stdout)
+        self.assertNotIn("change-request:", r.stdout)
 
         # Re-validate
         cli(self.tmp, "validate", run_id, "--init")
         cli(self.tmp, "validate", run_id)
+
+        r = cli(self.tmp, "show", run_id)
+        self.assertIn("status:     human_review", r.stdout)
+
+    def test_bounce_with_change_request_path(self):
+        run_id, run_dir = self._drive_to_human_review()
+
+        cr_path = run_dir / "change-request.md"
+        cr_path.write_text(
+            "# Change Request — " + run_id + "\n\n"
+            "## Bounce 1 — 2026-05-18T00:00:00Z — tester\n\n"
+            "**Scope:** Implementation\n"
+        )
+
+        r = cli(self.tmp, "bounce", run_id,
+                "--reason", "rework hand evaluator",
+                "--requested-by", "tester",
+                "--change-request-path", str(cr_path))
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("human_review -> building", r.stdout)
+        self.assertIn("change-request:", r.stdout)
+
+        # The BounceRequested event should carry change_request_path in its payload.
+        r = cli(self.tmp, "events", run_id, "--type", "BounceRequested", "--raw")
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("change_request_path", r.stdout)
+
+    def test_bounce_with_missing_change_request_file_fails(self):
+        run_id, run_dir = self._drive_to_human_review()
+
+        missing = run_dir / "change-request.md"  # not created
+        r = cli(self.tmp, "bounce", run_id,
+                "--reason", "x",
+                "--requested-by", "tester",
+                "--change-request-path", str(missing))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("change-request file not found", r.stderr + r.stdout)
+
+        # State should not have advanced.
+        r = cli(self.tmp, "show", run_id)
+        self.assertIn("status:     human_review", r.stdout)
+
+    def test_bounce_with_empty_change_request_file_fails(self):
+        run_id, run_dir = self._drive_to_human_review()
+
+        empty = run_dir / "change-request.md"
+        empty.write_text("")
+
+        r = cli(self.tmp, "bounce", run_id,
+                "--reason", "x",
+                "--requested-by", "tester",
+                "--change-request-path", str(empty))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("empty", r.stderr + r.stdout)
 
         r = cli(self.tmp, "show", run_id)
         self.assertIn("status:     human_review", r.stdout)

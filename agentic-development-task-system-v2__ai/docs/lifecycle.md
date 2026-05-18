@@ -362,12 +362,13 @@ custom smoke scripts
 **Produces**
 
 - No required new artifacts. The human may add notes.
+- On `bounce` via the `/bounce` slash command: writes (or appends a new `## Bounce N` section to) `change-request.md` in the run dir. Manual CLI bounces may omit this artifact.
 
 **Exits**
 
 ```text
 complete -> done       (accepted)
-bounce   -> building   (changes requested; requires bounce_reason)
+bounce   -> building   (changes requested; requires bounce_reason; optional change_request_path)
 abandon  -> abandoned  (stopped; requires abandoned_reason)
 ```
 

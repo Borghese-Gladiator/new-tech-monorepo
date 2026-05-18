@@ -172,7 +172,9 @@ def _payload_summary(event_type: str, payload: dict) -> str:
     if event_type == "QACompleted":
         return f"tests_passed={payload.get('tests_passed')} report={payload.get('qa_report_path')}"
     if event_type == "BounceRequested":
-        return f"reason={payload.get('bounce_reason')}"
+        cr = payload.get("change_request_path")
+        suffix = f" change_request=`{cr}`" if cr else ""
+        return f"reason={payload.get('bounce_reason')}{suffix}"
     if event_type == "RunCompleted":
         return f"completion_ref={payload.get('completion_ref')} by={payload.get('accepted_by')}"
     if event_type == "RunAbandoned":

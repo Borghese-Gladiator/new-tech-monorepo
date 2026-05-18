@@ -130,6 +130,7 @@ transitions:
       optional:
         - requested_by
         - handoff_path
+        - change_request_path
     emits:
       - TransitionApplied
       - BounceRequested
