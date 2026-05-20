@@ -1,192 +1,135 @@
-# Plan — Renovate Task Workflow, Pass 3 (TODO §1f)
+# Plan — Renovate Task Workflow, Pass 4 (TODO §1g)
 
 ## Brief
 
-Insert a new lifecycle stage, `followups`, between `validating` and `human_review`. The stage authors a single forward-looking file — `stages/followups/follow-ups.md` — listing 1–5 candidate next-run ideas (or one explicit "no follow-ups identified" entry). **No execution.** This pass writes the file; the stretch `agent-workbench followup spawn` command stays deferred.
+Final Renovate piece. Add a blast-radius signal to `review.md` so reviewers catch scope creep before merge.
 
-**Confirmed decisions:**
+**Two complementary mechanisms:**
 
-- **Scope:** §1f only. §1g lands in pass 4 as a separate commit.
-- **Authoring path:** dedicated `agent-workbench followups` CLI + `/followups` slash command. `--init` transitions `validating → followups` and stages `follow-ups.md` from a template at run root for the LLM to fill. Default mode validates the file, applies the move-on-transition into `stages/followups/`, and transitions `followups → human_review`.
-- **Strictness:** the `followups → human_review` gate requires `follow-ups.md` to exist, be non-empty, and have YAML frontmatter on every entry with the 5-category enum. "No follow-ups identified" is written as one explicit entry with that category (per TODO §1f).
+1. **LLM-authored `## Blast radius` section** (in review.md, during `/validate` step 3). The reviewer agent uses `git` commands inside the worktree to traverse depth-3 callers and write the section itself. The CLI does not pre-compute this — it only instructs the LLM how.
+2. **CLI-appended `## Scope creep check` section** (programmatic, by `validate` default mode). Parses `brief.md`'s expected-files section, compares against `git diff --name-only <base>...HEAD`, and lists any diff files not anticipated by the brief.
+
+This mirrors the §1d split: mechanical comparison stays in the CLI, narrative analysis stays in the agent.
 
 ## Changes
 
-### 1. State machine (`schemas/transitions.yaml`)
+### 1. New module: `lib/scope_check.py`
 
-- Add `followups` to `states.non_terminal`.
-- Replace the existing `validating → human_review` transition with `validating → followups`, then add a new `followups → human_review`. Evidence requirements migrate to the followups transition where they make sense (most stay on the new `followups → human_review` since that's the gate the reviewer actually lands at).
-- Update `wildcard_transitions` (`any_non_terminal → abandoned`) — already wildcard, no edit needed.
-
-Concretely:
-
-```yaml
-states:
-  non_terminal:
-    - draft
-    - shaping
-    - planning
-    - ready
-    - building
-    - validating
-    - followups     # NEW
-    - human_review
-
-transitions:
-  # existing draft -> shaping … building -> validating unchanged
-  - from: validating
-    to: followups
-    description: Self-review and QA are complete; now brainstorm forward-looking follow-ups.
-    evidence:
-      required:
-        - review_report_path
-        - qa_report_path
-        - audit_path
-      optional:
-        - tests_passed
-        - known_issues_count
-        - qa_recording_path
-        - qa_trace_path
-    emits:
-      - TransitionApplied
-
-  - from: followups
-    to: human_review
-    description: Follow-up candidates are recorded; local branch and worktree ready for human review.
-    evidence:
-      required:
-        - followups_path
-        - handoff_path
-        - branch_name
-        - worktree_path
-      optional:
-        - audit_path
-    emits:
-      - TransitionApplied
-```
-
-The old `validating → human_review` rule is **removed**. Tests that drove validating directly to human_review have to add the followups hop.
-
-### 2. metadata.py
-
-Add `"followups"` to `STATUSES`. Add a new field-by-default to the `create()` metadata template:
+Public surface:
 
 ```python
-"artifacts": {
-    ...
-    "followups": None,     # NEW (set when --init stages the template)
-    ...
-},
+EXPECTED_FILE_SECTION_HEADINGS = (
+    "Files likely to change",
+    "Files to change",
+    "Scope",
+)
+
+def extract_expected_files(brief_md_text: str) -> list[str] | None
+    # Find a matching ## heading, parse bullet paths under it. None means no
+    # such section in the brief (signal: skip the check; can't reason about it).
+
+def detect_creep(expected: list[str], actual: list[str]) -> list[str]
+    # Return the subset of `actual` not in `expected`. Path matching is
+    # permissive: an entry like "src/foo/" matches any actual path that
+    # starts with that prefix; "*.md" globs are honored.
 ```
 
-This keeps the existing "artifact path lives in the artifacts block" pattern.
+`extract_expected_files` returns:
+- `None` if no matching heading exists in the brief (caller should skip — the brief didn't make a claim, so there's nothing to compare against).
+- An empty list `[]` if the heading exists but the section body has no bullets (treated as "brief expected zero files" — every actual diff file is creep).
+- A list of paths otherwise.
 
-### 3. lifecycle.py — promote follow-ups.md
+Path matching rules in `detect_creep`:
+- Exact-path match: equal strings.
+- Prefix match: if the expected entry ends with `/`, any actual path starting with it counts.
+- Glob match: `fnmatch.fnmatch` is used so `src/**/*.py` and `*.md` work.
 
-Extend `_STAGE_OUTPUTS` so the `followups` stage's output gets promoted on `followups → human_review`:
+### 2. CLI integration in `cmd_validate.py`
+
+In the default-mode `validate` (staged runs only, same place §1d's doc-claim check fires):
 
 ```python
-"followups": [
-    ("followups_path", "follow-ups.md", "followups", "follow-ups.md"),
-],
+_check_scope_creep(cfg, rd, meta, actor)  # NEW
+_verify_doc_claims_staged(cfg, run_id, rd, meta, actor)  # existing
 ```
 
-No new anchor-evidence keys needed.
+The helper:
+- Reads `stages/shaping/brief.md` (the canonical brief at this point — already moved by pass 1).
+- Calls `scope_check.extract_expected_files`. If `None`, no event, no review.md append, return.
+- Runs `git diff --name-only <base_ref>...HEAD` in `meta["target"]["worktree"]["path"]`.
+- Calls `scope_check.detect_creep`.
+- If creep non-empty: append a `## Scope creep check` section to `review.md` at run root (before the move). Lists each unexpected file with a one-line reviewer prompt.
+- Emits a `ScopeCreepChecked` event with `{expected, actual, creep}`.
 
-### 4. New module: `lib/followups.py`
-
-Owns the frontmatter parser + validator. Public surface:
-
-```python
-NONE_IDENTIFIED_CATEGORY = "no_followups"   # the explicit-opt-out entry
-
-VALID_CATEGORIES = {
-    "tech_debt", "scope_extension", "bug_risk",
-    "refactor", "docs", "deferred_from_bounce",
-    "no_followups",   # sentinel for explicit "none identified"
-}
-
-REQUIRED_FRONTMATTER_KEYS = ("title", "motivation", "suggested_scope", "category")
-
-def extract_entries(md_text) -> list[dict]
-    # Split on `---\n…\n---` blocks; parse YAML-ish frontmatter into dicts.
-
-def validate(md_text) -> list[str]
-    # Returns list of error strings; empty = OK.
-    # Errors: no entries; entry missing key; category not in enum; etc.
-```
-
-The parser uses the existing `lib.yaml_io` for the YAML body (subset-friendly). Frontmatter blocks are anywhere in the file separated by `---`; an "entry" is one frontmatter block plus the prose that follows it until the next block.
-
-### 5. New CLI command: `lib/cli/cmd_followups.py`
-
-```text
-agent-workbench followups <run_id> --init
-    Transition validating -> followups. Stages follow-ups.md from
-    templates/follow-ups.md at the run root.
-
-agent-workbench followups <run_id>
-    Validate follow-ups.md (validators from lib/followups.validate).
-    Transition followups -> human_review.
-```
-
-Both modes write `metadata.artifacts.followups = "stages/followups/follow-ups.md"` (after the transition for default mode, where the engine has just moved the file). Emit a `FollowupsRecorded` event in default mode with `{path, entry_count, categories}`.
-
-### 6. `cmd_validate.py` retargets to `followups`
-
-The default-mode `validate` currently runs `validating → human_review` and does ReviewCompleted / QACompleted / AuditRendered / HumanHandoffCreated / DocClaimsVerified. It now runs `validating → followups` instead and **moves the HumanHandoffCreated emission + the HUMAN_REVIEW.md section gate to the new `followups → human_review` transition** (since that's when the reviewer actually lands).
-
-Two practical consequences:
-- HUMAN_REVIEW.md doesn't have to exist at `validate` time. It only has to exist when `followups` is finalized.
-- The transition-engine gate `validate_human_review_sections` (added in pass 1) now fires on `followups → human_review`, not `validating → human_review`.
-
-### 7. New event: `FollowupsRecorded`
+### 3. New event: `ScopeCreepChecked`
 
 `schemas/events.jsonl`:
 
 ```jsonl
-{"kind":"event_schema","event_type":"FollowupsRecorded","required_fields":[…],"payload_required":["followups_path","entry_count","categories"],"payload_optional":["note"]}
+{"kind":"event_schema","event_type":"ScopeCreepChecked","required_fields":[…],"payload_required":["expected","actual","creep"],"payload_optional":["note","base_ref","worktree_path"]}
 ```
 
-### 8. New template: `templates/follow-ups.md`
+### 4. `/validate` slash command — instruct the LLM to author Blast radius
 
-YAML-frontmatter format example, with 3 sample entries. Reviewer-facing comments explain category meanings.
+Edit `agent-workbench-live/.claude/commands/validate.md` Step 3 (the review step). Add a sub-step to author the `## Blast radius` section:
 
-### 9. New slash command: `.claude/commands/followups.md`
+> Run from the worktree:
+>   ```
+>   git diff --name-only <base_ref>...HEAD
+>   ```
+>
+> For each touched file, identify the top-level symbols (functions, classes, exports) modified in this diff. For each modified symbol:
+>   ```
+>   git grep -n <symbol>     # depth-2 callers
+>   ```
+>   Then repeat for the callers of those callers, **stopping at depth 3.**
+>
+> Write a `## Blast radius` section in `review.md` with a tree like:
+>
+> ```
+> ## Blast radius
+>
+> depth 1 (changed files):
+>   src/foo.py
+>   src/bar.py
+>
+> depth 2 (callers of changed symbols):
+>   src/foo.py:fn_x → callers: src/baz.py, src/quux.py
+>   …
+>
+> depth 3 (callers of those callers):
+>   src/baz.py:fn_y → callers: tests/test_e2e.py
+>   …
+> ```
+>
+> If depth-2 or depth-3 includes files outside the brief's expected scope, call it out as scope creep in this section too.
 
-Thin wrapper — calls `agent-workbench followups` `--init`, instructs the LLM to author 1–5 mini-briefs reading `stages/{building,validating,planning}` + `events.jsonl` (filtered to BounceRequested) + any prior `archive/` briefs, writes `follow-ups.md`, then calls the default-mode CLI to finalize.
+### 5. `templates/review.md` — placeholder heading
 
-### 10. HUMAN_REVIEW.md template updates
-
-Wire the "Want to see what's next?" hub line to point at the new file (`stages/followups/follow-ups.md`). This was already a placeholder in pass 1's template.
+Add a `## Blast radius` placeholder so the section is visible even if the LLM skips it (reviewer can see the empty placeholder and complain).
 
 ## Tests
 
-### Unit
-- `tests/test_followups.py`:
-  - `test_extract_no_blocks_returns_empty`
-  - `test_extract_one_entry`
-  - `test_extract_multiple_entries`
-  - `test_validate_rejects_empty_file`
-  - `test_validate_rejects_missing_required_key`
-  - `test_validate_rejects_invalid_category`
-  - `test_validate_accepts_no_followups_sentinel`
-  - `test_validate_accepts_all_5_real_categories`
-- `tests/test_transitions.py`:
-  - Update `_evidence_for` for the new transitions.
-  - `test_validating_directly_to_human_review_rejected` — the old direct path no longer exists.
-  - `test_followups_to_human_review_requires_followups_path`
-  - `test_followups_to_human_review_requires_human_review_sections` — the existing gate now fires here, not on the validating hop.
+### Unit (`tests/test_scope_check.py`)
+- `test_extract_expected_files_returns_none_when_no_section`
+- `test_extract_expected_files_returns_empty_for_empty_section`
+- `test_extract_expected_files_returns_paths_under_files_likely_to_change`
+- `test_extract_expected_files_accepts_alt_headings` (Files to change, Scope)
+- `test_detect_creep_exact_match`
+- `test_detect_creep_prefix_match`
+- `test_detect_creep_glob_match`
+- `test_detect_creep_finds_unexpected`
+- `test_detect_creep_empty_expected_means_all_actual_are_creep`
 
 ### Integration
-- Update `test_full_lifecycle` to add a `/followups` hop:
-  - After `validate` (now: validating → followups), write `follow-ups.md` at run root with two real entries.
-  - Run `followups` (default mode), which transitions to `human_review`.
-  - Assert `stages/followups/follow-ups.md` exists and the top-level entries are exactly `{stages, HUMAN_REVIEW.md, metadata.yaml, events.jsonl, audit.md}`.
-- Update the bounce-loop test the same way.
+- Extend `test_full_lifecycle`: the brief has a `## Files likely to change` section listing one file; the actual diff touches a different file. Assert review.md (now at `stages/validating/review.md`) contains a `## Scope creep check` section listing the unexpected file. Assert a `ScopeCreepChecked` event was emitted.
 
-## Out of scope (still deferred)
+## Out of scope (deferred)
 
-- §1g (blast-radius in review.md) — separate commit in pass 4.
-- `agent-workbench followup spawn <run_id> <n>` (TODO §1f stretch) — creates a new draft run from a chosen mini-brief.
-- Migration / back-compat for any in-flight runs already in `validating` (none exist in practice; the only real run is `2026-05-18-poker` which is already in `human_review` on the flat layout — completely untouched).
+- Depth-2/3 caller graph in the CLI. Per the decision, the agent computes that via `git` itself.
+- Renaming the existing review-template `## Blast radius` placeholder to anything richer; that's free-form prose for the agent.
+- Configurable depth or stricter scope-creep policy. TODO §1g pins depth at 3 for V1.
+
+## After this lands
+
+All seven Renovate subsections (1a–1g) are complete. The Renovate work for TODO §1 is done; TODO file should advance §2 (Better worktree name) to the top of the remaining queue.

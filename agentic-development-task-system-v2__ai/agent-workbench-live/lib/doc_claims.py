@@ -38,7 +38,7 @@ _NONE_NEEDED_RE = re.compile(r"^\s*none\s+needed\b", re.IGNORECASE | re.MULTILIN
 # Bulleted line: "- <path> — <description>" or "- <path>: ..." etc.
 # Treat the first whitespace-bounded token (or token followed by " —", " -", ":")
 # as the path. Skip empty bullets and HTML comments.
-_BULLET_RE = re.compile(r"^\s*-\s+(?P<path>\S+?)(?:\s+[—\-:]|\s|$)", re.MULTILINE)
+_BULLET_RE = re.compile(r"^\s*-\s+(?P<path>\S+)", re.MULTILINE)
 
 
 def extract(build_md_text: str):

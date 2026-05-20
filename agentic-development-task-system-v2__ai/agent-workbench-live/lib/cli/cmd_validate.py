@@ -15,7 +15,9 @@ will auto-init if invoked from `building`.
 """
 from __future__ import annotations
 
-from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims
+import subprocess
+
+from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims, scope_check
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -36,6 +38,61 @@ def register(p) -> None:
     p.add_argument("--init", action="store_true", help="Stage post-impl templates and transition building -> validating.")
     p.add_argument("--tests-passed", choices=("true", "false"), help="Recorded on QACompleted.")
     p.add_argument("--known-issues", type=int, default=0)
+
+
+def _check_scope_creep_staged(cfg, run_id, rd, meta, actor) -> None:
+    """TODO §1g. Parse brief.md for expected-file claims, compare against the
+    worktree diff, append findings to review.md (run root), emit a
+    ScopeCreepChecked event. Skips silently if the brief makes no claim."""
+    brief_path = rd / "stages" / "shaping" / "brief.md"
+    if not brief_path.exists():
+        return
+    expected = scope_check.extract_expected_files(brief_path.read_text())
+    if expected is None:
+        # Brief didn't make a claim; nothing to compare against.
+        return
+
+    worktree_path = meta["target"]["worktree"]["path"]
+    base_ref = meta["target"]["repo"]["base_ref"]
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(worktree_path), "diff", "--name-only", f"{base_ref}...HEAD"],
+            capture_output=True, text=True, check=False,
+        )
+    except FileNotFoundError:
+        return
+    if proc.returncode != 0:
+        return
+    actual = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    creep = scope_check.detect_creep(expected, actual)
+
+    if creep:
+        review = rd / "review.md"
+        with open(review, "a") as f:
+            f.write("\n## Scope creep check\n\n")
+            f.write(
+                "Validating compared `brief.md`'s expected file list against "
+                "`git diff` in the worktree. The following files were changed "
+                "but NOT anticipated by the brief:\n\n"
+            )
+            for p in creep:
+                f.write(f"- `{p}`\n")
+            f.write(
+                "\nEither these are legitimate ripple effects (and the brief "
+                "should be updated), or the scope expanded mid-run. Reviewer: "
+                "confirm or push back.\n"
+            )
+    events.append(
+        cfg, run_id, "ScopeCreepChecked",
+        payload={
+            "expected": expected,
+            "actual": actual,
+            "creep": creep,
+            "base_ref": base_ref,
+            "worktree_path": worktree_path,
+        },
+        actor=actor,
+    )
 
 
 def _verify_doc_claims_staged(cfg, run_id, rd, meta, actor) -> None:
@@ -225,8 +282,11 @@ def run(args) -> int:
     # TODO §1d: verify the "Documentation touched" claims in build.md against
     # the worktree diff. Findings are appended to review.md so the reviewer
     # sees them; the transition still proceeds.
+    # TODO §1g: compare brief.md's expected file list to the actual diff.
+    # Unexpected files surface as a "Scope creep check" section in review.md.
     if staged:
         _verify_doc_claims_staged(cfg, run_id, rd, meta, actor)
+        _check_scope_creep_staged(cfg, run_id, rd, meta, actor)
 
     # Emit ReviewCompleted (best-effort decision parsing).
     review_text = (rd / "review.md").read_text()

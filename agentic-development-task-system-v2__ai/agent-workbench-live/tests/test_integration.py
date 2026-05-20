@@ -68,10 +68,12 @@ class TestHappyPath(IntegrationCase):
         idea = self.tmp / "idea.md"
         idea.write_text("Add a hello endpoint to the throwaway repo.\n")
 
-        # new-run
+        # new-run. base_ref=main so the §1g scope-creep diff has something
+        # to compare the worktree commit against.
         r = cli(self.tmp, "new-run",
                 "--repo-path", str(repo),
                 "--worktree-name", "hello-endpoint",
+                "--base-ref", "main",
                 "--idea-file", str(idea))
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         run_id = r.stdout.strip()
@@ -88,9 +90,16 @@ class TestHappyPath(IntegrationCase):
         self.assertIn("draft -> shaping", r.stdout)
 
         # Fill brief (staged layout: file lives at run root until shape closes
-        # the stage, then is moved into stages/shaping/).
+        # the stage, then is moved into stages/shaping/). Include a
+        # "Files likely to change" section so the §1g scope-creep check has
+        # something to compare against.
         brief = self.tmp / "runs" / run_id / "brief.md"
-        brief.write_text("# Brief\n\n## Goal\nAdd a hello endpoint.\n")
+        brief.write_text(
+            "# Brief\n\n"
+            "## Goal\nAdd a hello endpoint.\n\n"
+            "## Files likely to change\n\n"
+            "- src/hello.py\n"
+        )
 
         # shape finalize: shaping -> planning
         r = cli(self.tmp, "shape", run_id)
@@ -133,6 +142,18 @@ class TestHappyPath(IntegrationCase):
             ["git", "-C", str(repo), "show-ref", "--verify", "--quiet", "refs/heads/agent/hello-endpoint"]
         )
         self.assertEqual(branch_check.returncode, 0)
+
+        # Make a real change in the worktree on an UNEXPECTED file (the brief
+        # only anticipated src/hello.py). This drives the §1g scope-creep
+        # check to flag src/unexpected.py.
+        (worktree / "src").mkdir(exist_ok=True)
+        (worktree / "src" / "unexpected.py").write_text("x = 1\n")
+        subprocess.run(["git", "-C", str(worktree), "add", "-A"], check=True)
+        subprocess.run([
+            "git", "-C", str(worktree),
+            "-c", "user.name=t", "-c", "user.email=t@x",
+            "commit", "-q", "-m", "scope-creep file",
+        ], check=True)
 
         # Builder writes build.md DURING `building` (staged layout: it's the
         # building stage's output and gets moved by the engine on transition).
@@ -209,6 +230,17 @@ class TestHappyPath(IntegrationCase):
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("DocClaimsVerified", r.stdout)
         self.assertIn("README.md", r.stdout)
+
+        # TODO §1g: the brief expected src/hello.py but the worktree commit
+        # added src/unexpected.py. The validator detected the creep and
+        # appended a Scope creep check section to review.md.
+        self.assertIn("## Scope creep check", review)
+        self.assertIn("src/unexpected.py", review)
+        # And a ScopeCreepChecked event was emitted.
+        r = cli(self.tmp, "events", run_id, "--type", "ScopeCreepChecked", "--raw")
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("ScopeCreepChecked", r.stdout)
+        self.assertIn("src/unexpected.py", r.stdout)
 
         # TODO §1e: build block populated with defaults during validate --init.
         meta_text = (run_dir / "metadata.yaml").read_text()

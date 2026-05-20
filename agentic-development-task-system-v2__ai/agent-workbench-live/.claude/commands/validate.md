@@ -46,6 +46,20 @@ Be adversarial. The reviewer is not the builder. Read `brief.md`, `plan.md`, and
 
 Write `review.md` with a Decision (`approve` | `request_changes` | `block`) and any findings.
 
+### Blast radius (TODO §1g)
+
+Author a `## Blast radius` section in `review.md` by tracing callers up to depth 3 via git commands run from inside the worktree:
+
+```bash
+git diff --name-only <base_ref>...HEAD       # depth-1: changed files
+# For each touched file, identify top-level symbols modified in the diff.
+# For each modified symbol:
+git grep -n <symbol>                          # depth-2: callers
+# Repeat for callers of those callers; STOP AT DEPTH 3.
+```
+
+Render the result as a small tree (see `templates/review.md` for the exact format). Flag any depth-2/3 file that lives OUTSIDE what `brief.md`'s expected-scope section anticipated. The CLI's `validate` command separately handles depth-1 scope creep — if it finds any, it appends a `## Scope creep check` section to `review.md` for you; mention it in your Blast radius narrative if so.
+
 ## Step 4 — QA
 
 Pick QA passes appropriate for the repo (any of):
