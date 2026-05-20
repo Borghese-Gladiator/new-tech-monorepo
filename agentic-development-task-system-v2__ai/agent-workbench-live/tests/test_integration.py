@@ -133,7 +133,14 @@ class TestHappyPath(IntegrationCase):
 
         # Builder writes build.md DURING `building` (staged layout: it's the
         # building stage's output and gets moved by the engine on transition).
-        (run_dir / "build.md").write_text("# Build\nAdded /hello.\n")
+        # The Documentation touched section claims README.md was updated, but
+        # we leave the worktree's README untouched -- the validator must flag
+        # this unverified claim in review.md (TODO §1d).
+        (run_dir / "build.md").write_text(
+            "# Build\nAdded /hello.\n\n"
+            "## Documentation touched\n\n"
+            "- README.md — claimed update that didn't happen\n"
+        )
 
         # validate --init: building -> validating
         r = cli(self.tmp, "validate", run_id, "--init")
@@ -167,6 +174,25 @@ class TestHappyPath(IntegrationCase):
         self.assertTrue((run_dir / "stages" / "validating" / "review.md").exists())
         self.assertTrue((run_dir / "stages" / "validating" / "qa" / "report.md").exists())
         self.assertTrue((run_dir / "HUMAN_REVIEW.md").exists())
+        # TODO §1d: the validator detected README.md was claimed but unchanged
+        # and appended a Documentation claims section to review.md (now at
+        # stages/validating/review.md after the human_review transition moved it).
+        review = (run_dir / "stages" / "validating" / "review.md").read_text()
+        self.assertIn("## Documentation claims", review)
+        self.assertIn("README.md", review)
+        # And a DocClaimsVerified event was emitted.
+        r = cli(self.tmp, "events", run_id, "--type", "DocClaimsVerified", "--raw")
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("DocClaimsVerified", r.stdout)
+        self.assertIn("README.md", r.stdout)
+
+        # TODO §1e: build block populated with defaults during validate --init.
+        meta_text = (run_dir / "metadata.yaml").read_text()
+        self.assertIn("build:", meta_text)
+        self.assertIn("iterations: 1", meta_text)
+        self.assertIn("exit_reason: tests_green", meta_text)
+        self.assertIn("max_iterations: 5", meta_text)
+
         # Run-root pre-staging files are gone (they were moved on transition).
         self.assertFalse((run_dir / "brief.md").exists())
         self.assertFalse((run_dir / "build.md").exists())

@@ -50,3 +50,23 @@ the section is conventional.)
 ## Commands run
 
 <!-- Notable build/test commands the builder ran. Helps the reviewer reproduce. -->
+
+## Documentation touched
+
+<!--
+TODO §1d. List repo-doc updates this run made to the *target* repo (README,
+AGENTS.md, CHANGELOG, inline comments, etc.). Validating reads this section
+against `git diff` and flags claimed files that aren't actually changed.
+
+Valid formats:
+
+  - README.md — added a /hello endpoint example
+  - docs/api.md — documented the new response schema
+
+OR, if no doc updates were warranted:
+
+  none needed — the change is internal-only and has no user-facing surface
+
+Silent skipping is not valid. Either list files or say "none needed — ..."
+with a one-line justification.
+-->

@@ -41,6 +41,8 @@ runs/<run_id>/
 
 The transition engine moves a stage's run-root outputs into `stages/<stage>/` as the stage closes. The `validating → human_review` transition is rejected if `HUMAN_REVIEW.md` is missing either required heading. A bounce from `human_review → building` archives the prior `stages/building/` and `stages/validating/` as `<file>-v<N>.md` (and `qa-v<N>/` for the QA subtree) before the rebuild begins.
 
+The `building → validating` transition (TODO §1e) requires `build_iterations` and `build_exit_reason` evidence; `validate --init` fills sensible defaults (`1` / `tests_green`) into `metadata.yaml`'s `build:` block when the builder didn't set them, so the reviewer sees the defaults explicitly and can challenge them. The validating stage (TODO §1d) also reads `build.md`'s "Documentation touched" section and compares the claimed paths against `git diff` in the target worktree; unverified claims are appended to `review.md` under a `## Documentation claims` section and a `DocClaimsVerified` event is recorded.
+
 **Back-compat.** Runs created before this change keep their flat layout (everything at the run root). The CLI and helpers detect layout per-run; flat runs are read-only and never migrated implicitly.
 
 ## States

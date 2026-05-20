@@ -96,6 +96,8 @@ transitions:
       required:
         - implementation_summary_path
         - diff_summary_path
+        - build_iterations
+        - build_exit_reason
       optional:
         - commit_sha
         - changed_files_count

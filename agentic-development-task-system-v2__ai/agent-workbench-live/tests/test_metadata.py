@@ -70,6 +70,73 @@ class TestMetadata(unittest.TestCase):
         runs = metadata.list_runs(self.cfg)
         self.assertEqual(runs, ["2026-05-18-a", "2026-05-18-b"])
 
+    def test_create_includes_build_block(self):
+        """TODO §1e: new runs have a build: telemetry block."""
+        meta = self._create_run("2026-05-20-build")
+        self.assertIn("build", meta)
+        self.assertIsNone(meta["build"]["iterations"])
+        self.assertIsNone(meta["build"]["exit_reason"])
+        self.assertEqual(meta["build"]["max_iterations"], 5)
+
+    def test_load_without_build_block_backcompat(self):
+        """A flat-layout run.yaml missing the build: key must still load
+        (TODO §1e back-compat for pre-renovate runs)."""
+        rd = self.cfg.runs_path / "legacy"
+        rd.mkdir(parents=True)
+        (rd / "metadata.yaml").write_text("""schema_version: 1
+run_id: legacy
+status: draft
+created_at: 2025-12-01T00:00:00
+updated_at: 2025-12-01T00:00:00
+target:
+  repo:
+    mode: existing
+    path: /tmp/x
+    name: x
+    base_ref: HEAD
+    fingerprint: null
+    created_by_run: null
+  worktree:
+    name: x
+    path: null
+    branch_name: agent/x
+    created: false
+    base_ref: HEAD
+    initial_commit_sha: null
+scope:
+  kind: implementation
+  summary: ''
+artifacts:
+  raw_idea: raw-idea.md
+  answers: null
+  brief: null
+  plan: null
+  preflight: null
+  assumptions: null
+  decisions: null
+  implementation_summary: null
+  diff_summary: null
+  review_report: null
+  qa_report: null
+  audit: null
+  handoff: null
+validation:
+  required: true
+  review_completed: false
+  qa_completed: false
+  qa_recorded: false
+  tests_passed: null
+  known_issues_count: 0
+completion:
+  accepted_by: null
+  completion_ref: null
+  completed_at: null
+  abandoned_reason: null
+""")
+        loaded = metadata.load(self.cfg, "legacy")
+        self.assertEqual(loaded["status"], "draft")
+        self.assertNotIn("build", loaded)
+
 
 if __name__ == "__main__":
     unittest.main()

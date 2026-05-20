@@ -175,9 +175,23 @@ def create(
             "completed_at": None,
             "abandoned_reason": None,
         },
+        # Build-loop telemetry surfaced for the reviewer (TODO §1e). Optional
+        # at load time so flat-layout runs created before this field existed
+        # still load; required to be filled by validate --init before
+        # building -> validating.
+        "build": {
+            "iterations": None,
+            "exit_reason": None,
+            "max_iterations": _resolve_max_build_iterations(cfg),
+        },
     }
     save(cfg, run_id, data)
     return data
+
+
+def _resolve_max_build_iterations(cfg: Config) -> int:
+    raw = cfg.raw.get("defaults", {}) or {}
+    return int(raw.get("max_build_iterations", 5))
 
 
 def set_status(cfg: Config, run_id: str, new_status: str) -> dict:

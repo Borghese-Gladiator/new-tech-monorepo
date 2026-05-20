@@ -15,6 +15,7 @@ defaults:
   worktree_name_template: "{slug}"
   branch_name_template: "{branch_prefix}/{worktree_name}"
   new_repo_default_layout: monorepo
+  max_build_iterations: 5
 
 policies:
   local_only: true

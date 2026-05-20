@@ -1,17 +1,21 @@
 """validate subcommand.
 
 Two modes:
-  --init : while status=building, stage templates for implementation-summary,
-           diff-summary, review, qa/report, handoff. Transition building -> validating.
-  default: verify post-impl artifacts present and non-empty. Render audit.md.
-           Transition validating -> human_review.
+  --init : while status=building, stage validating-stage templates (review,
+           qa/report, HUMAN_REVIEW for staged runs; implementation-summary +
+           diff-summary + handoff for flat). Fill build-loop metadata defaults
+           (TODO §1e). Transition building -> validating.
+  default: verify post-impl artifacts present and non-empty; verify
+           build.md's "Documentation touched" claims against the worktree
+           diff (TODO §1d); render audit.md; transition validating ->
+           human_review.
 
 For convenience, the default mode allows status in (building, validating) and
 will auto-init if invoked from `building`.
 """
 from __future__ import annotations
 
-from lib import metadata, events, transitions, locks, audit, lifecycle
+from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -32,6 +36,54 @@ def register(p) -> None:
     p.add_argument("--init", action="store_true", help="Stage post-impl templates and transition building -> validating.")
     p.add_argument("--tests-passed", choices=("true", "false"), help="Recorded on QACompleted.")
     p.add_argument("--known-issues", type=int, default=0)
+
+
+def _verify_doc_claims_staged(cfg, run_id, rd, meta, actor) -> None:
+    """TODO §1d. Read stages/building/build.md, extract claimed doc paths,
+    diff the worktree, append findings to review.md (at run root) and emit
+    a DocClaimsVerified event."""
+    build_path = rd / "stages" / "building" / "build.md"
+    if not build_path.exists():
+        return
+    claimed = doc_claims.extract(build_path.read_text())
+    if claimed is doc_claims.NONE_NEEDED:
+        events.append(
+            cfg, run_id, "DocClaimsVerified",
+            payload={"claimed": [], "unverified": [], "note": "none needed"},
+            actor=actor,
+        )
+        return
+    if not claimed:
+        # No section, no findings, no event.
+        return
+    worktree_path = meta["target"]["worktree"]["path"]
+    base_ref = meta["target"]["repo"]["base_ref"]
+    unverified = doc_claims.verify(claimed, worktree_path, base_ref)
+    if unverified:
+        review = rd / "review.md"
+        with open(review, "a") as f:
+            f.write("\n## Documentation claims\n\n")
+            f.write(
+                "Validating compared `build.md`'s **Documentation touched** "
+                "section against `git diff` in the worktree. The following "
+                "claimed paths were NOT changed in the diff:\n\n"
+            )
+            for p in unverified:
+                f.write(f"- `{p}`\n")
+            f.write(
+                "\nEither the claim is wrong, the change is unstaged, or the "
+                "base ref is misconfigured. Reviewer: confirm or push back.\n"
+            )
+    events.append(
+        cfg, run_id, "DocClaimsVerified",
+        payload={
+            "claimed": claimed,
+            "unverified": unverified,
+            "base_ref": base_ref,
+            "worktree_path": worktree_path,
+        },
+        actor=actor,
+    )
 
 
 def _stage(cfg, rd, staged: bool) -> None:
@@ -80,6 +132,24 @@ def run(args) -> int:
             tpl = cfg.root / "templates" / "build.md"
             (rd / "build.md").write_text(tpl.read_text() if tpl.exists() else "# Build\n")
         _stage(cfg, rd, staged)
+        # Build-loop metadata (TODO §1e). Fill defaults if the builder didn't
+        # set them, then carry them into the transition evidence. The
+        # transitions schema now requires these on building -> validating.
+        build_block = meta.get("build") or {}
+        iterations = build_block.get("iterations")
+        exit_reason = build_block.get("exit_reason")
+        if iterations is None:
+            iterations = 1
+        if exit_reason is None:
+            exit_reason = "tests_green"
+
+        def _fill_build(d):
+            d.setdefault("build", {})
+            d["build"]["iterations"] = iterations
+            d["build"]["exit_reason"] = exit_reason
+            d["build"].setdefault("max_iterations", 5)
+        metadata.update(cfg, run_id, _fill_build)
+
         # For staged runs, build.md is the single merged artifact; both
         # implementation_summary_path and diff_summary_path evidence keys point
         # at it (their values get rewritten to stages/building/build.md by the
@@ -89,11 +159,15 @@ def run(args) -> int:
             evidence = {
                 "implementation_summary_path": build_src,
                 "diff_summary_path": build_src,
+                "build_iterations": iterations,
+                "build_exit_reason": exit_reason,
             }
         else:
             evidence = {
                 "implementation_summary_path": str(rd / "implementation-summary.md"),
                 "diff_summary_path": str(rd / "diff-summary.md"),
+                "build_iterations": iterations,
+                "build_exit_reason": exit_reason,
             }
         try:
             with locks.acquire(cfg, run_id):
@@ -146,6 +220,12 @@ def run(args) -> int:
         p = rd / name
         if not p.exists() or not p.read_text().strip():
             return fail(f"required artifact missing or empty: {p}", 2)
+
+    # TODO §1d: verify the "Documentation touched" claims in build.md against
+    # the worktree diff. Findings are appended to review.md so the reviewer
+    # sees them; the transition still proceeds.
+    if staged:
+        _verify_doc_claims_staged(cfg, run_id, rd, meta, actor)
 
     # Emit ReviewCompleted (best-effort decision parsing).
     review_text = (rd / "review.md").read_text()

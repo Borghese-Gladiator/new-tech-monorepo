@@ -34,7 +34,10 @@ def _evidence_for(from_state: str, to_state: str, run_id: str) -> dict:
             "worktree_path": "/tmp/wt", "preflight_path": "pf.md",
         }
     if (from_state, to_state) == ("building", "validating"):
-        return {"implementation_summary_path": "i.md", "diff_summary_path": "ds.md"}
+        return {
+            "implementation_summary_path": "i.md", "diff_summary_path": "ds.md",
+            "build_iterations": 1, "build_exit_reason": "tests_green",
+        }
     if (from_state, to_state) == ("validating", "human_review"):
         return {
             "review_report_path": "r.md", "qa_report_path": "qa/report.md",
@@ -141,6 +144,20 @@ class TestTransitions(unittest.TestCase):
         types = [e["type"] for e in events.iter_events(self.cfg, rid)]
         self.assertIn("WorktreeCreated", types)
 
+    def test_building_to_validating_rejects_missing_build_evidence(self):
+        # TODO §1e: build_iterations and build_exit_reason are required.
+        rid = self._make_run("missing-build")
+        self._advance(rid, "shaping", "planning", "ready", "building")
+        with self.assertRaises(transitions.TransitionError) as ctx:
+            transitions.transition(
+                self.cfg, rid, "validating",
+                {"implementation_summary_path": "i.md", "diff_summary_path": "ds.md"},
+                ACTOR,
+            )
+        msg = str(ctx.exception)
+        self.assertIn("build_iterations", msg)
+        self.assertIn("build_exit_reason", msg)
+
 
 class TestStagedLayoutTransitions(unittest.TestCase):
     """Transitions with staged layout (TODO §1) — engine rewrites evidence
@@ -224,7 +241,12 @@ class TestStagedLayoutTransitions(unittest.TestCase):
         )
         transitions.transition(
             self.cfg, rid, "validating",
-            {"implementation_summary_path": "build.md", "diff_summary_path": "build.md"},
+            {
+                "implementation_summary_path": "build.md",
+                "diff_summary_path": "build.md",
+                "build_iterations": 1,
+                "build_exit_reason": "tests_green",
+            },
             ACTOR,
         )
 
