@@ -38,10 +38,22 @@ def _evidence_for(from_state: str, to_state: str, run_id: str) -> dict:
             "implementation_summary_path": "i.md", "diff_summary_path": "ds.md",
             "build_iterations": 1, "build_exit_reason": "tests_green",
         }
+    if (from_state, to_state) == ("validating", "followups"):
+        return {
+            "review_report_path": "r.md", "qa_report_path": "qa/report.md",
+            "audit_path": "audit.md",
+        }
     if (from_state, to_state) == ("validating", "human_review"):
+        # Flat-layout legacy path (still in the schema).
         return {
             "review_report_path": "r.md", "qa_report_path": "qa/report.md",
             "audit_path": "audit.md", "handoff_path": "handoff.md",
+            "branch_name": "agent/x", "worktree_path": "/tmp/wt",
+        }
+    if (from_state, to_state) == ("followups", "human_review"):
+        return {
+            "followups_path": "stages/followups/follow-ups.md",
+            "handoff_path": "handoff.md",
             "branch_name": "agent/x", "worktree_path": "/tmp/wt",
         }
     if (from_state, to_state) == ("human_review", "done"):
@@ -158,6 +170,23 @@ class TestTransitions(unittest.TestCase):
         self.assertIn("build_iterations", msg)
         self.assertIn("build_exit_reason", msg)
 
+    def test_followups_to_human_review_requires_followups_path(self):
+        # TODO §1f: the new transition demands followups_path evidence.
+        rid = self._make_run("missing-followups-path")
+        self._advance(
+            rid, "shaping", "planning", "ready", "building", "validating", "followups"
+        )
+        with self.assertRaises(transitions.TransitionError) as ctx:
+            transitions.transition(
+                self.cfg, rid, "human_review",
+                {
+                    "handoff_path": "handoff.md",
+                    "branch_name": "agent/x", "worktree_path": "/tmp/wt",
+                },
+                ACTOR,
+            )
+        self.assertIn("followups_path", str(ctx.exception))
+
 
 class TestStagedLayoutTransitions(unittest.TestCase):
     """Transitions with staged layout (TODO §1) — engine rewrites evidence
@@ -207,16 +236,22 @@ class TestStagedLayoutTransitions(unittest.TestCase):
             "stages/shaping/brief.md",
         )
 
-    def test_validating_to_human_review_rejects_missing_sections(self):
+    def test_followups_to_human_review_rejects_missing_sections(self):
+        """TODO §1f: the HUMAN_REVIEW.md section gate moved from
+        validating→human_review (which no longer exists for staged runs) to
+        followups→human_review."""
         rid = self._make_staged_run("gate")
         rd = metadata.run_dir(self.cfg, rid)
-        # Advance to validating.
+        # Advance to validating, then followups.
         (rd / "brief.md").write_text("b\n")
         (rd / "plan.md").write_text("# Plan\n\n## Decisions & assumptions\nx\n")
         (rd / "build.md").write_text("b\n")
         (rd / "review.md").write_text("r\n")
         (rd / "qa").mkdir()
         (rd / "qa" / "report.md").write_text("qa\n")
+        (rd / "follow-ups.md").write_text(
+            "---\ntitle: t\nmotivation: m\nsuggested_scope: s\ncategory: tech_debt\n---\n"
+        )
 
         transitions.transition(self.cfg, rid, "shaping", {"raw_idea_path": "raw-idea.md"}, ACTOR)
         transitions.transition(self.cfg, rid, "planning", {"brief_path": "brief.md"}, ACTOR)
@@ -249,28 +284,34 @@ class TestStagedLayoutTransitions(unittest.TestCase):
             },
             ACTOR,
         )
+        transitions.transition(
+            self.cfg, rid, "followups",
+            {
+                "review_report_path": "review.md", "qa_report_path": "qa/report.md",
+                "audit_path": "audit.md",
+            },
+            ACTOR,
+        )
 
         # No HUMAN_REVIEW.md yet → rejected.
         with self.assertRaises(transitions.TransitionError) as ctx:
             transitions.transition(
                 self.cfg, rid, "human_review",
                 {
-                    "review_report_path": "review.md", "qa_report_path": "qa/report.md",
-                    "audit_path": "audit.md", "handoff_path": "HUMAN_REVIEW.md",
+                    "followups_path": "follow-ups.md", "handoff_path": "HUMAN_REVIEW.md",
                     "branch_name": "agent/x", "worktree_path": "/tmp/wt",
                 },
                 ACTOR,
             )
         self.assertIn("HUMAN_REVIEW.md", str(ctx.exception))
 
-        # Add a HUMAN_REVIEW.md but only one of the two required headings.
+        # Add HUMAN_REVIEW.md with only one of the two required headings.
         (rd / "HUMAN_REVIEW.md").write_text("# H\n\n## Suggested first checks\nx\n")
         with self.assertRaises(transitions.TransitionError):
             transitions.transition(
                 self.cfg, rid, "human_review",
                 {
-                    "review_report_path": "review.md", "qa_report_path": "qa/report.md",
-                    "audit_path": "audit.md", "handoff_path": "HUMAN_REVIEW.md",
+                    "followups_path": "follow-ups.md", "handoff_path": "HUMAN_REVIEW.md",
                     "branch_name": "agent/x", "worktree_path": "/tmp/wt",
                 },
                 ACTOR,
@@ -283,8 +324,7 @@ class TestStagedLayoutTransitions(unittest.TestCase):
         transitions.transition(
             self.cfg, rid, "human_review",
             {
-                "review_report_path": "review.md", "qa_report_path": "qa/report.md",
-                "audit_path": "audit.md", "handoff_path": "HUMAN_REVIEW.md",
+                "followups_path": "follow-ups.md", "handoff_path": "HUMAN_REVIEW.md",
                 "branch_name": "agent/x", "worktree_path": "/tmp/wt",
             },
             ACTOR,

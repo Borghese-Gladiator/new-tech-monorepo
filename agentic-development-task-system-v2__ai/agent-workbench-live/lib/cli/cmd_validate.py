@@ -196,17 +196,18 @@ def run(args) -> int:
         print(f"{run_id}: building -> validating; staged post-impl templates")
         return 0
 
-    # Default: validating -> human_review.
+    # Default: validating -> followups (TODO §1f). The handoff/HUMAN_REVIEW.md
+    # gate has moved to `agent-workbench followups`.
     if meta["status"] != "validating":
         return fail(f"default mode requires status=validating, got {meta['status']!r}", 2)
 
-    # Verify required artifacts (location depends on layout).
+    # Verify required artifacts (location depends on layout). HUMAN_REVIEW.md
+    # is NOT required here for staged runs — it's required by followups.
     if staged:
         required = [
             ("stages/building/build.md", "implementation_summary_path"),
             ("review.md", "review_report_path"),
             ("qa/report.md", "qa_report_path"),
-            ("HUMAN_REVIEW.md", "handoff_path"),
         ]
     else:
         required = [
@@ -287,9 +288,32 @@ def run(args) -> int:
         d["artifacts"]["audit"] = "audit.md"
     metadata.update(cfg, run_id, _m2)
 
-    handoff_file = "HUMAN_REVIEW.md" if staged else "handoff.md"
+    if staged:
+        # Staged runs route through the new `followups` stage (TODO §1f).
+        # HumanHandoffCreated + the HUMAN_REVIEW.md gate now fire in
+        # `agent-workbench followups`; we only transition into followups here.
+        try:
+            with locks.acquire(cfg, run_id):
+                transitions.transition(
+                    cfg, run_id, "followups",
+                    evidence={
+                        "review_report_path": str(rd / "review.md"),
+                        "qa_report_path": str(rd / "qa" / "report.md"),
+                        "audit_path": str(audit_path),
+                        "tests_passed": tests_passed,
+                        "known_issues_count": int(args.known_issues),
+                    },
+                    actor=actor,
+                )
+        except transitions.TransitionError as e:
+            return fail(str(e), 4)
+        print(f"{run_id}: validating -> followups")
+        print(f"  next: author stages/followups/follow-ups.md, then run "
+              f"`agent-workbench followups {run_id}`")
+        return 0
 
-    # Emit HumanHandoffCreated.
+    # Flat-layout legacy path: validating -> human_review directly.
+    handoff_file = "handoff.md"
     events.append(
         cfg, run_id, "HumanHandoffCreated",
         payload={
@@ -302,9 +326,6 @@ def run(args) -> int:
         },
         actor=actor,
     )
-
-    # Transition. The engine validates HUMAN_REVIEW.md section presence for
-    # staged runs before set_status.
     try:
         with locks.acquire(cfg, run_id):
             transitions.transition(

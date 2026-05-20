@@ -28,6 +28,7 @@ SUBCOMMANDS = [
     "plan",
     "start",
     "validate",
+    "followups",
     "handoff",
     "complete",
     "bounce",

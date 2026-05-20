@@ -9,6 +9,7 @@ states:
     - ready
     - building
     - validating
+    - followups
     - human_review
 
   terminal:
@@ -105,8 +106,24 @@ transitions:
       - TransitionApplied
 
   - from: validating
+    to: followups
+    description: Self-review and QA are complete; brainstorm forward-looking follow-ups before the reviewer lands. (Staged-layout runs only — TODO §1f.)
+    evidence:
+      required:
+        - review_report_path
+        - qa_report_path
+        - audit_path
+      optional:
+        - tests_passed
+        - known_issues_count
+        - qa_recording_path
+        - qa_trace_path
+    emits:
+      - TransitionApplied
+
+  - from: validating
     to: human_review
-    description: Self-review and QA are complete; local branch and worktree are ready for human inspection.
+    description: Direct validating-to-human_review path for flat-layout legacy runs only. Staged runs route through followups instead.
     evidence:
       required:
         - review_report_path
@@ -120,6 +137,21 @@ transitions:
         - known_issues_count
         - qa_recording_path
         - qa_trace_path
+    emits:
+      - TransitionApplied
+
+  - from: followups
+    to: human_review
+    description: Follow-up candidates are recorded; local branch and worktree are ready for human inspection.
+    evidence:
+      required:
+        - followups_path
+        - handoff_path
+        - branch_name
+        - worktree_path
+      optional:
+        - audit_path
+        - entry_count
     emits:
       - TransitionApplied
 

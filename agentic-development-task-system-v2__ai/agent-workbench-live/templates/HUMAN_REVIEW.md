@@ -13,7 +13,7 @@ below are missing.
 - Want to verify QA? → `stages/validating/qa/report.md` (+ `qa/commands.txt`)
 - Want to confirm each AC is tested? → `stages/building/build.md` § Acceptance criteria coverage
 - Want to argue with decisions? → `stages/planning/plan.md` § Decisions & assumptions, then `stages/validating/review.md`
-- Want to see what's next? → (followups land in TODO §1f; not in this pass)
+- Want to see what's next? → `stages/followups/follow-ups.md`
 
 ## Suggested first checks
 

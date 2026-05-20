@@ -122,6 +122,9 @@ _STAGE_OUTPUTS: dict[str, list[tuple[str, str, str, str]]] = {
     "validating": [
         ("review_report_path", "review.md", "validating", "review.md"),
     ],
+    "followups": [
+        ("followups_path", "follow-ups.md", "followups", "follow-ups.md"),
+    ],
     "human_review": [],  # terminal hop produces no new outputs
 }
 
@@ -184,7 +187,8 @@ def on_transition(
         # already be there from a previous run of this hook).
         stage_dest[evidence_key] = dest
 
-    # The qa/ directory tags along with validating -> human_review.
+    # The qa/ directory tags along with validating -> followups (since
+    # followups is now what validating closes into).
     if from_state == "validating":
         qa_src = run_root / "qa"
         qa_dest = stage_dir(cfg, run_id, "validating") / "qa"
@@ -226,7 +230,8 @@ def archive_for_bounce(cfg: Config, run_id: str) -> list[pathlib.Path]:
     """
     moved: list[pathlib.Path] = []
 
-    for stage in ("building", "validating"):
+    # followups is included so prior brainstorms don't leak into the rebuild.
+    for stage in ("building", "validating", "followups"):
         src_stage = stage_dir(cfg, run_id, stage)
         if not src_stage.exists():
             continue

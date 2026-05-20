@@ -1,116 +1,192 @@
-# Plan — Renovate Task Workflow, Pass 2 (TODO §1d + §1e)
+# Plan — Renovate Task Workflow, Pass 3 (TODO §1f)
 
 ## Brief
 
-Build on pass 1 (committed in `d1d8b44`). This pass surfaces two things that ran invisibly inside `building` before: the build/test iteration loop, and changes the run made to the target repo's own docs. Layout is unchanged.
+Insert a new lifecycle stage, `followups`, between `validating` and `human_review`. The stage authors a single forward-looking file — `stages/followups/follow-ups.md` — listing 1–5 candidate next-run ideas (or one explicit "no follow-ups identified" entry). **No execution.** This pass writes the file; the stretch `agent-workbench followup spawn` command stays deferred.
 
 **Confirmed decisions:**
 
-- **Scope:** §1d (Documentation touched) + §1e (build-loop metadata). §1f and §1g deferred.
-- **1e strictness:** `building → validating` rejects when metadata lacks `build_iterations` or `build_exit_reason`. `validate --init` fills defaults (`build_iterations=1`, `build_exit_reason=tests_green`) when the builder hasn't written them — the human sees the defaults in `HUMAN_REVIEW.md` and can challenge them.
-- **1d verification:** `validate` default mode parses `build.md`'s "Documentation touched" section, runs `git diff --name-only <base_ref>..HEAD` in the target worktree, and flags discrepancies in `review.md`. False claims ("updated README" with README unchanged) become review findings, not silent passes.
+- **Scope:** §1f only. §1g lands in pass 4 as a separate commit.
+- **Authoring path:** dedicated `agent-workbench followups` CLI + `/followups` slash command. `--init` transitions `validating → followups` and stages `follow-ups.md` from a template at run root for the LLM to fill. Default mode validates the file, applies the move-on-transition into `stages/followups/`, and transitions `followups → human_review`.
+- **Strictness:** the `followups → human_review` gate requires `follow-ups.md` to exist, be non-empty, and have YAML frontmatter on every entry with the 5-category enum. "No follow-ups identified" is written as one explicit entry with that category (per TODO §1f).
 
 ## Changes
 
-### 1. Metadata schema (1e)
+### 1. State machine (`schemas/transitions.yaml`)
 
-Add three fields to the run's metadata.yaml:
+- Add `followups` to `states.non_terminal`.
+- Replace the existing `validating → human_review` transition with `validating → followups`, then add a new `followups → human_review`. Evidence requirements migrate to the followups transition where they make sense (most stay on the new `followups → human_review` since that's the gate the reviewer actually lands at).
+- Update `wildcard_transitions` (`any_non_terminal → abandoned`) — already wildcard, no edit needed.
 
-```yaml
-build:
-  iterations: <int>        # how many builder test/fix cycles ran
-  exit_reason: <enum>      # tests_green | max_iterations_hit | hard_block | manual_stop
-  max_iterations: <int>    # caller's iteration ceiling for this run (default 5)
-```
-
-Place these at top-level next to `validation:` and `completion:`. Why a new `build:` block (vs. inline keys): groups related fields, mirrors the existing `validation:` / `completion:` shape, room to grow (1f's `followups:` will land alongside).
-
-- Update `lib/metadata.py`:
-  - Extend `REQUIRED_TOP_LEVEL` with `"build"` for **new** runs only (`metadata.create` writes it). Existing flat-layout runs lack the key — `metadata.load` must not require it for back-compat. **Decision:** add `build` to the `create()` template but keep `REQUIRED_TOP_LEVEL` as-is. Validation continues to check the original keys; the new keys are optional in `_validate`.
-  - `metadata.create()` writes `build: {iterations: null, exit_reason: null, max_iterations: 5}` for new runs.
-- Update `agent-workbench.yaml`: new `defaults.max_build_iterations: 5` so it's configurable per workbench (overridden per-run via metadata).
-
-### 2. Transition gate (1e)
-
-Add evidence requirements to `schemas/transitions.yaml` for `building → validating`:
+Concretely:
 
 ```yaml
-- from: building
-  to: validating
-  evidence:
-    required:
-      - implementation_summary_path
-      - diff_summary_path
-      - build_iterations     # NEW
-      - build_exit_reason    # NEW
+states:
+  non_terminal:
+    - draft
+    - shaping
+    - planning
+    - ready
+    - building
+    - validating
+    - followups     # NEW
+    - human_review
+
+transitions:
+  # existing draft -> shaping … building -> validating unchanged
+  - from: validating
+    to: followups
+    description: Self-review and QA are complete; now brainstorm forward-looking follow-ups.
+    evidence:
+      required:
+        - review_report_path
+        - qa_report_path
+        - audit_path
+      optional:
+        - tests_passed
+        - known_issues_count
+        - qa_recording_path
+        - qa_trace_path
+    emits:
+      - TransitionApplied
+
+  - from: followups
+    to: human_review
+    description: Follow-up candidates are recorded; local branch and worktree ready for human review.
+    evidence:
+      required:
+        - followups_path
+        - handoff_path
+        - branch_name
+        - worktree_path
+      optional:
+        - audit_path
+    emits:
+      - TransitionApplied
 ```
 
-The schema validator already rejects missing required evidence; no engine change needed beyond fixing whoever populates the evidence.
+The old `validating → human_review` rule is **removed**. Tests that drove validating directly to human_review have to add the followups hop.
 
-- Update `lib/cli/cmd_validate.py` `--init` to read `build:` from metadata. If `iterations` is null, default it to `1`; if `exit_reason` is null, default it to `"tests_green"`. Write the defaults back to metadata before the transition, then include the values in the evidence dict.
-- Tests covering: missing → defaults filled; pre-set value preserved; transition rejects when metadata lacks the `build:` block entirely (back-compat path for old runs that try to advance — shouldn't happen in practice, but defensive).
+### 2. metadata.py
 
-### 3. Build report — "Documentation touched" section (1d)
+Add `"followups"` to `STATUSES`. Add a new field-by-default to the `create()` metadata template:
 
-- Add `## Documentation touched` to `templates/build.md`. Two valid forms:
-  1. A bulleted list of `<repo-relative path> — <one-line what changed>`.
-  2. A single line `none needed — <reason>` (the explicit-skip escape hatch).
-- Update `lib/cli/cmd_validate.py` default mode (the validating → human_review path):
-  - Read `stages/building/build.md` for staged runs (or run-root `build.md` for flat, though flat runs won't have this section).
-  - Extract the "Documentation touched" section.
-  - Parse referenced paths: bullets starting with `-`, first whitespace-delimited token is the path.
-  - Skip enforcement entirely if the section reads `none needed`.
-  - Run `git diff --name-only <base_ref>...HEAD` in the **worktree** (`meta["target"]["worktree"]["path"]`). Collect changed file paths (worktree-relative).
-  - For each claimed path: if not in the diff, append a finding to `stages/validating/review.md` under a new `## Documentation claims` section. Don't fail the transition — surface to the reviewer.
-  - Emit a `DocClaimsVerified` event with `{claimed: [...], unverified: [...]}`.
+```python
+"artifacts": {
+    ...
+    "followups": None,     # NEW (set when --init stages the template)
+    ...
+},
+```
 
-New event type to add to `schemas/events.jsonl`:
+This keeps the existing "artifact path lives in the artifacts block" pattern.
+
+### 3. lifecycle.py — promote follow-ups.md
+
+Extend `_STAGE_OUTPUTS` so the `followups` stage's output gets promoted on `followups → human_review`:
+
+```python
+"followups": [
+    ("followups_path", "follow-ups.md", "followups", "follow-ups.md"),
+],
+```
+
+No new anchor-evidence keys needed.
+
+### 4. New module: `lib/followups.py`
+
+Owns the frontmatter parser + validator. Public surface:
+
+```python
+NONE_IDENTIFIED_CATEGORY = "no_followups"   # the explicit-opt-out entry
+
+VALID_CATEGORIES = {
+    "tech_debt", "scope_extension", "bug_risk",
+    "refactor", "docs", "deferred_from_bounce",
+    "no_followups",   # sentinel for explicit "none identified"
+}
+
+REQUIRED_FRONTMATTER_KEYS = ("title", "motivation", "suggested_scope", "category")
+
+def extract_entries(md_text) -> list[dict]
+    # Split on `---\n…\n---` blocks; parse YAML-ish frontmatter into dicts.
+
+def validate(md_text) -> list[str]
+    # Returns list of error strings; empty = OK.
+    # Errors: no entries; entry missing key; category not in enum; etc.
+```
+
+The parser uses the existing `lib.yaml_io` for the YAML body (subset-friendly). Frontmatter blocks are anywhere in the file separated by `---`; an "entry" is one frontmatter block plus the prose that follows it until the next block.
+
+### 5. New CLI command: `lib/cli/cmd_followups.py`
+
+```text
+agent-workbench followups <run_id> --init
+    Transition validating -> followups. Stages follow-ups.md from
+    templates/follow-ups.md at the run root.
+
+agent-workbench followups <run_id>
+    Validate follow-ups.md (validators from lib/followups.validate).
+    Transition followups -> human_review.
+```
+
+Both modes write `metadata.artifacts.followups = "stages/followups/follow-ups.md"` (after the transition for default mode, where the engine has just moved the file). Emit a `FollowupsRecorded` event in default mode with `{path, entry_count, categories}`.
+
+### 6. `cmd_validate.py` retargets to `followups`
+
+The default-mode `validate` currently runs `validating → human_review` and does ReviewCompleted / QACompleted / AuditRendered / HumanHandoffCreated / DocClaimsVerified. It now runs `validating → followups` instead and **moves the HumanHandoffCreated emission + the HUMAN_REVIEW.md section gate to the new `followups → human_review` transition** (since that's when the reviewer actually lands).
+
+Two practical consequences:
+- HUMAN_REVIEW.md doesn't have to exist at `validate` time. It only has to exist when `followups` is finalized.
+- The transition-engine gate `validate_human_review_sections` (added in pass 1) now fires on `followups → human_review`, not `validating → human_review`.
+
+### 7. New event: `FollowupsRecorded`
+
+`schemas/events.jsonl`:
 
 ```jsonl
-{"kind": "event_schema", "event_type": "DocClaimsVerified", "required_fields": ["claimed", "unverified"]}
+{"kind":"event_schema","event_type":"FollowupsRecorded","required_fields":[…],"payload_required":["followups_path","entry_count","categories"],"payload_optional":["note"]}
 ```
 
-### 4. CLI command updates
+### 8. New template: `templates/follow-ups.md`
 
-- `cmd_validate.py --init` (1e):
-  - For staged runs, fill build defaults in metadata if missing; include `build_iterations` and `build_exit_reason` in the transition evidence.
-- `cmd_validate.py` default mode (1d):
-  - Add `_verify_doc_claims(cfg, rd, meta, staged)` helper. Returns `(claimed_paths, unverified_paths)`.
-  - Append findings section to `review.md` if `unverified_paths` non-empty.
-  - Emit `DocClaimsVerified` event.
+YAML-frontmatter format example, with 3 sample entries. Reviewer-facing comments explain category meanings.
 
-### 5. HUMAN_REVIEW.md surface (1e)
+### 9. New slash command: `.claude/commands/followups.md`
 
-§1e calls for a one-line build-loop summary in `HUMAN_REVIEW.md`'s "Run timeline" section ("Build ran N iterations, exited with reason X."). For this pass:
+Thin wrapper — calls `agent-workbench followups` `--init`, instructs the LLM to author 1–5 mini-briefs reading `stages/{building,validating,planning}` + `events.jsonl` (filtered to BounceRequested) + any prior `archive/` briefs, writes `follow-ups.md`, then calls the default-mode CLI to finalize.
 
-- The template already has a `## Run timeline` placeholder. The validating agent fills it. **Decision:** extend `templates/HUMAN_REVIEW.md` with a `<!-- Build: N iterations, exited with reason X. -->` HTML comment hint inside the Run timeline section. No code-driven injection yet (would require an extra writer pass; defer to a later track).
+### 10. HUMAN_REVIEW.md template updates
+
+Wire the "Want to see what's next?" hub line to point at the new file (`stages/followups/follow-ups.md`). This was already a placeholder in pass 1's template.
 
 ## Tests
 
 ### Unit
-
-- `tests/test_metadata.py`:
-  - `test_create_includes_build_block` — new metadata has `build: {iterations: null, exit_reason: null, max_iterations: 5}`.
-  - `test_load_backcompat_no_build_block` — a hand-written flat-layout metadata.yaml without `build:` still loads (no MetadataError).
+- `tests/test_followups.py`:
+  - `test_extract_no_blocks_returns_empty`
+  - `test_extract_one_entry`
+  - `test_extract_multiple_entries`
+  - `test_validate_rejects_empty_file`
+  - `test_validate_rejects_missing_required_key`
+  - `test_validate_rejects_invalid_category`
+  - `test_validate_accepts_no_followups_sentinel`
+  - `test_validate_accepts_all_5_real_categories`
 - `tests/test_transitions.py`:
-  - `test_building_to_validating_rejects_missing_build_evidence` — transition without `build_iterations` raises TransitionError.
-  - `test_building_to_validating_accepts_build_evidence` — transition with the new evidence keys succeeds.
-- New `tests/test_doc_claims.py`:
-  - `test_extract_doc_section_returns_paths` — parser pulls bullets out of the "Documentation touched" section.
-  - `test_extract_doc_section_none_needed` — returns the sentinel `NONE_NEEDED` when the section reads `none needed - ...`.
-  - `test_extract_doc_section_missing_returns_empty` — section absent → no claims, no findings.
+  - Update `_evidence_for` for the new transitions.
+  - `test_validating_directly_to_human_review_rejected` — the old direct path no longer exists.
+  - `test_followups_to_human_review_requires_followups_path`
+  - `test_followups_to_human_review_requires_human_review_sections` — the existing gate now fires here, not on the validating hop.
 
 ### Integration
-
-- Extend `test_full_lifecycle` to:
-  - Write `build.md` with a "Documentation touched" section claiming `README.md` was updated, while making no actual changes to README.md in the worktree.
-  - After `validate`, assert that `stages/validating/review.md` contains a `## Documentation claims` section listing `README.md` as unverified.
-  - Assert `metadata.yaml` has `build: {iterations: ..., exit_reason: ..., max_iterations: 5}` after `validate --init`.
-  - Assert a `DocClaimsVerified` event was emitted.
+- Update `test_full_lifecycle` to add a `/followups` hop:
+  - After `validate` (now: validating → followups), write `follow-ups.md` at run root with two real entries.
+  - Run `followups` (default mode), which transitions to `human_review`.
+  - Assert `stages/followups/follow-ups.md` exists and the top-level entries are exactly `{stages, HUMAN_REVIEW.md, metadata.yaml, events.jsonl, audit.md}`.
+- Update the bounce-loop test the same way.
 
 ## Out of scope (still deferred)
 
-- §1f (new `followups` stage).
-- §1g (blast-radius in review.md).
-- Wiring the build-loop summary line into HUMAN_REVIEW.md's Run timeline programmatically (template hint only).
-- Brief-level supersession on `/bounce`.
+- §1g (blast-radius in review.md) — separate commit in pass 4.
+- `agent-workbench followup spawn <run_id> <n>` (TODO §1f stretch) — creates a new draft run from a chosen mini-brief.
+- Migration / back-compat for any in-flight runs already in `validating` (none exist in practice; the only real run is `2026-05-18-poker` which is already in `human_review` on the flat layout — completely untouched).

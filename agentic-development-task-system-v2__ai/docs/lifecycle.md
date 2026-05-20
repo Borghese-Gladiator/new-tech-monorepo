@@ -29,21 +29,25 @@ runs/<run_id>/
     building/build.md           # merges implementation-summary + diff-summary
     validating/review.md
     validating/qa/
+    followups/follow-ups.md     # forward-looking candidates for future runs
   archive/                       # present only on bounce-supersession
     building/build-v1.md
     validating/review-v1.md
     validating/qa-v1/
+    followups/follow-ups-v1.md
   HUMAN_REVIEW.md                # replaces handoff.md; must include
                                  # "## Suggested first checks" and "## Run timeline"
   metadata.yaml
   events.jsonl
 ```
 
-The transition engine moves a stage's run-root outputs into `stages/<stage>/` as the stage closes. The `validating → human_review` transition is rejected if `HUMAN_REVIEW.md` is missing either required heading. A bounce from `human_review → building` archives the prior `stages/building/` and `stages/validating/` as `<file>-v<N>.md` (and `qa-v<N>/` for the QA subtree) before the rebuild begins.
+The transition engine moves a stage's run-root outputs into `stages/<stage>/` as the stage closes. The `followups → human_review` transition is rejected if `HUMAN_REVIEW.md` is missing either required heading. A bounce from `human_review → building` archives the prior `stages/building/`, `stages/validating/`, and `stages/followups/` as `<file>-v<N>.md` (and `qa-v<N>/` for the QA subtree) before the rebuild begins.
 
 The `building → validating` transition (TODO §1e) requires `build_iterations` and `build_exit_reason` evidence; `validate --init` fills sensible defaults (`1` / `tests_green`) into `metadata.yaml`'s `build:` block when the builder didn't set them, so the reviewer sees the defaults explicitly and can challenge them. The validating stage (TODO §1d) also reads `build.md`'s "Documentation touched" section and compares the claimed paths against `git diff` in the target worktree; unverified claims are appended to `review.md` under a `## Documentation claims` section and a `DocClaimsVerified` event is recorded.
 
-**Back-compat.** Runs created before this change keep their flat layout (everything at the run root). The CLI and helpers detect layout per-run; flat runs are read-only and never migrated implicitly.
+**`followups` stage (TODO §1f).** Staged runs route `validating → followups → human_review`. The `followups` stage runs an LLM that reads the just-finished run's outputs and writes a 1–5 entry `follow-ups.md` listing forward-looking candidates for *future* runs (categories: `tech_debt`, `scope_extension`, `bug_risk`, `refactor`, `docs`, `deferred_from_bounce`, or `no_followups` as an explicit sentinel). The stage is purely authoring — **nothing is executed**. An empty file is invalid; explicit `no_followups` is required when there's genuinely nothing to surface. A `FollowupsRecorded` event captures `{path, entry_count, categories}`.
+
+**Back-compat.** Runs created before this change keep their flat layout (everything at the run root). They use the legacy `validating → human_review` transition (still present in the schema, evidence requirements unchanged). The CLI and helpers detect layout per-run; flat runs are read-only and never migrated implicitly.
 
 ## States
 
@@ -55,6 +59,7 @@ The `building → validating` transition (TODO §1e) requires `build_iterations`
 | `ready` | Human approval gate before code changes begin. | No | No |
 | `building` | Branch and worktree exist. Agent is implementing. | No | Yes |
 | `validating` | Agent runs review, tests, QA, and records evidence. | No | Yes |
+| `followups` | Agent brainstorms forward-looking candidates for future runs and writes `follow-ups.md`. Staged runs only. | No | Yes (read-only) |
 | `human_review` | Worktree and branch are ready for human inspection. | Yes, by human choice | Yes |
 | `done` | Human accepted the work or closed it as complete. | No | No |
 | `abandoned` | Run intentionally stopped. Artifacts are preserved. | No | No |

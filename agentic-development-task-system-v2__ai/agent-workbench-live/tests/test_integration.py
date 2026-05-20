@@ -121,8 +121,11 @@ class TestHappyPath(IntegrationCase):
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("ready -> building", r.stdout)
 
-        # The worktree should exist.
-        worktree = self.tmp / "worktrees" / repo.name / "hello-endpoint"
+        # The worktree should exist. Read the actual path from metadata so we
+        # don't have to second-guess slugification of tempdir names.
+        from lib import yaml_io as _yaml_io
+        meta = _yaml_io.loads((self.tmp / "runs" / run_id / "metadata.yaml").read_text())
+        worktree = pathlib.Path(meta["target"]["worktree"]["path"])
         self.assertTrue(worktree.exists(), f"worktree missing at {worktree}")
         self.assertTrue((worktree / "README.md").exists())
         # The branch should exist in the source repo.
@@ -158,12 +161,32 @@ class TestHappyPath(IntegrationCase):
             "## Run timeline\n\nstep 1\n"
         )
 
-        # validate finalize: validating -> human_review
+        # validate finalize: validating -> followups (staged-layout flow)
         r = cli(self.tmp, "validate", run_id, "--tests-passed", "true", "--known-issues", "0")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
-        self.assertIn("validating -> human_review", r.stdout)
-        # audit.md was rendered
+        self.assertIn("validating -> followups", r.stdout)
+        # audit.md was rendered during validate
         self.assertTrue((run_dir / "audit.md").exists())
+
+        # /followups: write follow-ups.md and transition to human_review.
+        (run_dir / "follow-ups.md").write_text(
+            "---\n"
+            "title: Add property-based tests for the hello endpoint\n"
+            "motivation: Current tests cover the happy path only; edge cases unexplored.\n"
+            "suggested_scope: Add hypothesis tests for input validation; no behavior change.\n"
+            "category: tech_debt\n"
+            "---\n\n"
+            "More prose if needed.\n\n"
+            "---\n"
+            "title: Document the /hello endpoint in the README\n"
+            "motivation: Reviewer flagged README claim was unverified.\n"
+            "suggested_scope: Add a usage section to README.md with a curl example.\n"
+            "category: docs\n"
+            "---\n"
+        )
+        r = cli(self.tmp, "followups", run_id)
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("followups -> human_review", r.stdout)
 
         # Staged-layout assertions (TODO §1a/§1b/§1c): the expected files
         # have been promoted into stages/<stage>/, and HUMAN_REVIEW.md sits
@@ -173,6 +196,7 @@ class TestHappyPath(IntegrationCase):
         self.assertTrue((run_dir / "stages" / "building" / "build.md").exists())
         self.assertTrue((run_dir / "stages" / "validating" / "review.md").exists())
         self.assertTrue((run_dir / "stages" / "validating" / "qa" / "report.md").exists())
+        self.assertTrue((run_dir / "stages" / "followups" / "follow-ups.md").exists())
         self.assertTrue((run_dir / "HUMAN_REVIEW.md").exists())
         # TODO §1d: the validator detected README.md was claimed but unchanged
         # and appended a Documentation claims section to review.md (now at
@@ -198,6 +222,7 @@ class TestHappyPath(IntegrationCase):
         self.assertFalse((run_dir / "build.md").exists())
         self.assertFalse((run_dir / "review.md").exists())
         self.assertFalse((run_dir / "qa" / "report.md").exists())
+        self.assertFalse((run_dir / "follow-ups.md").exists())
 
         # complete: human_review -> done
         r = cli(self.tmp, "complete", run_id, "--accepted-by", "tester")
@@ -208,9 +233,10 @@ class TestHappyPath(IntegrationCase):
         r = cli(self.tmp, "show", run_id)
         self.assertIn("status:     done", r.stdout)
 
-        # events sanity: TransitionApplied count == 7 (draft->shaping->planning->ready->building->validating->human_review->done)
+        # events sanity: TransitionApplied count == 8 for staged runs
+        # (draft->shaping->planning->ready->building->validating->followups->human_review->done).
         r = cli(self.tmp, "events", run_id, "--type", "TransitionApplied")
-        self.assertEqual(r.stdout.count("TransitionApplied"), 7, msg=r.stdout)
+        self.assertEqual(r.stdout.count("TransitionApplied"), 8, msg=r.stdout)
 
 
 class TestBounceLoop(IntegrationCase):
@@ -244,6 +270,17 @@ class TestBounceLoop(IntegrationCase):
         )
         (run_dir / "qa" / "report.md").write_text("# QA\nx\n")
         cli(self.tmp, "validate", run_id)
+        # validate now lands in `followups`; author + finalize follow-ups.md
+        # to advance to human_review (TODO §1f).
+        (run_dir / "follow-ups.md").write_text(
+            "---\n"
+            "title: smoke\n"
+            "motivation: keep the test minimal\n"
+            "suggested_scope: trivial\n"
+            "category: no_followups\n"
+            "---\n"
+        )
+        cli(self.tmp, "followups", run_id)
         return run_id, run_dir
 
     def test_bounce_back_to_building(self):
@@ -272,6 +309,12 @@ class TestBounceLoop(IntegrationCase):
             "# HR\n\n## Suggested first checks\n\n```bash\nok\n```\n\n## Run timeline\nx\n"
         )
         cli(self.tmp, "validate", run_id)
+        # Re-author follow-ups.md (the prior one was archived) and finalize.
+        (run_dir / "follow-ups.md").write_text(
+            "---\ntitle: smoke v2\nmotivation: post-bounce minimal\n"
+            "suggested_scope: trivial\ncategory: no_followups\n---\n"
+        )
+        cli(self.tmp, "followups", run_id)
 
         r = cli(self.tmp, "show", run_id)
         self.assertIn("status:     human_review", r.stdout)

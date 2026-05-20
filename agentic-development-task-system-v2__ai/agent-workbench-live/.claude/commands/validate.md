@@ -80,13 +80,17 @@ That:
 - emits `ReviewCompleted` (decision parsed from `review.md`)
 - emits `QACompleted`
 - renders `audit.md` from events + artifacts
-- emits `AuditRendered` and `HumanHandoffCreated`
-- transitions `validating -> human_review`
+- emits `AuditRendered`
+- verifies the `Documentation touched` claims in `build.md` against the worktree diff (TODO §1d); unverified claims are appended to `review.md` as a `## Documentation claims` section
+- **staged runs**: transitions `validating -> followups`. The human handoff is NOT emitted here — `/followups` does that. Next step is to run `/followups` to brainstorm forward-looking candidates for future runs.
+- **flat-layout legacy runs only**: emits `HumanHandoffCreated` and transitions `validating -> human_review` directly.
 - prints branch, worktree, audit path
 
 ## Next step
 
-Tell the user: the run is in `human_review`. They can `/complete`, `/bounce`, or `/abandon`.
+Tell the user:
+- **staged runs**: run `/followups` next to write `follow-ups.md` (1–5 candidate next-run ideas).
+- **flat-layout legacy runs**: the run is in `human_review`. They can `/complete`, `/bounce`, or `/abandon`.
 
 ## Reference
 

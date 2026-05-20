@@ -32,6 +32,7 @@ STATUSES = {
     "ready",
     "building",
     "validating",
+    "followups",
     "human_review",
     "done",
     "abandoned",
@@ -160,6 +161,7 @@ def create(
             "qa_report": None,
             "audit": None,
             "handoff": None,
+            "followups": None,
         },
         "validation": {
             "required": True,

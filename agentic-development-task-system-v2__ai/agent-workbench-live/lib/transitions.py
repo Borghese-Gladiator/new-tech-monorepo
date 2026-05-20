@@ -123,10 +123,12 @@ def transition(
         )
 
     # Staged-layout pre-checks. The new HUMAN_REVIEW.md must carry the
-    # required headings before we let validating -> human_review through.
+    # required headings before we let followups -> human_review through.
+    # (Pass 3 moved this gate from validating -> human_review; the direct
+    # transition no longer exists.)
     if (
         lifecycle.is_staged_run(cfg, run_id)
-        and from_state == "validating"
+        and from_state == "followups"
         and to_state == "human_review"
     ):
         section_errs = lifecycle.validate_human_review_sections(cfg, run_id)
@@ -137,7 +139,7 @@ def transition(
                 missing_evidence=section_errs,
             )
             raise TransitionError(
-                "validating -> human_review rejected: " + "; ".join(section_errs)
+                "followups -> human_review rejected: " + "; ".join(section_errs)
             )
 
     # Apply the transition.
