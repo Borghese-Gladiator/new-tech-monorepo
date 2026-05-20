@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pathlib
 
-from lib import metadata, transitions, locks, repos, run_ids
+from lib import metadata, transitions, locks, repos, run_ids, lifecycle
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -30,9 +30,20 @@ def run(args) -> int:
         return fail(f"start requires status=ready, got {meta['status']!r}", 2)
 
     rd = metadata.run_dir(cfg, run_id)
-    # Re-verify pre-impl artifacts.
-    for name in ("brief.md", "plan.md", "preflight.md", "assumptions.md", "decisions.md"):
-        p = rd / name
+    staged = lifecycle.is_staged_run(cfg, run_id)
+    # Re-verify pre-impl artifacts. Staged runs fold preflight/assumptions/
+    # decisions into plan.md, so only brief.md + plan.md are checked here.
+    if staged:
+        pre_impl = (
+            ("stages/shaping/brief.md", rd / "stages" / "shaping" / "brief.md"),
+            ("stages/planning/plan.md", rd / "stages" / "planning" / "plan.md"),
+        )
+    else:
+        pre_impl = tuple(
+            (n, rd / n)
+            for n in ("brief.md", "plan.md", "preflight.md", "assumptions.md", "decisions.md")
+        )
+    for _label, p in pre_impl:
         if not p.exists() or not p.read_text().strip():
             return fail(f"required pre-impl artifact missing or empty: {p}", 2)
 
@@ -56,6 +67,10 @@ def run(args) -> int:
     metadata.update(cfg, run_id, _m)
 
     # Transition.
+    if staged:
+        preflight_evidence = str(rd / "stages" / "planning" / "plan.md") + "#preflight"
+    else:
+        preflight_evidence = str(rd / "preflight.md")
     try:
         with locks.acquire(cfg, run_id):
             transitions.transition(
@@ -68,7 +83,7 @@ def run(args) -> int:
                     "branch_name": branch_name,
                     "worktree_name": worktree_name,
                     "worktree_path": str(worktree_path),
-                    "preflight_path": str(rd / "preflight.md"),
+                    "preflight_path": preflight_evidence,
                     "repo_mode": meta["target"]["repo"]["mode"],
                 },
                 actor=actor,

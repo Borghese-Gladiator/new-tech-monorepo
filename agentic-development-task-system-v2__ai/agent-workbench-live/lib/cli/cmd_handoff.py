@@ -1,7 +1,7 @@
 """handoff subcommand. Read-only. Re-display handoff info for a run."""
 from __future__ import annotations
 
-from lib import metadata
+from lib import metadata, lifecycle
 from lib.cli._common import fail, load_config
 
 
@@ -20,9 +20,14 @@ def run(args) -> int:
         return fail(str(e), 2)
 
     rd = metadata.run_dir(cfg, args.run_id)
-    handoff = rd / "handoff.md"
+    if lifecycle.is_staged_run(cfg, args.run_id):
+        handoff = rd / "HUMAN_REVIEW.md"
+        label = "HUMAN_REVIEW.md"
+    else:
+        handoff = rd / "handoff.md"
+        label = "handoff.md"
     if not handoff.exists():
-        return fail(f"handoff.md not yet produced for {args.run_id}", 2)
+        return fail(f"{label} not yet produced for {args.run_id}", 2)
 
     print(f"# {args.run_id}")
     print(f"status:   {meta['status']}")

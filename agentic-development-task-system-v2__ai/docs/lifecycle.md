@@ -16,6 +16,33 @@ runs/<run_id>/events.jsonl
 
 Each meaningful transition requires evidence. Evidence is recorded in the `TransitionApplied` event and should also be reflected in `audit.md`.
 
+## On-disk layout for new runs (TODO §1)
+
+Runs created on or after the TODO §1 (Renovate task workflow) change use a **staged layout**. Each stage's canonical outputs live under `stages/<stage>/`; superseded outputs land in `archive/<stage>/`; the reviewer's entry point is `HUMAN_REVIEW.md` at the run root.
+
+```text
+runs/<run_id>/
+  stages/
+    draft/raw-idea.md
+    shaping/brief.md
+    planning/plan.md            # folds preflight + decisions/assumptions
+    building/build.md           # merges implementation-summary + diff-summary
+    validating/review.md
+    validating/qa/
+  archive/                       # present only on bounce-supersession
+    building/build-v1.md
+    validating/review-v1.md
+    validating/qa-v1/
+  HUMAN_REVIEW.md                # replaces handoff.md; must include
+                                 # "## Suggested first checks" and "## Run timeline"
+  metadata.yaml
+  events.jsonl
+```
+
+The transition engine moves a stage's run-root outputs into `stages/<stage>/` as the stage closes. The `validating → human_review` transition is rejected if `HUMAN_REVIEW.md` is missing either required heading. A bounce from `human_review → building` archives the prior `stages/building/` and `stages/validating/` as `<file>-v<N>.md` (and `qa-v<N>/` for the QA subtree) before the rebuild begins.
+
+**Back-compat.** Runs created before this change keep their flat layout (everything at the run root). The CLI and helpers detect layout per-run; flat runs are read-only and never migrated implicitly.
+
 ## States
 
 | Status | Meaning | May ask human questions? | May read code? |

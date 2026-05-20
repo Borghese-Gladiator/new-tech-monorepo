@@ -8,7 +8,7 @@ from __future__ import annotations
 import unittest
 
 from tests._helpers import make_tmp_workbench, cleanup, reset_caches
-from lib import config, metadata, events, transitions
+from lib import config, metadata, events, transitions, lifecycle
 
 
 ACTOR = {"type": "agent", "name": "test"}
@@ -140,6 +140,134 @@ class TestTransitions(unittest.TestCase):
         self._advance(rid, "shaping", "planning", "ready", "building")
         types = [e["type"] for e in events.iter_events(self.cfg, rid)]
         self.assertIn("WorktreeCreated", types)
+
+
+class TestStagedLayoutTransitions(unittest.TestCase):
+    """Transitions with staged layout (TODO §1) — engine rewrites evidence
+    paths and gates validating→human_review on HUMAN_REVIEW.md sections."""
+
+    def setUp(self):
+        self.tmp = make_tmp_workbench()
+        reset_caches()
+        self.cfg = config.load(self.tmp)
+
+    def tearDown(self):
+        cleanup(self.tmp)
+
+    def _make_staged_run(self, rid="staged") -> str:
+        metadata.create(
+            self.cfg, rid,
+            repo_mode="existing", repo_path="/tmp/x", repo_name="x",
+            base_ref="HEAD", worktree_name="x", branch_name="agent/x",
+            raw_idea_path="raw-idea.md",
+        )
+        lifecycle.init_staged_layout(self.cfg, rid)
+        return rid
+
+    def test_evidence_path_rewritten_on_shaping_to_planning(self):
+        rid = self._make_staged_run("rewrite")
+        rd = metadata.run_dir(self.cfg, rid)
+        (rd / "brief.md").write_text("# brief\n")
+        transitions.transition(
+            self.cfg, rid, "shaping",
+            {"raw_idea_path": str(rd / "raw-idea.md")},
+            ACTOR,
+        )
+        transitions.transition(
+            self.cfg, rid, "planning",
+            {"brief_path": str(rd / "brief.md")},
+            ACTOR,
+        )
+        # The TransitionApplied event for shaping->planning records the new
+        # post-move path, not the run-root one.
+        applied = [
+            e for e in events.iter_events(self.cfg, rid)
+            if e["type"] == "TransitionApplied" and e.get("to") == "planning"
+        ]
+        self.assertEqual(len(applied), 1)
+        self.assertEqual(
+            applied[0]["payload"]["evidence"]["brief_path"],
+            "stages/shaping/brief.md",
+        )
+
+    def test_validating_to_human_review_rejects_missing_sections(self):
+        rid = self._make_staged_run("gate")
+        rd = metadata.run_dir(self.cfg, rid)
+        # Advance to validating.
+        (rd / "brief.md").write_text("b\n")
+        (rd / "plan.md").write_text("# Plan\n\n## Decisions & assumptions\nx\n")
+        (rd / "build.md").write_text("b\n")
+        (rd / "review.md").write_text("r\n")
+        (rd / "qa").mkdir()
+        (rd / "qa" / "report.md").write_text("qa\n")
+
+        transitions.transition(self.cfg, rid, "shaping", {"raw_idea_path": "raw-idea.md"}, ACTOR)
+        transitions.transition(self.cfg, rid, "planning", {"brief_path": "brief.md"}, ACTOR)
+        transitions.transition(
+            self.cfg, rid, "ready",
+            {
+                "plan_path": "plan.md", "assumptions_path": "plan.md",
+                "decisions_path": "plan.md", "preflight_path": "plan.md",
+                "repo_path": "/tmp/x", "repo_name": "x",
+                "worktree_name": "x", "branch_name": "agent/x",
+            },
+            ACTOR,
+        )
+        transitions.transition(
+            self.cfg, rid, "building",
+            {
+                "approved_by": "t", "repo_path": "/tmp/x", "repo_name": "x",
+                "base_ref": "HEAD", "branch_name": "agent/x", "worktree_name": "x",
+                "worktree_path": "/tmp/wt", "preflight_path": "plan.md#preflight",
+            },
+            ACTOR,
+        )
+        transitions.transition(
+            self.cfg, rid, "validating",
+            {"implementation_summary_path": "build.md", "diff_summary_path": "build.md"},
+            ACTOR,
+        )
+
+        # No HUMAN_REVIEW.md yet → rejected.
+        with self.assertRaises(transitions.TransitionError) as ctx:
+            transitions.transition(
+                self.cfg, rid, "human_review",
+                {
+                    "review_report_path": "review.md", "qa_report_path": "qa/report.md",
+                    "audit_path": "audit.md", "handoff_path": "HUMAN_REVIEW.md",
+                    "branch_name": "agent/x", "worktree_path": "/tmp/wt",
+                },
+                ACTOR,
+            )
+        self.assertIn("HUMAN_REVIEW.md", str(ctx.exception))
+
+        # Add a HUMAN_REVIEW.md but only one of the two required headings.
+        (rd / "HUMAN_REVIEW.md").write_text("# H\n\n## Suggested first checks\nx\n")
+        with self.assertRaises(transitions.TransitionError):
+            transitions.transition(
+                self.cfg, rid, "human_review",
+                {
+                    "review_report_path": "review.md", "qa_report_path": "qa/report.md",
+                    "audit_path": "audit.md", "handoff_path": "HUMAN_REVIEW.md",
+                    "branch_name": "agent/x", "worktree_path": "/tmp/wt",
+                },
+                ACTOR,
+            )
+
+        # Fix it; transition now succeeds.
+        (rd / "HUMAN_REVIEW.md").write_text(
+            "# H\n\n## Suggested first checks\nx\n\n## Run timeline\nx\n"
+        )
+        transitions.transition(
+            self.cfg, rid, "human_review",
+            {
+                "review_report_path": "review.md", "qa_report_path": "qa/report.md",
+                "audit_path": "audit.md", "handoff_path": "HUMAN_REVIEW.md",
+                "branch_name": "agent/x", "worktree_path": "/tmp/wt",
+            },
+            ACTOR,
+        )
+        self.assertEqual(metadata.load(self.cfg, rid)["status"], "human_review")
 
 
 if __name__ == "__main__":

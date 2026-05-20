@@ -4,7 +4,7 @@ from __future__ import annotations
 import pathlib
 import sys
 
-from lib import metadata, events, run_ids, repos
+from lib import metadata, events, run_ids, repos, lifecycle
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -87,6 +87,9 @@ def run(args) -> int:
     )
     rd = metadata.run_dir(cfg, run_id)
     (rd / "raw-idea.md").write_text(idea + "\n")
+
+    # New runs always use the staged layout (TODO §1a).
+    lifecycle.init_staged_layout(cfg, run_id)
 
     # For new repos, create now so the path is real before planning.
     initial_sha = None

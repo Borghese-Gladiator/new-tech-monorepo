@@ -10,39 +10,43 @@ from __future__ import annotations
 
 import re
 
-from lib import metadata, events, transitions, locks
+from lib import metadata, events, transitions, locks, lifecycle
 from lib.cli._common import actor_from_env, fail, load_config
 
 
 HELP = "Stage planning templates (--init) or finalize the plan (default)."
 
 
-PLAN_TEMPLATES = ("plan.md", "preflight.md", "assumptions.md", "decisions.md")
+PLAN_TEMPLATES_FLAT = ("plan.md", "preflight.md", "assumptions.md", "decisions.md")
+# Staged layout: one merged plan.md with folded Preflight + Decisions & assumptions sections.
+PLAN_TEMPLATES_STAGED = ("plan.md",)
 
 
 def register(p) -> None:
     p.add_argument("run_id")
     p.add_argument("--init", action="store_true",
-                   help="Stage templates/{plan,preflight,assumptions,decisions}.md.")
+                   help="Stage planning templates (single merged plan.md for staged runs).")
 
 
-def _stage_templates(cfg, rd) -> None:
-    for name in PLAN_TEMPLATES:
+def _stage_templates(cfg, rd, staged: bool) -> tuple[str, ...]:
+    templates = PLAN_TEMPLATES_STAGED if staged else PLAN_TEMPLATES_FLAT
+    for name in templates:
         dest = rd / name
         if not dest.exists():
             src = cfg.root / "templates" / name
             dest.write_text(src.read_text() if src.exists() else f"# {name}\n")
+    return templates
 
 
 def _parse_ids(md_text: str, prefix: str) -> list[str]:
-    """Pull `## PREFIX-NNN` style headings (e.g. ASM-001, DR-001)."""
-    pattern = re.compile(rf"^##\s+({prefix}-\d+)\b", re.MULTILINE)
+    """Pull `## PREFIX-NNN` or `### PREFIX-NNN` style headings."""
+    pattern = re.compile(rf"^#{{2,3}}\s+({prefix}-\d+)\b", re.MULTILINE)
     return pattern.findall(md_text)
 
 
 def _extract_assumption_blocks(md_text: str) -> list[dict]:
     """Return [{assumption_id, text, reason, impact}, ...]."""
-    parts = re.split(r"^##\s+(ASM-\d+)\s*$", md_text, flags=re.MULTILINE)
+    parts = re.split(r"^#{2,3}\s+(ASM-\d+)\s*$", md_text, flags=re.MULTILINE)
     out: list[dict] = []
     # parts: [preamble, id1, body1, id2, body2, ...]
     for i in range(1, len(parts), 2):
@@ -58,7 +62,7 @@ def _extract_assumption_blocks(md_text: str) -> list[dict]:
 
 
 def _extract_decision_blocks(md_text: str) -> list[dict]:
-    parts = re.split(r"^##\s+(DR-\d+)\s*$", md_text, flags=re.MULTILINE)
+    parts = re.split(r"^#{2,3}\s+(DR-\d+)\s*$", md_text, flags=re.MULTILINE)
     out: list[dict] = []
     for i in range(1, len(parts), 2):
         dr_id = parts[i]
@@ -91,38 +95,58 @@ def run(args) -> int:
         return fail(str(e), 2)
 
     rd = metadata.run_dir(cfg, run_id)
+    staged = lifecycle.is_staged_run(cfg, run_id)
 
     if args.init:
         if meta["status"] != "planning":
             return fail(f"--init requires status=planning, got {meta['status']!r}", 2)
-        _stage_templates(cfg, rd)
-        def _m(d):
-            d["artifacts"]["plan"] = "plan.md"
-            d["artifacts"]["preflight"] = "preflight.md"
-            d["artifacts"]["assumptions"] = "assumptions.md"
-            d["artifacts"]["decisions"] = "decisions.md"
+        templates = _stage_templates(cfg, rd, staged)
+        if staged:
+            def _m(d):
+                d["artifacts"]["plan"] = "plan.md"
+                d["artifacts"]["preflight"] = "plan.md#preflight"
+                d["artifacts"]["assumptions"] = "plan.md#decisions--assumptions"
+                d["artifacts"]["decisions"] = "plan.md#decisions--assumptions"
+        else:
+            def _m(d):
+                d["artifacts"]["plan"] = "plan.md"
+                d["artifacts"]["preflight"] = "preflight.md"
+                d["artifacts"]["assumptions"] = "assumptions.md"
+                d["artifacts"]["decisions"] = "decisions.md"
         metadata.update(cfg, run_id, _m)
-        for name in PLAN_TEMPLATES:
+        for name in templates:
             events.append(
                 cfg, run_id, "ArtifactWritten",
                 payload={"artifact_key": name.replace(".md",""), "path": str(rd / name), "summary": "template staged"},
                 actor=actor,
             )
-        print(f"{run_id}: staged {', '.join(PLAN_TEMPLATES)}")
+        print(f"{run_id}: staged {', '.join(templates)}")
         return 0
 
     # Default: planning -> ready.
     if meta["status"] != "planning":
         return fail(f"default mode requires status=planning, got {meta['status']!r}", 2)
 
-    # Verify all four artifacts exist and have non-template content.
-    for name in PLAN_TEMPLATES:
+    # Verify required artifacts (location depends on layout).
+    if staged:
+        required = ("plan.md",)
+    else:
+        required = PLAN_TEMPLATES_FLAT
+    for name in required:
         p = rd / name
         if not p.exists() or not p.read_text().strip():
             return fail(f"{name} missing or empty at {p}", 2)
 
     # Emit AssumptionRecorded / DecisionRecorded for any ID found.
-    asm_text = (rd / "assumptions.md").read_text()
+    # For staged runs, scan the merged plan.md; for flat, the separate files.
+    if staged:
+        asm_text = dr_text = (rd / "plan.md").read_text()
+        asm_source = dr_source = "plan.md"
+    else:
+        asm_text = (rd / "assumptions.md").read_text()
+        dr_text = (rd / "decisions.md").read_text()
+        asm_source = "assumptions.md"
+        dr_source = "decisions.md"
     for asm in _extract_assumption_blocks(asm_text):
         if not asm["text"]:
             continue
@@ -133,11 +157,10 @@ def run(args) -> int:
                 "text": asm["text"],
                 "reason": asm["reason"] or "(not recorded)",
                 "impact": asm["impact"] or "(not recorded)",
-                "source_artifact": "assumptions.md",
+                "source_artifact": asm_source,
             },
             actor=actor,
         )
-    dr_text = (rd / "decisions.md").read_text()
     for dr in _extract_decision_blocks(dr_text):
         if not dr["decision"]:
             continue
@@ -149,16 +172,17 @@ def run(args) -> int:
                 "rationale": dr["rationale"] or "(not recorded)",
                 "alternatives_considered": dr["alternatives_considered"],
                 "why_not_alternatives": dr["why_not_alternatives"],
-                "source_artifact": "decisions.md",
+                "source_artifact": dr_source,
             },
             actor=actor,
         )
 
     # Emit PreflightCompleted.
+    preflight_artifact = "plan.md" if staged else "preflight.md"
     events.append(
         cfg, run_id, "PreflightCompleted",
         payload={
-            "preflight_path": str(rd / "preflight.md"),
+            "preflight_path": str(rd / preflight_artifact),
             "repo_path": meta["target"]["repo"]["path"],
             "repo_name": meta["target"]["repo"]["name"],
             "base_ref": meta["target"]["repo"]["base_ref"],
@@ -168,22 +192,40 @@ def run(args) -> int:
         actor=actor,
     )
 
-    # Apply the transition.
+    # Apply the transition. For staged runs every planning-evidence path is
+    # plan.md (with an anchor for non-plan keys). The engine's move-on-
+    # transition will rewrite plan_path to stages/planning/plan.md and the
+    # anchored keys to stages/planning/plan.md#<anchor>.
+    if staged:
+        plan_src = str(rd / "plan.md")
+        evidence = {
+            "plan_path": plan_src,
+            "assumptions_path": plan_src,
+            "decisions_path": plan_src,
+            "preflight_path": plan_src,
+            "repo_path": meta["target"]["repo"]["path"],
+            "repo_name": meta["target"]["repo"]["name"],
+            "worktree_name": meta["target"]["worktree"]["name"],
+            "branch_name": meta["target"]["worktree"]["branch_name"],
+            "base_ref": meta["target"]["repo"]["base_ref"],
+        }
+    else:
+        evidence = {
+            "plan_path": str(rd / "plan.md"),
+            "assumptions_path": str(rd / "assumptions.md"),
+            "decisions_path": str(rd / "decisions.md"),
+            "preflight_path": str(rd / "preflight.md"),
+            "repo_path": meta["target"]["repo"]["path"],
+            "repo_name": meta["target"]["repo"]["name"],
+            "worktree_name": meta["target"]["worktree"]["name"],
+            "branch_name": meta["target"]["worktree"]["branch_name"],
+            "base_ref": meta["target"]["repo"]["base_ref"],
+        }
     try:
         with locks.acquire(cfg, run_id):
             transitions.transition(
                 cfg, run_id, "ready",
-                evidence={
-                    "plan_path": str(rd / "plan.md"),
-                    "assumptions_path": str(rd / "assumptions.md"),
-                    "decisions_path": str(rd / "decisions.md"),
-                    "preflight_path": str(rd / "preflight.md"),
-                    "repo_path": meta["target"]["repo"]["path"],
-                    "repo_name": meta["target"]["repo"]["name"],
-                    "worktree_name": meta["target"]["worktree"]["name"],
-                    "branch_name": meta["target"]["worktree"]["branch_name"],
-                    "base_ref": meta["target"]["repo"]["base_ref"],
-                },
+                evidence=evidence,
                 actor=actor,
             )
     except transitions.TransitionError as e:

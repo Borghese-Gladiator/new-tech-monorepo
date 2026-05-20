@@ -15,7 +15,7 @@ import pathlib
 from functools import lru_cache
 from typing import Any
 
-from lib import yaml_io, events as events_mod, metadata as metadata_mod
+from lib import yaml_io, events as events_mod, metadata as metadata_mod, lifecycle
 from lib.config import Config
 
 
@@ -122,8 +122,35 @@ def transition(
             f"transition {from_state!r} -> {to_state!r} missing evidence: {missing}"
         )
 
+    # Staged-layout pre-checks. The new HUMAN_REVIEW.md must carry the
+    # required headings before we let validating -> human_review through.
+    if (
+        lifecycle.is_staged_run(cfg, run_id)
+        and from_state == "validating"
+        and to_state == "human_review"
+    ):
+        section_errs = lifecycle.validate_human_review_sections(cfg, run_id)
+        if section_errs:
+            _try_emit_rejected(
+                cfg, run_id, from_state, to_state, actor,
+                reason="HUMAN_REVIEW.md is missing required sections",
+                missing_evidence=section_errs,
+            )
+            raise TransitionError(
+                "validating -> human_review rejected: " + "; ".join(section_errs)
+            )
+
     # Apply the transition.
     metadata_mod.set_status(cfg, run_id, to_state)
+
+    # Staged-layout move-on-transition: promote the just-produced stage's
+    # outputs into stages/<stage>/, and rewrite evidence paths to match before
+    # the TransitionApplied event is recorded.
+    if lifecycle.is_staged_run(cfg, run_id):
+        rewrites = lifecycle.on_transition(cfg, run_id, from_state, to_state, evidence)
+        for k, new_path in rewrites.items():
+            if k in evidence:
+                evidence[k] = new_path
 
     applied = events_mod.append(
         cfg,

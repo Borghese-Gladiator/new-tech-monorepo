@@ -11,14 +11,19 @@ will auto-init if invoked from `building`.
 """
 from __future__ import annotations
 
-from lib import metadata, events, transitions, locks, audit
+from lib import metadata, events, transitions, locks, audit, lifecycle
 from lib.cli._common import actor_from_env, fail, load_config
 
 
 HELP = "Run review + QA + render audit, then transition to human_review."
 
 
-POST_TEMPLATES = ("implementation-summary.md", "diff-summary.md", "review.md", "handoff.md")
+# Flat-layout templates (legacy runs).
+POST_TEMPLATES_FLAT = ("implementation-summary.md", "diff-summary.md", "review.md", "handoff.md")
+# Staged-layout templates. The builder writes build.md DURING building (it's
+# the stage's output and gets moved into stages/building/ on transition), so
+# --init only stages validating's templates here.
+POST_TEMPLATES_STAGED = ("review.md", "HUMAN_REVIEW.md")
 QA_REPORT = "qa/report.md"
 
 
@@ -29,8 +34,9 @@ def register(p) -> None:
     p.add_argument("--known-issues", type=int, default=0)
 
 
-def _stage(cfg, rd) -> None:
-    for name in POST_TEMPLATES:
+def _stage(cfg, rd, staged: bool) -> None:
+    templates = POST_TEMPLATES_STAGED if staged else POST_TEMPLATES_FLAT
+    for name in templates:
         dest = rd / name
         if not dest.exists():
             src = cfg.root / "templates" / name
@@ -59,29 +65,59 @@ def run(args) -> int:
         return fail(str(e), 2)
 
     rd = metadata.run_dir(cfg, run_id)
+    staged = lifecycle.is_staged_run(cfg, run_id)
 
     if args.init:
         if meta["status"] != "building":
             return fail(f"--init requires status=building, got {meta['status']!r}", 2)
-        _stage(cfg, rd)
+        # Staged runs require build.md to already exist (builder writes it
+        # during building). Stage it from the template only if absent, but
+        # that's the builder's job — warn by failing loudly here.
+        if staged and not (rd / "build.md").exists():
+            # First-time path: also tolerate the builder hasn't written it yet
+            # by staging the template, so a smoke run with no real builder
+            # still works. The transition engine will move whatever is there.
+            tpl = cfg.root / "templates" / "build.md"
+            (rd / "build.md").write_text(tpl.read_text() if tpl.exists() else "# Build\n")
+        _stage(cfg, rd, staged)
+        # For staged runs, build.md is the single merged artifact; both
+        # implementation_summary_path and diff_summary_path evidence keys point
+        # at it (their values get rewritten to stages/building/build.md by the
+        # transition engine's move-on-transition hook).
+        if staged:
+            build_src = str(rd / "build.md")
+            evidence = {
+                "implementation_summary_path": build_src,
+                "diff_summary_path": build_src,
+            }
+        else:
+            evidence = {
+                "implementation_summary_path": str(rd / "implementation-summary.md"),
+                "diff_summary_path": str(rd / "diff-summary.md"),
+            }
         try:
             with locks.acquire(cfg, run_id):
                 transitions.transition(
                     cfg, run_id, "validating",
-                    evidence={
-                        "implementation_summary_path": str(rd / "implementation-summary.md"),
-                        "diff_summary_path": str(rd / "diff-summary.md"),
-                    },
+                    evidence=evidence,
                     actor=actor,
                 )
         except transitions.TransitionError as e:
             return fail(str(e), 4)
-        def _m(d):
-            d["artifacts"]["implementation_summary"] = "implementation-summary.md"
-            d["artifacts"]["diff_summary"] = "diff-summary.md"
-            d["artifacts"]["review_report"] = "review.md"
-            d["artifacts"]["qa_report"] = "qa/report.md"
-            d["artifacts"]["handoff"] = "handoff.md"
+        if staged:
+            def _m(d):
+                d["artifacts"]["implementation_summary"] = "stages/building/build.md"
+                d["artifacts"]["diff_summary"] = "stages/building/build.md#files-changed"
+                d["artifacts"]["review_report"] = "review.md"
+                d["artifacts"]["qa_report"] = "qa/report.md"
+                d["artifacts"]["handoff"] = "HUMAN_REVIEW.md"
+        else:
+            def _m(d):
+                d["artifacts"]["implementation_summary"] = "implementation-summary.md"
+                d["artifacts"]["diff_summary"] = "diff-summary.md"
+                d["artifacts"]["review_report"] = "review.md"
+                d["artifacts"]["qa_report"] = "qa/report.md"
+                d["artifacts"]["handoff"] = "handoff.md"
         metadata.update(cfg, run_id, _m)
         print(f"{run_id}: building -> validating; staged post-impl templates")
         return 0
@@ -90,14 +126,22 @@ def run(args) -> int:
     if meta["status"] != "validating":
         return fail(f"default mode requires status=validating, got {meta['status']!r}", 2)
 
-    # Verify required artifacts.
-    required = [
-        ("implementation-summary.md", "implementation_summary_path"),
-        ("diff-summary.md", "diff_summary_path"),
-        ("review.md", "review_report_path"),
-        ("qa/report.md", "qa_report_path"),
-        ("handoff.md", "handoff_path"),
-    ]
+    # Verify required artifacts (location depends on layout).
+    if staged:
+        required = [
+            ("stages/building/build.md", "implementation_summary_path"),
+            ("review.md", "review_report_path"),
+            ("qa/report.md", "qa_report_path"),
+            ("HUMAN_REVIEW.md", "handoff_path"),
+        ]
+    else:
+        required = [
+            ("implementation-summary.md", "implementation_summary_path"),
+            ("diff-summary.md", "diff_summary_path"),
+            ("review.md", "review_report_path"),
+            ("qa/report.md", "qa_report_path"),
+            ("handoff.md", "handoff_path"),
+        ]
     for name, _label in required:
         p = rd / name
         if not p.exists() or not p.read_text().strip():
@@ -163,11 +207,13 @@ def run(args) -> int:
         d["artifacts"]["audit"] = "audit.md"
     metadata.update(cfg, run_id, _m2)
 
+    handoff_file = "HUMAN_REVIEW.md" if staged else "handoff.md"
+
     # Emit HumanHandoffCreated.
     events.append(
         cfg, run_id, "HumanHandoffCreated",
         payload={
-            "handoff_path": str(rd / "handoff.md"),
+            "handoff_path": str(rd / handoff_file),
             "branch_name": meta["target"]["worktree"]["branch_name"],
             "worktree_path": meta["target"]["worktree"]["path"],
             "review_report_path": str(rd / "review.md"),
@@ -177,7 +223,8 @@ def run(args) -> int:
         actor=actor,
     )
 
-    # Transition.
+    # Transition. The engine validates HUMAN_REVIEW.md section presence for
+    # staged runs before set_status.
     try:
         with locks.acquire(cfg, run_id):
             transitions.transition(
@@ -186,7 +233,7 @@ def run(args) -> int:
                     "review_report_path": str(rd / "review.md"),
                     "qa_report_path": str(rd / "qa" / "report.md"),
                     "audit_path": str(audit_path),
-                    "handoff_path": str(rd / "handoff.md"),
+                    "handoff_path": str(rd / handoff_file),
                     "branch_name": meta["target"]["worktree"]["branch_name"],
                     "worktree_path": meta["target"]["worktree"]["path"],
                     "tests_passed": tests_passed,

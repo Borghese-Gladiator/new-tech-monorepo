@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from lib import metadata, transitions, locks
+from lib import metadata, transitions, locks, lifecycle
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -36,7 +36,8 @@ def run(args) -> int:
         return fail(f"bounce requires status=human_review, got {meta['status']!r}", 2)
 
     rd = metadata.run_dir(cfg, run_id)
-    handoff_path = rd / "handoff.md"
+    staged = lifecycle.is_staged_run(cfg, run_id)
+    handoff_path = rd / ("HUMAN_REVIEW.md" if staged else "handoff.md")
 
     evidence = {
         "bounce_reason": args.reason,
@@ -56,6 +57,10 @@ def run(args) -> int:
 
     try:
         with locks.acquire(cfg, run_id):
+            # On staged runs, supersede prior building/validating outputs
+            # into archive/ before letting the rebuild start.
+            if staged:
+                lifecycle.archive_for_bounce(cfg, run_id)
             transitions.transition(
                 cfg, run_id, "building",
                 evidence=evidence,

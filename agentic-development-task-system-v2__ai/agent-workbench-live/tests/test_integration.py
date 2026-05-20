@@ -87,7 +87,8 @@ class TestHappyPath(IntegrationCase):
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("draft -> shaping", r.stdout)
 
-        # Fill brief
+        # Fill brief (staged layout: file lives at run root until shape closes
+        # the stage, then is moved into stages/shaping/).
         brief = self.tmp / "runs" / run_id / "brief.md"
         brief.write_text("# Brief\n\n## Goal\nAdd a hello endpoint.\n")
 
@@ -99,15 +100,15 @@ class TestHappyPath(IntegrationCase):
         r = cli(self.tmp, "plan", run_id, "--init")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
 
-        # Fill planning artifacts
+        # Fill planning artifacts. Staged layout merges preflight + decisions/
+        # assumptions into plan.md.
         run_dir = self.tmp / "runs" / run_id
-        (run_dir / "plan.md").write_text("# Plan\nAdd hello.\n")
-        (run_dir / "preflight.md").write_text("# Preflight\nOK.\n")
-        (run_dir / "assumptions.md").write_text(
-            "# Assumptions\n\n## ASM-001\n- **Text**: We use Go.\n- **Reason**: It's a Go repo.\n- **Impact**: low\n"
-        )
-        (run_dir / "decisions.md").write_text(
-            "# Decisions\n\n## DR-001\n- **Decision**: Use net/http.\n- **Rationale**: stdlib is enough.\n"
+        (run_dir / "plan.md").write_text(
+            "# Plan\nAdd hello.\n\n"
+            "## Preflight\nOK.\n\n"
+            "## Decisions & assumptions\n\n"
+            "### ASM-001\n- **Text**: We use Go.\n- **Reason**: It's a Go repo.\n- **Impact**: low\n\n"
+            "### DR-001\n- **Decision**: Use net/http.\n- **Rationale**: stdlib is enough.\n"
         )
 
         # plan finalize: planning -> ready
@@ -130,17 +131,25 @@ class TestHappyPath(IntegrationCase):
         )
         self.assertEqual(branch_check.returncode, 0)
 
+        # Builder writes build.md DURING `building` (staged layout: it's the
+        # building stage's output and gets moved by the engine on transition).
+        (run_dir / "build.md").write_text("# Build\nAdded /hello.\n")
+
         # validate --init: building -> validating
         r = cli(self.tmp, "validate", run_id, "--init")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("building -> validating", r.stdout)
 
-        # Fill post-impl artifacts
-        (run_dir / "implementation-summary.md").write_text("# Impl\nAdded /hello.\n")
-        (run_dir / "diff-summary.md").write_text("# Diff\nOne file.\n")
+        # Fill validating-stage artifacts at run root; they'll be moved into
+        # stages/validating/ on the next transition.
         (run_dir / "review.md").write_text("# Review\n\n## Decision\napprove\n")
         (run_dir / "qa" / "report.md").write_text("# QA\nLooks good.\n")
-        (run_dir / "handoff.md").write_text("# Handoff\nGo look.\n")
+        (run_dir / "HUMAN_REVIEW.md").write_text(
+            "# HUMAN_REVIEW\n\n"
+            "## Suggested first checks\n\n"
+            "```bash\necho ok\n```\n\n"
+            "## Run timeline\n\nstep 1\n"
+        )
 
         # validate finalize: validating -> human_review
         r = cli(self.tmp, "validate", run_id, "--tests-passed", "true", "--known-issues", "0")
@@ -148,6 +157,21 @@ class TestHappyPath(IntegrationCase):
         self.assertIn("validating -> human_review", r.stdout)
         # audit.md was rendered
         self.assertTrue((run_dir / "audit.md").exists())
+
+        # Staged-layout assertions (TODO §1a/§1b/§1c): the expected files
+        # have been promoted into stages/<stage>/, and HUMAN_REVIEW.md sits
+        # at run root with the required sections.
+        self.assertTrue((run_dir / "stages" / "shaping" / "brief.md").exists())
+        self.assertTrue((run_dir / "stages" / "planning" / "plan.md").exists())
+        self.assertTrue((run_dir / "stages" / "building" / "build.md").exists())
+        self.assertTrue((run_dir / "stages" / "validating" / "review.md").exists())
+        self.assertTrue((run_dir / "stages" / "validating" / "qa" / "report.md").exists())
+        self.assertTrue((run_dir / "HUMAN_REVIEW.md").exists())
+        # Run-root pre-staging files are gone (they were moved on transition).
+        self.assertFalse((run_dir / "brief.md").exists())
+        self.assertFalse((run_dir / "build.md").exists())
+        self.assertFalse((run_dir / "review.md").exists())
+        self.assertFalse((run_dir / "qa" / "report.md").exists())
 
         # complete: human_review -> done
         r = cli(self.tmp, "complete", run_id, "--accepted-by", "tester")
@@ -180,15 +204,18 @@ class TestBounceLoop(IntegrationCase):
         (run_dir / "brief.md").write_text("# Brief\nB.\n")
         cli(self.tmp, "shape", run_id)
         cli(self.tmp, "plan", run_id, "--init")
-        for n in ("plan.md", "preflight.md"):
-            (run_dir / n).write_text(f"# {n}\nx\n")
-        (run_dir / "assumptions.md").write_text("# A\n\n## ASM-001\n- **Text**: x\n")
-        (run_dir / "decisions.md").write_text("# D\n\n## DR-001\n- **Decision**: x\n")
+        (run_dir / "plan.md").write_text(
+            "# Plan\nx\n\n## Preflight\nx\n\n## Decisions & assumptions\n\n"
+            "### ASM-001\n- **Text**: x\n\n### DR-001\n- **Decision**: x\n"
+        )
         cli(self.tmp, "plan", run_id)
         cli(self.tmp, "start", run_id, "--approved-by", "t")
+        (run_dir / "build.md").write_text("# Build\nx\n")
         cli(self.tmp, "validate", run_id, "--init")
-        for n in ("implementation-summary.md", "diff-summary.md", "review.md", "handoff.md"):
-            (run_dir / n).write_text(f"# {n}\nx\n")
+        (run_dir / "review.md").write_text("# Review\nx\n")
+        (run_dir / "HUMAN_REVIEW.md").write_text(
+            "# HR\n\n## Suggested first checks\n\n```bash\nok\n```\n\n## Run timeline\nx\n"
+        )
         (run_dir / "qa" / "report.md").write_text("# QA\nx\n")
         cli(self.tmp, "validate", run_id)
         return run_id, run_dir
@@ -204,8 +231,20 @@ class TestBounceLoop(IntegrationCase):
         self.assertIn("human_review -> building", r.stdout)
         self.assertNotIn("change-request:", r.stdout)
 
-        # Re-validate
+        # The prior stages/building/ and stages/validating/ outputs should be
+        # archived as -v1 (TODO §1a supersession rule).
+        self.assertTrue((run_dir / "archive" / "building" / "build-v1.md").exists())
+        self.assertTrue((run_dir / "archive" / "validating" / "review-v1.md").exists())
+        # And stages/ has been re-emptied for the rebuild.
+        self.assertEqual(list((run_dir / "stages" / "building").iterdir()), [])
+
+        # Re-validate. Build a v2 build.md / review.md / HUMAN_REVIEW.md.
+        (run_dir / "build.md").write_text("# Build v2\n")
         cli(self.tmp, "validate", run_id, "--init")
+        (run_dir / "review.md").write_text("# Review v2\n")
+        (run_dir / "HUMAN_REVIEW.md").write_text(
+            "# HR\n\n## Suggested first checks\n\n```bash\nok\n```\n\n## Run timeline\nx\n"
+        )
         cli(self.tmp, "validate", run_id)
 
         r = cli(self.tmp, "show", run_id)
@@ -287,6 +326,82 @@ class TestAbandon(IntegrationCase):
             self.assertEqual(r.returncode, 0, msg=r.stderr)
             r = cli(self.tmp, "show", rid)
             self.assertIn("status:     abandoned", r.stdout)
+
+
+class TestFlatLayoutBackCompat(IntegrationCase):
+    """A run created before TODO §1 (no stages/ directory) must still be
+    readable by show/events without the renovate code paths kicking in."""
+
+    def test_flat_run_loads_and_show_works(self):
+        run_id = "2025-12-01-legacy"
+        rd = self.tmp / "runs" / run_id
+        rd.mkdir(parents=True)
+        # Hand-write a flat-layout metadata.yaml in the post-V1 shape.
+        (rd / "metadata.yaml").write_text(f"""schema_version: 1
+run_id: {run_id}
+status: human_review
+created_at: 2025-12-01T00:00:00
+updated_at: 2025-12-01T00:00:00
+target:
+  repo:
+    mode: existing
+    path: /tmp/legacy
+    name: legacy
+    base_ref: main
+    fingerprint: null
+    created_by_run: null
+  worktree:
+    name: legacy
+    path: /tmp/wt
+    branch_name: agent/legacy
+    created: true
+    base_ref: main
+    initial_commit_sha: null
+scope:
+  kind: implementation
+  summary: ''
+artifacts:
+  raw_idea: raw-idea.md
+  answers: null
+  brief: brief.md
+  plan: plan.md
+  preflight: preflight.md
+  assumptions: assumptions.md
+  decisions: decisions.md
+  implementation_summary: implementation-summary.md
+  diff_summary: diff-summary.md
+  review_report: review.md
+  qa_report: qa/report.md
+  audit: audit.md
+  handoff: handoff.md
+validation:
+  required: true
+  review_completed: true
+  qa_completed: true
+  qa_recorded: true
+  tests_passed: true
+  known_issues_count: 0
+completion:
+  accepted_by: null
+  completion_ref: null
+  completed_at: null
+  abandoned_reason: null
+""")
+        # Flat: handoff.md at run root, no stages/.
+        (rd / "handoff.md").write_text("# Handoff (legacy)\nDone.\n")
+
+        # show should print status without exploding.
+        r = cli(self.tmp, "show", run_id)
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("status:     human_review", r.stdout)
+
+        # handoff command should find the legacy handoff.md, not look for HUMAN_REVIEW.md.
+        r = cli(self.tmp, "handoff", run_id)
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("Handoff (legacy)", r.stdout)
+
+        # And nothing has materialized a stages/ directory as a side effect.
+        self.assertFalse((rd / "stages").exists())
 
 
 class TestNewRepo(IntegrationCase):
