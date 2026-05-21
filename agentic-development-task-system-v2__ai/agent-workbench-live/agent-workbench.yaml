@@ -12,7 +12,7 @@ defaults:
   branch_prefix: agent
   base_ref: HEAD
   run_id_template: "{date}-{slug}"
-  worktree_name_template: "{slug}"
+  worktree_name_template: "{date}__{slug}"
   branch_name_template: "{branch_prefix}/{worktree_name}"
   new_repo_default_layout: monorepo
   max_build_iterations: 5
