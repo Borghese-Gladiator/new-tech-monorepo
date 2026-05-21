@@ -50,3 +50,12 @@ Completed all seven subsections of the Renovate task workflow (TODO §1) across 
 - **Pass 4 — §1g:** new `lib/scope_check.py` parses `brief.md`'s `## Files likely to change` (or `## Scope`) section and compares against `git diff --name-only <base>...HEAD`; unexpected files appended to `review.md` as `## Scope creep check`; emits `ScopeCreepChecked` event. Deep blast-radius (depth-2/3 caller traversal) is authored by the reviewer agent itself via `git` commands during `/validate` step 3 — the CLI handles the deterministic depth-1 comparison only. Fixed a bullet-regex bug (greedy/non-greedy interaction) that affected both `lib/doc_claims.py` and the new `lib/scope_check.py`.
 
 End state: 93 tests across 8 test modules; `agent-workbench doctor` passes; the flat-layout poker run still loads. TODO file renumbered — §1 is now "Better worktree name"; §6 added: "Followup spawn" (the deferred stretch from §1f).
+
+## 2026-05-21
+
+First end-to-end dogfood of the staged-layout workflow. Drove TODO §1 (Better worktree name) through the full pipeline on this repo itself.
+
+- Run `2026-05-21-better-worktree-name-template` traversed all 8 transitions (`draft → shaping → planning → ready → building → validating → followups → human_review → done`) without any manual intervention beyond authoring the LLM-bearing artifacts. The new staged layout, doc-claims check, build-loop metadata fill, scope-creep check, and `/followups` stage all fired correctly.
+- Real work landed: `agent-workbench-live/lib/run_ids.py` gained `extract_run_date` + a widened `make_worktree_path` that prepends `<YYYYMMDD>__` to worktree directory basenames. Branch `agent/better-worktree-name-template` (commit `cefd720`) merged into `202605_agent_workbench_v2`; dogfood worktree removed.
+- Dogfood surfaced four follow-up items, captured in `runs/2026-05-21-better-worktree-name-template/stages/followups/follow-ups.md`. Top item — numbered stage directories — promoted to TODO §1 because the alphabetical sort of `stages/<stage>/` (`building/ draft/ followups/ planning/ shaping/ validating/`) is actively confusing at triage time.
+- Confirmed by inspection: this run's *own* worktree did NOT get the date prefix (the implementation landed mid-run, AC-4 preservation). Future runs will.

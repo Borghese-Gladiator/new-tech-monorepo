@@ -2,24 +2,39 @@
 
 Next round of work after V1. Each section captures one idea — what it is, why we want it, and the concrete pieces to build.
 
-**Renovate task workflow (originally §1) is complete** — all of 1a/1b/1c/1d/1e/1f/1g landed across four commits (`d1d8b44`, `d5ee45e`, `90a3daf`, and the §1g commit). Remaining work is renumbered below.
+**Completed work, summarised at the top so this file shrinks over time:**
 
-Order reflects priority: worktree naming is the small, isolated warm-up. Then board, summary, E2E, context graph.
+- ✅ Renovate task workflow (originally §1; 1a–1g across four commits `d1d8b44`, `d5ee45e`, `90a3daf`, `827a06a`).
+- ✅ Better worktree name (originally §2 after renumbering; merged into `202605_agent_workbench_v2` from `agent/better-worktree-name-template`).
+
+Order reflects priority: numbered stage directories is the small, isolated warm-up. Then board, summary, E2E, context graph, followup spawn.
 
 ---
 
-## 1. Better worktree name
+## 1. Number stage directories by execution order
 
-Today `worktree_name` defaults to the slug of the brief title — fine for short titles but loses information for longer ones, and there's no signal of *what stage* the work is in or *which repo* it targets when you're staring at a `worktrees/` directory.
+Today `stages/<stage>/` directory names sort alphabetically (`building/ draft/ followups/ planning/ shaping/ validating/`), which has nothing to do with the lifecycle flow. A reviewer landing in a run dir sees the stages jumbled. Same problem in `archive/<stage>/` after a bounce. Prefix each directory with its 1-based execution-order number so `ls` shows them top-to-bottom in lifecycle order:
 
-- [ ] Audit current naming: `worktrees/<repo_name>/<slug>`. Document the failure modes (collisions when two runs share a slug; opaque names when slugs are truncated; no date hint).
-- [ ] Decide on a new template. Candidate: `<YYYYMMDD>__<slug>` (matches the existing `LOCAL_worktrees` convention this repo uses — see `202605_agent_workbench_v2`). Alternative: `<run_id>` directly (already date-prefixed + slug, guaranteed unique).
-- [ ] Update `agent-workbench.yaml.defaults.worktree_name_template` and the resolver in `lib/run_ids.py`.
-- [ ] Decide whether `branch_name` follows the same pattern. Current: `agent/<worktree_name>`. Probably stays — but verify the new template doesn't break git's branch name rules.
-- [ ] Migration story for existing in-flight runs: don't rename them. New template applies only to runs created after the change. Add a one-line note in `lifecycle.md`.
-- [ ] Update integration tests that assert on worktree paths.
-- [ ] Update `AGENTS.md` and `README.md` examples.
-- [ ] (Stretch) Allow the user to override per-run via `new-run --worktree-name <name>` — already supported; just make sure the slug-sanitizer doesn't strip the new template's separators (`_`, double-underscore).
+```
+stages/
+  1_draft/
+  2_shaping/
+  3_planning/
+  4_building/
+  5_validating/
+  6_followups/
+```
+
+Surfaced by the dogfood of the previous TODO item (run `2026-05-21-better-worktree-name-template`).
+
+- [ ] Update `lib/lifecycle.py` `stage_dir` / `archive_dir` helpers + `_STAGE_OUTPUTS` move table to emit the numbered names.
+- [ ] Update `HUMAN_REVIEW.md` template's "Where to start" hub links to point at the new paths.
+- [ ] Update `/validate` and `/followups` slash command docs (and any other doc that references `stages/<stage>/`).
+- [ ] Update `docs/lifecycle.md` and any integration tests that assert against `stages/shaping/brief.md` etc.
+- [ ] Update `templates/follow-ups.md`'s pointer in HUMAN_REVIEW.md hub.
+- [ ] Decide whether to also number `qa-v<N>` archives (probably not — they're already version-numbered).
+- [ ] Migration: existing flat-layout runs unaffected. Existing in-flight staged runs created before this change: do NOT rename them. Add a one-line note in `lifecycle.md`.
+- [ ] Confirm `bounce` archiving still works: `archive_for_bounce` iterates `("building", "validating", "followups")` — update those literals to match the new directory names.
 
 ## 2. Task board
 
