@@ -75,6 +75,11 @@ validation:
   qa_recordings_dir: qa/recordings
   qa_traces_dir: qa/traces
 
+board:
+  # Flag any run that has been in human_review for at least this many hours
+  # as stale on `agent-workbench board`. See TODO §1.
+  stale_human_review_hours: 24
+
 artifacts:
   raw_idea: raw-idea.md
   answers: answers.md

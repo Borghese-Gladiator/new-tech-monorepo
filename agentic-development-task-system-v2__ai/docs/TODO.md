@@ -7,24 +7,13 @@ Next round of work after V1. Each section captures one idea — what it is, why 
 - ✅ Renovate task workflow (originally §1; 1a–1g across four commits `d1d8b44`, `d5ee45e`, `90a3daf`, `827a06a`).
 - ✅ Better worktree name (originally §2 after renumbering; merged into `202605_agent_workbench_v2` from `agent/better-worktree-name-template`).
 - ✅ Numbered stage directories (originally §1 after this renumbering; `stages/1_draft/`, `2_shaping/`, …). Same dogfood pass cleared four follow-ups: scope_check path-prefix matching, `extract_run_date` unit tests, `show` rendering the `build:` block, multi-line ASM/DR body parsing.
+- ✅ Task board (originally §1 — terminal-rendered Kanban via `agent-workbench board` / `/board`; columns in canonical order, terminal states hidden by default, `--all` + `--status` filters, stale-`human_review` flagging with configurable threshold; HTML render + `blocker` field intentionally deferred as marked Stretch).
 
-Order reflects priority: task board, summary, E2E, context graph, followup spawn.
+Order reflects priority: summary, E2E, context graph, followup spawn.
 
 ---
 
-## 1. Task board
-
-Right now run state is scattered across `runs/<run_id>/metadata.yaml` files. To see what's in flight you have to `agent-workbench list` and squint. A task board surfaces all runs grouped by lifecycle state so humans can see queue depth and what needs attention.
-
-- [ ] Decide format. Default: terminal-rendered Kanban (`agent-workbench board`) with one column per state (`draft`, `shaping`, `planning`, `ready`, `building`, `validating`, `followups`, `human_review`, `done`, `abandoned`). Stretch: an HTML render written to `runs/_board.html` for browser viewing.
-- [ ] Add `agent-workbench board` subcommand. Reads every `runs/*/metadata.yaml`, groups by status, prints columns with `run_id`, age (since `updated_at`), `repo_name`, branch.
-- [ ] Highlight runs that have been in `human_review` for more than N hours (configurable in `agent-workbench.yaml.board.stale_human_review_hours`).
-- [ ] Hide terminal states by default; `--all` includes `done` and `abandoned`.
-- [ ] Slash command `/board` — thin wrapper.
-- [ ] (Stretch) `agent-workbench board --html <path>` writes a single self-contained HTML file. No server, no JS framework — just a static dump regenerated on demand.
-- [ ] (Stretch) Per-run "blocker" field in metadata so the board can show *why* a run is stalled in `human_review` (e.g., "waiting on QA env").
-
-## 2. Activity log summary
+## 1. Activity log summary
 
 Per-run, human-readable rollup of what a single run produced — not a cross-run digest. Goal: open one file and see at a glance *what changed* and *what was added* in that run, including any mid-flight course corrections from `/bounce`. `events.jsonl` is the source of truth but it's noisy (every `CommandRun` and `ArtifactWritten`); `audit.md` is a chronological dump. Neither answers "what did this run actually do?" in one screen.
 
@@ -41,7 +30,7 @@ Per-run, human-readable rollup of what a single run produced — not a cross-run
 - [ ] Decision: `summary.md` lives inside the run directory (single source of truth, regenerated). Do **not** also append to `LOG.md` — `LOG.md` stays hand-curated.
 - [ ] Test: assert that after a bounce → continue cycle, the addendum section lists the bounce reason and the summary's "what changed" reflects the post-bounce diff.
 
-## 3. Automatic E2E testing
+## 2. Automatic E2E testing
 
 V1 has unit tests + integration tests that drive the CLI through the happy path / bounce / abandon. What's missing is a true end-to-end smoke that exercises the full LLM-bearing flow (`/shape`, `/plan`, `/validate`, `/followups`) against a real throwaway repo without a human in the loop.
 
@@ -54,7 +43,7 @@ V1 has unit tests + integration tests that drive the CLI through the happy path 
 - [ ] Add a second E2E that exercises the **bounce loop** (validate → followups → bounce → validate → followups → complete) and a third for **abandon** at a random non-terminal state.
 - [ ] Document how to add a new E2E scenario in `agent-workbench-live/tests/README.md`.
 
-## 4. Context graph
+## 3. Context graph
 
 A library of small, focused "context files" that the workbench's `AGENTS.md` (or per-stage prompts) link to with `@path/to/file.md`. Claude Code resolves `@`-imports lazily — the file's content only enters the model's context when it's actually relevant to the current task. Today the workbench has no such library, so every run re-derives basics like "use poetry, not pip" or "create a worktree before editing" from scratch (or worse, gets them wrong).
 
@@ -89,7 +78,7 @@ Goal: ship a `agent-workbench-live/context/` directory of opinionated, one-page-
 - [ ] Document the library in `AGENTS.md`: how to add a new context file, naming convention, when to inline vs. reference.
 - [ ] (Stretch) `agent-workbench context list` — print the index. `agent-workbench context show <name>` — print a single file. Useful when debugging "why did the agent do X" — you can see exactly what guidance it had access to.
 
-## 5. Followup spawn (TODO §1f stretch, deferred)
+## 4. Followup spawn (TODO §1f stretch, deferred)
 
 The pass-3 Renovate work landed the `followups` stage but **deliberately did not implement** the `agent-workbench followup spawn` command. That command — create a new `draft` run pre-populated from a chosen mini-brief in a prior run's `follow-ups.md` — is the natural next step now that follow-ups are first-class.
 
