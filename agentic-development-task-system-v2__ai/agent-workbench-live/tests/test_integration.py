@@ -137,6 +137,14 @@ class TestHappyPath(IntegrationCase):
         worktree = pathlib.Path(meta["target"]["worktree"]["path"])
         self.assertTrue(worktree.exists(), f"worktree missing at {worktree}")
         self.assertTrue((worktree / "README.md").exists())
+        # TODO §1: worktree basename should be `<YYYYMMDD>__<slug>`.
+        import datetime as _dt
+        today_compact = _dt.date.today().strftime("%Y%m%d")
+        self.assertTrue(
+            worktree.name.startswith(f"{today_compact}__"),
+            f"expected worktree basename to start with {today_compact}__, got {worktree.name!r}",
+        )
+        self.assertTrue(worktree.name.endswith("hello-endpoint"))
         # The branch should exist in the source repo.
         branch_check = subprocess.run(
             ["git", "-C", str(repo), "show-ref", "--verify", "--quiet", "refs/heads/agent/hello-endpoint"]

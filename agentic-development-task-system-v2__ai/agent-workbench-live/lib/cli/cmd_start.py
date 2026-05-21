@@ -52,7 +52,7 @@ def run(args) -> int:
     base_ref = meta["target"]["repo"]["base_ref"]
     branch_name = meta["target"]["worktree"]["branch_name"]
     worktree_name = meta["target"]["worktree"]["name"]
-    worktree_path = run_ids.make_worktree_path(cfg, repo_name, worktree_name)
+    worktree_path = run_ids.make_worktree_path(cfg, repo_name, worktree_name, run_id)
 
     # Create the worktree.
     try:

@@ -1,8 +1,9 @@
 """Slug, run_id, branch, and worktree naming.
 
 The templates live in agent-workbench.yaml.defaults, but the rules here are simple:
-- run_id  := YYYY-MM-DD-<slug>
+- run_id        := YYYY-MM-DD-<slug>
 - worktree_name := <slug>  (unless caller overrides)
+- worktree dir  := <YYYYMMDD>__<worktree_name>  (TODO §1, derived from run_id)
 - branch_name   := <branch_prefix>/<worktree_name>
 """
 from __future__ import annotations
@@ -53,5 +54,28 @@ def derive_repo_name(repo_path_basename: str) -> str:
     return slugify(repo_path_basename)
 
 
-def make_worktree_path(cfg: Config, repo_name: str, worktree_name: str):
-    return cfg.worktrees_path / repo_name / worktree_name
+_RUN_ID_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})-")
+
+
+def extract_run_date(run_id: str) -> str:
+    """Return the YYYYMMDD prefix derived from a run_id (TODO §1).
+
+    Example: extract_run_date("2026-05-21-foo") -> "20260521".
+    Raises NamingError on a malformed run_id.
+    """
+    m = _RUN_ID_DATE_RE.match(run_id)
+    if not m:
+        raise NamingError(f"run_id missing YYYY-MM-DD prefix: {run_id!r}")
+    return f"{m.group(1)}{m.group(2)}{m.group(3)}"
+
+
+def make_worktree_path(cfg: Config, repo_name: str, worktree_name: str, run_id: str):
+    """Compose the worktree path.
+
+    Last segment is `<YYYYMMDD>__<worktree_name>` (TODO §1) so a glance at
+    `worktrees/<repo_name>/` reveals both the date and the slug. The date
+    comes from the run_id rather than `datetime.now()` so the path stays
+    idempotent across calls.
+    """
+    date = extract_run_date(run_id)
+    return cfg.worktrees_path / repo_name / f"{date}__{worktree_name}"
