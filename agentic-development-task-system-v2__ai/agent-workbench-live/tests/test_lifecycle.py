@@ -61,12 +61,54 @@ class TestOnTransition(unittest.TestCase):
     def tearDown(self):
         cleanup(self.tmp)
 
+    def test_stage_dirs_are_numbered(self):
+        self.assertEqual(
+            lifecycle.stage_dir(self.cfg, self.run_id, "draft").name, "1_draft"
+        )
+        self.assertEqual(
+            lifecycle.stage_dir(self.cfg, self.run_id, "shaping").name, "2_shaping"
+        )
+        self.assertEqual(
+            lifecycle.stage_dir(self.cfg, self.run_id, "planning").name, "3_planning"
+        )
+        self.assertEqual(
+            lifecycle.stage_dir(self.cfg, self.run_id, "building").name, "4_building"
+        )
+        self.assertEqual(
+            lifecycle.stage_dir(self.cfg, self.run_id, "validating").name, "5_validating"
+        )
+        self.assertEqual(
+            lifecycle.stage_dir(self.cfg, self.run_id, "followups").name, "6_followups"
+        )
+
+    def test_sorted_stage_dirs_match_lifecycle_flow(self):
+        # The whole point of the numeric prefix: `ls` (which is sorted())
+        # must yield draft → shaping → planning → building → validating →
+        # followups, not the alphabetical building/draft/followups/... mess.
+        stages = ["draft", "shaping", "planning", "building", "validating", "followups"]
+        for s in stages:
+            lifecycle.stage_dir(self.cfg, self.run_id, s).mkdir(parents=True, exist_ok=True)
+        on_disk = sorted(p.name for p in (self.rd / "stages").iterdir())
+        self.assertEqual(
+            on_disk,
+            ["1_draft", "2_shaping", "3_planning", "4_building", "5_validating", "6_followups"],
+        )
+
+    def test_stage_dir_prefers_legacy_unnumbered_dir(self):
+        # In-flight runs created before the numbering change keep their
+        # unnumbered directory: if it exists, it wins over the numbered name.
+        legacy = self.rd / "stages" / "shaping"
+        legacy.mkdir(parents=True)
+        self.assertEqual(
+            lifecycle.stage_dir(self.cfg, self.run_id, "shaping"), legacy
+        )
+
     def test_shaping_to_planning_moves_brief(self):
         (self.rd / "brief.md").write_text("# Brief\nx\n")
         evidence = {"brief_path": str(self.rd / "brief.md")}
         rewrites = lifecycle.on_transition(self.cfg, self.run_id, "shaping", "planning", evidence)
-        self.assertEqual(rewrites["brief_path"], "stages/shaping/brief.md")
-        self.assertTrue((self.rd / "stages" / "shaping" / "brief.md").exists())
+        self.assertEqual(rewrites["brief_path"], "stages/2_shaping/brief.md")
+        self.assertTrue((self.rd / "stages" / "2_shaping" / "brief.md").exists())
         self.assertFalse((self.rd / "brief.md").exists())
 
     def test_planning_to_ready_moves_plan_and_anchors_other_keys(self):
@@ -78,18 +120,18 @@ class TestOnTransition(unittest.TestCase):
             "decisions_path": str(self.rd / "plan.md"),
         }
         rewrites = lifecycle.on_transition(self.cfg, self.run_id, "planning", "ready", evidence)
-        self.assertEqual(rewrites["plan_path"], "stages/planning/plan.md")
-        self.assertEqual(rewrites["preflight_path"], "stages/planning/plan.md#preflight")
-        self.assertEqual(rewrites["assumptions_path"], "stages/planning/plan.md#decisions--assumptions")
-        self.assertEqual(rewrites["decisions_path"], "stages/planning/plan.md#decisions--assumptions")
+        self.assertEqual(rewrites["plan_path"], "stages/3_planning/plan.md")
+        self.assertEqual(rewrites["preflight_path"], "stages/3_planning/plan.md#preflight")
+        self.assertEqual(rewrites["assumptions_path"], "stages/3_planning/plan.md#decisions--assumptions")
+        self.assertEqual(rewrites["decisions_path"], "stages/3_planning/plan.md#decisions--assumptions")
 
     def test_on_transition_is_idempotent(self):
         (self.rd / "brief.md").write_text("hello\n")
         lifecycle.on_transition(self.cfg, self.run_id, "shaping", "planning", {"brief_path": "x"})
         # Calling again with the file already promoted should not raise nor double-move.
         rewrites = lifecycle.on_transition(self.cfg, self.run_id, "shaping", "planning", {"brief_path": "x"})
-        self.assertEqual(rewrites["brief_path"], "stages/shaping/brief.md")
-        self.assertTrue((self.rd / "stages" / "shaping" / "brief.md").exists())
+        self.assertEqual(rewrites["brief_path"], "stages/2_shaping/brief.md")
+        self.assertTrue((self.rd / "stages" / "2_shaping" / "brief.md").exists())
 
     def test_validating_to_human_review_moves_qa_dir(self):
         qa = self.rd / "qa"
@@ -100,8 +142,8 @@ class TestOnTransition(unittest.TestCase):
             self.cfg, self.run_id, "validating", "human_review",
             {"review_report_path": str(self.rd / "review.md")},
         )
-        self.assertTrue((self.rd / "stages" / "validating" / "review.md").exists())
-        self.assertTrue((self.rd / "stages" / "validating" / "qa" / "report.md").exists())
+        self.assertTrue((self.rd / "stages" / "5_validating" / "review.md").exists())
+        self.assertTrue((self.rd / "stages" / "5_validating" / "qa" / "report.md").exists())
         self.assertFalse((self.rd / "qa").exists())
 
 
@@ -111,38 +153,39 @@ class TestArchiveForBounce(unittest.TestCase):
         self.cfg, self.run_id = _make_draft_run(self.tmp)
         lifecycle.init_staged_layout(self.cfg, self.run_id)
         self.rd = metadata.run_dir(self.cfg, self.run_id)
-        # Seed stages/building and stages/validating as if a build cycle just finished.
-        (self.rd / "stages" / "building").mkdir(parents=True)
-        (self.rd / "stages" / "building" / "build.md").write_text("# v1\n")
-        (self.rd / "stages" / "validating").mkdir(parents=True)
-        (self.rd / "stages" / "validating" / "review.md").write_text("# v1\n")
-        (self.rd / "stages" / "validating" / "qa").mkdir()
-        (self.rd / "stages" / "validating" / "qa" / "report.md").write_text("# qa v1\n")
+        # Seed stages/4_building and stages/5_validating as if a build cycle
+        # just finished.
+        (self.rd / "stages" / "4_building").mkdir(parents=True)
+        (self.rd / "stages" / "4_building" / "build.md").write_text("# v1\n")
+        (self.rd / "stages" / "5_validating").mkdir(parents=True)
+        (self.rd / "stages" / "5_validating" / "review.md").write_text("# v1\n")
+        (self.rd / "stages" / "5_validating" / "qa").mkdir()
+        (self.rd / "stages" / "5_validating" / "qa" / "report.md").write_text("# qa v1\n")
 
     def tearDown(self):
         cleanup(self.tmp)
 
     def test_first_bounce_versions_at_v1(self):
         moved = lifecycle.archive_for_bounce(self.cfg, self.run_id)
-        self.assertTrue((self.rd / "archive" / "building" / "build-v1.md").exists())
-        self.assertTrue((self.rd / "archive" / "validating" / "review-v1.md").exists())
-        self.assertTrue((self.rd / "archive" / "validating" / "qa-v1" / "report.md").exists())
+        self.assertTrue((self.rd / "archive" / "4_building" / "build-v1.md").exists())
+        self.assertTrue((self.rd / "archive" / "5_validating" / "review-v1.md").exists())
+        self.assertTrue((self.rd / "archive" / "5_validating" / "qa-v1" / "report.md").exists())
         # Stage dirs are left in place but empty, ready for the rebuild.
-        self.assertTrue((self.rd / "stages" / "building").is_dir())
-        self.assertEqual(list((self.rd / "stages" / "building").iterdir()), [])
+        self.assertTrue((self.rd / "stages" / "4_building").is_dir())
+        self.assertEqual(list((self.rd / "stages" / "4_building").iterdir()), [])
         self.assertGreater(len(moved), 0)
 
     def test_second_bounce_versions_at_v2(self):
         lifecycle.archive_for_bounce(self.cfg, self.run_id)
         # Refill stages with v2 content.
-        (self.rd / "stages" / "building" / "build.md").write_text("# v2\n")
-        (self.rd / "stages" / "validating" / "review.md").write_text("# v2\n")
-        (self.rd / "stages" / "validating" / "qa").mkdir()
-        (self.rd / "stages" / "validating" / "qa" / "report.md").write_text("# qa v2\n")
+        (self.rd / "stages" / "4_building" / "build.md").write_text("# v2\n")
+        (self.rd / "stages" / "5_validating" / "review.md").write_text("# v2\n")
+        (self.rd / "stages" / "5_validating" / "qa").mkdir()
+        (self.rd / "stages" / "5_validating" / "qa" / "report.md").write_text("# qa v2\n")
         lifecycle.archive_for_bounce(self.cfg, self.run_id)
-        self.assertTrue((self.rd / "archive" / "building" / "build-v2.md").exists())
-        self.assertTrue((self.rd / "archive" / "validating" / "review-v2.md").exists())
-        self.assertTrue((self.rd / "archive" / "validating" / "qa-v2" / "report.md").exists())
+        self.assertTrue((self.rd / "archive" / "4_building" / "build-v2.md").exists())
+        self.assertTrue((self.rd / "archive" / "5_validating" / "review-v2.md").exists())
+        self.assertTrue((self.rd / "archive" / "5_validating" / "qa-v2" / "report.md").exists())
 
 
 class TestPruneEmptyDirs(unittest.TestCase):
@@ -156,22 +199,22 @@ class TestPruneEmptyDirs(unittest.TestCase):
         cleanup(self.tmp)
 
     def test_empty_archive_removed(self):
-        (self.rd / "archive" / "building").mkdir(parents=True)
+        (self.rd / "archive" / "4_building").mkdir(parents=True)
         lifecycle.prune_empty_dirs(self.cfg, self.run_id)
         self.assertFalse((self.rd / "archive").exists())
 
     def test_non_empty_archive_preserved(self):
-        (self.rd / "archive" / "building").mkdir(parents=True)
-        (self.rd / "archive" / "building" / "build-v1.md").write_text("# v1\n")
+        (self.rd / "archive" / "4_building").mkdir(parents=True)
+        (self.rd / "archive" / "4_building" / "build-v1.md").write_text("# v1\n")
         lifecycle.prune_empty_dirs(self.cfg, self.run_id)
-        self.assertTrue((self.rd / "archive" / "building" / "build-v1.md").exists())
+        self.assertTrue((self.rd / "archive" / "4_building" / "build-v1.md").exists())
 
     def test_pruning_collapses_nested_empties(self):
-        (self.rd / "stages" / "validating" / "qa" / "artifacts").mkdir(parents=True)
-        (self.rd / "stages" / "validating" / "qa" / "recordings").mkdir()
-        # No files anywhere → entire stages/validating subtree should collapse.
+        (self.rd / "stages" / "5_validating" / "qa" / "artifacts").mkdir(parents=True)
+        (self.rd / "stages" / "5_validating" / "qa" / "recordings").mkdir()
+        # No files anywhere → entire stages/5_validating subtree should collapse.
         lifecycle.prune_empty_dirs(self.cfg, self.run_id)
-        self.assertFalse((self.rd / "stages" / "validating").exists())
+        self.assertFalse((self.rd / "stages" / "5_validating").exists())
 
 
 class TestHumanReviewValidation(unittest.TestCase):

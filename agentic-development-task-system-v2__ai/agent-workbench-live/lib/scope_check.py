@@ -61,10 +61,16 @@ def _section_body(md_text: str, heading: str) -> str | None:
 def detect_creep(expected: list[str], actual: list[str]) -> list[str]:
     """Return the subset of `actual` paths not anticipated by `expected`.
 
-    Matching rules (in order):
+    Matching rules (in order, first wins):
       - exact path equality
       - prefix match if an expected entry ends with `/`
       - fnmatch.fnmatch glob (so "*.md" and "src/**/*.py" work)
+      - suffix path match in either direction. The brief author may write
+        a workbench-relative path (`lib/run_ids.py`) while `git diff`
+        emits a worktree-root-relative path
+        (`agentic-development-task-system-v2__ai/agent-workbench-live/lib/run_ids.py`);
+        we accept either form. Match boundary is the `/` separator so
+        `foo.py` does not match `barfoo.py`.
     """
     creep: list[str] = []
     for path in actual:
@@ -81,4 +87,17 @@ def _matches_any(path: str, expected: list[str]) -> bool:
             return True
         if fnmatch.fnmatch(path, exp):
             return True
+        if _suffix_match(path, exp):
+            return True
+    return False
+
+
+def _suffix_match(a: str, b: str) -> bool:
+    """True iff one path is a `/`-separated tail of the other."""
+    if a == b:
+        return True
+    if a.endswith("/" + b):
+        return True
+    if b.endswith("/" + a):
+        return True
     return False

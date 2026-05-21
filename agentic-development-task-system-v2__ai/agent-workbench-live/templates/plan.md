@@ -10,6 +10,14 @@
 
 ## Files likely to change
 
+<!--
+Either workbench-relative (`lib/run_ids.py`) or worktree-root-relative
+(`agentic-development-task-system-v2__ai/agent-workbench-live/lib/run_ids.py`)
+paths work. The scope-creep check matches either form on `/`-boundary
+suffix; pick whichever makes the brief easier to read.
+-->
+
+
 ## Data model changes
 
 ## UI changes

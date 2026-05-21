@@ -22,12 +22,12 @@ That transitions `validating -> followups` and stages `follow-ups.md` at the run
 
 Read (in this order; stop reading once you have enough signal):
 
-1. `runs/$RUN_ID/stages/building/build.md` — what was built. Especially the `Known issues`, `Deviations from plan`, and `Files changed` sections.
-2. `runs/$RUN_ID/stages/validating/review.md` — what the reviewer flagged. Especially blocking findings, scope-creep notes, and (if present) the `Documentation claims` section.
-3. `runs/$RUN_ID/stages/validating/qa/` — known failures, untested surfaces.
-4. `runs/$RUN_ID/stages/planning/plan.md` — what was originally scoped, what was deferred.
+1. `runs/$RUN_ID/stages/4_building/build.md` — what was built. Especially the `Known issues`, `Deviations from plan`, and `Files changed` sections.
+2. `runs/$RUN_ID/stages/5_validating/review.md` — what the reviewer flagged. Especially blocking findings, scope-creep notes, and (if present) the `Documentation claims` section.
+3. `runs/$RUN_ID/stages/5_validating/qa/` — known failures, untested surfaces.
+4. `runs/$RUN_ID/stages/3_planning/plan.md` — what was originally scoped, what was deferred.
 5. `runs/$RUN_ID/events.jsonl` filtered to `BounceRequested` — items the human explicitly removed from scope via `/bounce`. These are prime candidates for the `deferred_from_bounce` category.
-6. `runs/$RUN_ID/archive/shaping/brief-v*.md` and `archive/planning/plan-v*.md` (if any exist) — earlier versions superseded by a bounce. Items present in v1 but missing from the current canonical files are deferred-from-bounce.
+6. `runs/$RUN_ID/archive/2_shaping/brief-v*.md` and `archive/3_planning/plan-v*.md` (if any exist) — earlier versions superseded by a bounce. Items present in v1 but missing from the current canonical files are deferred-from-bounce.
 
 ## Step 3 — write follow-ups.md
 
@@ -65,13 +65,13 @@ That:
 - emits `FollowupsRecorded` with `{path, entry_count, categories}`
 - emits `HumanHandoffCreated`
 - transitions `followups -> human_review` (the engine validates `HUMAN_REVIEW.md` carries `## Suggested first checks` and `## Run timeline`)
-- moves `follow-ups.md` into `stages/followups/`
+- moves `follow-ups.md` into `stages/6_followups/`
 
 If validation fails it prints the errors and stops. Fix the file and re-run the command.
 
 ## Next step
 
-Tell the user: the run is in `human_review`. They can `/complete`, `/bounce`, or `/abandon`. The `stages/followups/follow-ups.md` file is the candidate list for their next bite.
+Tell the user: the run is in `human_review`. They can `/complete`, `/bounce`, or `/abandon`. The `stages/6_followups/follow-ups.md` file is the candidate list for their next bite.
 
 ## Reference
 

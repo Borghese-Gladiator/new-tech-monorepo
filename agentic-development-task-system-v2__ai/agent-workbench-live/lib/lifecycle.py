@@ -25,8 +25,8 @@ Public surface (read by transitions.py and the CLI commands):
 
     archive_for_bounce(cfg, run_id)
         Called by cmd_bounce before the transition. Moves the current
-        stages/building/ and stages/validating/ contents into
-        archive/<stage>/<file>-v<N>.md (or qa-v<N>/ for the qa subdir).
+        stages/4_building/ and stages/5_validating/ contents into
+        archive/<N>_<stage>/<file>-v<N>.md (or qa-v<N>/ for the qa subdir).
 
     prune_empty_dirs(cfg, run_id)
         Removes empty subtrees under stages/, archive/, and any qa/ within.
@@ -56,6 +56,26 @@ REQUIRED_HUMAN_REVIEW_HEADINGS = (
 )
 
 
+# Stage execution order. The on-disk directory for a stage is
+# "<N>_<stage>" so `ls` sorts stages by lifecycle flow instead of
+# alphabetically (TODO #1 from docs/TODO.md). Runs created before this
+# change keep their unnumbered directory names — `stage_dir` reads what's
+# on disk first and only falls back to the numbered name for new runs.
+_STAGE_NUMBER: dict[str, int] = {
+    "draft": 1,
+    "shaping": 2,
+    "planning": 3,
+    "building": 4,
+    "validating": 5,
+    "followups": 6,
+}
+
+
+def _stage_dirname(stage: str) -> str:
+    n = _STAGE_NUMBER.get(stage)
+    return f"{n}_{stage}" if n is not None else stage
+
+
 # ---------- layout detection ----------
 
 def _run_root(cfg: Config, run_id: str) -> pathlib.Path:
@@ -73,11 +93,21 @@ def detect_layout(cfg: Config, run_id: str) -> str:
 # ---------- path helpers ----------
 
 def stage_dir(cfg: Config, run_id: str, stage: str) -> pathlib.Path:
-    return _run_root(cfg, run_id) / "stages" / stage
+    return _resolve_stage_dir(_run_root(cfg, run_id) / "stages", stage)
 
 
 def archive_dir(cfg: Config, run_id: str, stage: str) -> pathlib.Path:
-    return _run_root(cfg, run_id) / "archive" / stage
+    return _resolve_stage_dir(_run_root(cfg, run_id) / "archive", stage)
+
+
+def _resolve_stage_dir(parent: pathlib.Path, stage: str) -> pathlib.Path:
+    # In-flight runs created before numbered dirnames landed keep their
+    # unnumbered directory: if it exists, use it; otherwise default to the
+    # numbered name for new runs.
+    legacy = parent / stage
+    if legacy.exists():
+        return legacy
+    return parent / _stage_dirname(stage)
 
 
 def human_review_path(cfg: Config, run_id: str) -> pathlib.Path:
@@ -168,8 +198,8 @@ def on_transition(
     every key whose value should be rewritten before recording the event.
 
     Special-case for validating -> human_review:
-      - Move review.md into stages/validating/review.md
-      - Move qa/ subdirectory into stages/validating/qa/
+      - Move review.md into stages/5_validating/review.md
+      - Move qa/ subdirectory into stages/5_validating/qa/
       - Confirm HUMAN_REVIEW.md exists (validation happens upstream in
         transitions.py; this hook only physically organises files)
       - Prune empty subtrees under stages/ and archive/

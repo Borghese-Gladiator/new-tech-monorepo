@@ -22,26 +22,32 @@ Runs created on or after the TODO §1 (Renovate task workflow) change use a **st
 
 ```text
 runs/<run_id>/
-  stages/
-    draft/raw-idea.md
-    shaping/brief.md
-    planning/plan.md            # folds preflight + decisions/assumptions
-    building/build.md           # merges implementation-summary + diff-summary
-    validating/review.md
-    validating/qa/
-    followups/follow-ups.md     # forward-looking candidates for future runs
-  archive/                       # present only on bounce-supersession
-    building/build-v1.md
-    validating/review-v1.md
-    validating/qa-v1/
-    followups/follow-ups-v1.md
-  HUMAN_REVIEW.md                # replaces handoff.md; must include
-                                 # "## Suggested first checks" and "## Run timeline"
+  stages/                        # directory names are N_<stage> so `ls`
+                                 # sorts by lifecycle flow.
+    1_draft/raw-idea.md
+    2_shaping/brief.md
+    3_planning/plan.md            # folds preflight + decisions/assumptions
+    4_building/build.md           # merges implementation-summary + diff-summary
+    5_validating/review.md
+    5_validating/qa/
+    6_followups/follow-ups.md     # forward-looking candidates for future runs
+  archive/                        # present only on bounce-supersession
+    4_building/build-v1.md
+    5_validating/review-v1.md
+    5_validating/qa-v1/
+    6_followups/follow-ups-v1.md
+  HUMAN_REVIEW.md                 # replaces handoff.md; must include
+                                  # "## Suggested first checks" and "## Run timeline"
   metadata.yaml
   events.jsonl
 ```
 
-The transition engine moves a stage's run-root outputs into `stages/<stage>/` as the stage closes. The `followups → human_review` transition is rejected if `HUMAN_REVIEW.md` is missing either required heading. A bounce from `human_review → building` archives the prior `stages/building/`, `stages/validating/`, and `stages/followups/` as `<file>-v<N>.md` (and `qa-v<N>/` for the QA subtree) before the rebuild begins.
+Numbered stage directories landed in TODO #1 (V2). Runs created before
+that change kept their unnumbered names; the helpers in `lib/lifecycle.py`
+prefer an existing legacy dir over the numbered one, so in-flight staged
+runs are never renamed implicitly.
+
+The transition engine moves a stage's run-root outputs into `stages/<N>_<stage>/` as the stage closes. The `followups → human_review` transition is rejected if `HUMAN_REVIEW.md` is missing either required heading. A bounce from `human_review → building` archives the prior `stages/4_building/`, `stages/5_validating/`, and `stages/6_followups/` as `<file>-v<N>.md` (and `qa-v<N>/` for the QA subtree) before the rebuild begins.
 
 The `building → validating` transition (TODO §1e) requires `build_iterations` and `build_exit_reason` evidence; `validate --init` fills sensible defaults (`1` / `tests_green`) into `metadata.yaml`'s `build:` block when the builder didn't set them, so the reviewer sees the defaults explicitly and can challenge them. The validating stage (TODO §1d) also reads `build.md`'s "Documentation touched" section and compares the claimed paths against `git diff` in the target worktree; unverified claims are appended to `review.md` under a `## Documentation claims` section and a `DocClaimsVerified` event is recorded.
 

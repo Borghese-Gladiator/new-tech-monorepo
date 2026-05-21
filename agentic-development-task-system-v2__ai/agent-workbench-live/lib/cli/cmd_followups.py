@@ -140,9 +140,13 @@ def run(args) -> int:
         return fail(str(e), 4)
 
     # Reflect the (post-move) followups artifact path in metadata. The engine
-    # already moved follow-ups.md into stages/followups/.
+    # already moved follow-ups.md into the followups stage dir.
+    followups_rel = str(
+        (lifecycle.stage_dir(cfg, run_id, "followups") / "follow-ups.md").relative_to(rd)
+    )
+
     def _m(d):
-        d["artifacts"]["followups"] = "stages/followups/follow-ups.md"
+        d["artifacts"]["followups"] = followups_rel
     metadata.update(cfg, run_id, _m)
 
     print(f"{run_id}: followups -> human_review")

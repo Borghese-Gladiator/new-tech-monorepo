@@ -52,7 +52,7 @@ def _evidence_for(from_state: str, to_state: str, run_id: str) -> dict:
         }
     if (from_state, to_state) == ("followups", "human_review"):
         return {
-            "followups_path": "stages/followups/follow-ups.md",
+            "followups_path": "stages/6_followups/follow-ups.md",
             "handoff_path": "handoff.md",
             "branch_name": "agent/x", "worktree_path": "/tmp/wt",
         }
@@ -233,7 +233,7 @@ class TestStagedLayoutTransitions(unittest.TestCase):
         self.assertEqual(len(applied), 1)
         self.assertEqual(
             applied[0]["payload"]["evidence"]["brief_path"],
-            "stages/shaping/brief.md",
+            "stages/2_shaping/brief.md",
         )
 
     def test_followups_to_human_review_rejects_missing_sections(self):

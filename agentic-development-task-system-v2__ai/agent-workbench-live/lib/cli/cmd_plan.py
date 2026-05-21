@@ -78,10 +78,33 @@ def _extract_decision_blocks(md_text: str) -> list[dict]:
 
 
 def _field(body: str, label: str) -> str:
-    m = re.search(rf"-\s*\*\*{re.escape(label)}\*\*:\s*(.*)", body)
-    if not m:
-        return ""
-    return m.group(1).strip()
+    """Capture a `- **Label**: value` body, including continuation lines.
+
+    Continuation lines are any non-empty lines that follow until the next
+    `- **Other**:` field, the next `### …` heading, or a blank line that
+    precedes a structural marker. Each captured line is rstrip'd and joined
+    with a single space so multi-line fields read as one sentence.
+    """
+    lines = body.splitlines()
+    head_re = re.compile(rf"^\s*-\s*\*\*{re.escape(label)}\*\*:\s*(.*)$")
+    next_field_re = re.compile(r"^\s*-\s*\*\*[^*]+\*\*:")
+    heading_re = re.compile(r"^#{2,4}\s+")
+    for i, line in enumerate(lines):
+        m = head_re.match(line)
+        if not m:
+            continue
+        parts = [m.group(1).rstrip()]
+        for cont in lines[i + 1:]:
+            stripped = cont.strip()
+            if not stripped:
+                # Blank line ends the field; don't peek past.
+                break
+            if next_field_re.match(cont) or heading_re.match(cont):
+                break
+            parts.append(stripped)
+        joined = " ".join(p for p in parts if p).strip()
+        return joined
+    return ""
 
 
 def run(args) -> int:
@@ -194,8 +217,8 @@ def run(args) -> int:
 
     # Apply the transition. For staged runs every planning-evidence path is
     # plan.md (with an anchor for non-plan keys). The engine's move-on-
-    # transition will rewrite plan_path to stages/planning/plan.md and the
-    # anchored keys to stages/planning/plan.md#<anchor>.
+    # transition will rewrite plan_path to stages/3_planning/plan.md and the
+    # anchored keys to stages/3_planning/plan.md#<anchor>.
     if staged:
         plan_src = str(rd / "plan.md")
         evidence = {

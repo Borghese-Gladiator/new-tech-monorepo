@@ -3,8 +3,8 @@
 <!--
 Single file produced by the builder during `building`. Replaces the older
 implementation-summary.md + diff-summary.md pair for staged runs (TODO §1b).
-The transition engine moves this file to stages/building/build.md when the
-stage closes.
+The transition engine moves this file to stages/4_building/build.md when
+the stage closes.
 -->
 
 ## What changed

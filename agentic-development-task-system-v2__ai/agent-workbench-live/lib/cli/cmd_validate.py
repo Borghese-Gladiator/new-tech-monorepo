@@ -27,8 +27,8 @@ HELP = "Run review + QA + render audit, then transition to human_review."
 # Flat-layout templates (legacy runs).
 POST_TEMPLATES_FLAT = ("implementation-summary.md", "diff-summary.md", "review.md", "handoff.md")
 # Staged-layout templates. The builder writes build.md DURING building (it's
-# the stage's output and gets moved into stages/building/ on transition), so
-# --init only stages validating's templates here.
+# the stage's output and gets moved into stages/4_building/ on transition),
+# so --init only stages validating's templates here.
 POST_TEMPLATES_STAGED = ("review.md", "HUMAN_REVIEW.md")
 QA_REPORT = "qa/report.md"
 
@@ -44,7 +44,7 @@ def _check_scope_creep_staged(cfg, run_id, rd, meta, actor) -> None:
     """TODO §1g. Parse brief.md for expected-file claims, compare against the
     worktree diff, append findings to review.md (run root), emit a
     ScopeCreepChecked event. Skips silently if the brief makes no claim."""
-    brief_path = rd / "stages" / "shaping" / "brief.md"
+    brief_path = lifecycle.stage_dir(cfg, run_id, "shaping") / "brief.md"
     if not brief_path.exists():
         return
     expected = scope_check.extract_expected_files(brief_path.read_text())
@@ -96,10 +96,10 @@ def _check_scope_creep_staged(cfg, run_id, rd, meta, actor) -> None:
 
 
 def _verify_doc_claims_staged(cfg, run_id, rd, meta, actor) -> None:
-    """TODO §1d. Read stages/building/build.md, extract claimed doc paths,
-    diff the worktree, append findings to review.md (at run root) and emit
-    a DocClaimsVerified event."""
-    build_path = rd / "stages" / "building" / "build.md"
+    """TODO §1d. Read the building stage's build.md, extract claimed doc
+    paths, diff the worktree, append findings to review.md (at run root)
+    and emit a DocClaimsVerified event."""
+    build_path = lifecycle.stage_dir(cfg, run_id, "building") / "build.md"
     if not build_path.exists():
         return
     claimed = doc_claims.extract(build_path.read_text())
@@ -209,8 +209,8 @@ def run(args) -> int:
 
         # For staged runs, build.md is the single merged artifact; both
         # implementation_summary_path and diff_summary_path evidence keys point
-        # at it (their values get rewritten to stages/building/build.md by the
-        # transition engine's move-on-transition hook).
+        # at it (their values get rewritten to stages/4_building/build.md by
+        # the transition engine's move-on-transition hook).
         if staged:
             build_src = str(rd / "build.md")
             evidence = {
@@ -236,9 +236,13 @@ def run(args) -> int:
         except transitions.TransitionError as e:
             return fail(str(e), 4)
         if staged:
+            build_rel = str(
+                (lifecycle.stage_dir(cfg, run_id, "building") / "build.md").relative_to(rd)
+            )
+
             def _m(d):
-                d["artifacts"]["implementation_summary"] = "stages/building/build.md"
-                d["artifacts"]["diff_summary"] = "stages/building/build.md#files-changed"
+                d["artifacts"]["implementation_summary"] = build_rel
+                d["artifacts"]["diff_summary"] = f"{build_rel}#files-changed"
                 d["artifacts"]["review_report"] = "review.md"
                 d["artifacts"]["qa_report"] = "qa/report.md"
                 d["artifacts"]["handoff"] = "HUMAN_REVIEW.md"
@@ -261,8 +265,11 @@ def run(args) -> int:
     # Verify required artifacts (location depends on layout). HUMAN_REVIEW.md
     # is NOT required here for staged runs — it's required by followups.
     if staged:
+        build_rel = str(
+            (lifecycle.stage_dir(cfg, run_id, "building") / "build.md").relative_to(rd)
+        )
         required = [
-            ("stages/building/build.md", "implementation_summary_path"),
+            (build_rel, "implementation_summary_path"),
             ("review.md", "review_report_path"),
             ("qa/report.md", "qa_report_path"),
         ]
@@ -368,7 +375,8 @@ def run(args) -> int:
         except transitions.TransitionError as e:
             return fail(str(e), 4)
         print(f"{run_id}: validating -> followups")
-        print(f"  next: author stages/followups/follow-ups.md, then run "
+        followups_rel = lifecycle.stage_dir(cfg, run_id, "followups").relative_to(rd)
+        print(f"  next: author {followups_rel}/follow-ups.md, then run "
               f"`agent-workbench followups {run_id}`")
         return 0
 

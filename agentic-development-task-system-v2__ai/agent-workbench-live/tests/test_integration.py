@@ -90,7 +90,7 @@ class TestHappyPath(IntegrationCase):
         self.assertIn("draft -> shaping", r.stdout)
 
         # Fill brief (staged layout: file lives at run root until shape closes
-        # the stage, then is moved into stages/shaping/). Include a
+        # the stage, then is moved into stages/2_shaping/). Include a
         # "Files likely to change" section so the §1g scope-creep check has
         # something to compare against.
         brief = self.tmp / "runs" / run_id / "brief.md"
@@ -180,7 +180,7 @@ class TestHappyPath(IntegrationCase):
         self.assertIn("building -> validating", r.stdout)
 
         # Fill validating-stage artifacts at run root; they'll be moved into
-        # stages/validating/ on the next transition.
+        # stages/5_validating/ on the next transition.
         (run_dir / "review.md").write_text("# Review\n\n## Decision\napprove\n")
         (run_dir / "qa" / "report.md").write_text("# QA\nLooks good.\n")
         (run_dir / "HUMAN_REVIEW.md").write_text(
@@ -217,20 +217,20 @@ class TestHappyPath(IntegrationCase):
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("followups -> human_review", r.stdout)
 
-        # Staged-layout assertions (TODO §1a/§1b/§1c): the expected files
-        # have been promoted into stages/<stage>/, and HUMAN_REVIEW.md sits
-        # at run root with the required sections.
-        self.assertTrue((run_dir / "stages" / "shaping" / "brief.md").exists())
-        self.assertTrue((run_dir / "stages" / "planning" / "plan.md").exists())
-        self.assertTrue((run_dir / "stages" / "building" / "build.md").exists())
-        self.assertTrue((run_dir / "stages" / "validating" / "review.md").exists())
-        self.assertTrue((run_dir / "stages" / "validating" / "qa" / "report.md").exists())
-        self.assertTrue((run_dir / "stages" / "followups" / "follow-ups.md").exists())
+        # Staged-layout assertions (TODO §1a/§1b/§1c + TODO #1 numbered dirs):
+        # the expected files have been promoted into stages/<N>_<stage>/, and
+        # HUMAN_REVIEW.md sits at run root with the required sections.
+        self.assertTrue((run_dir / "stages" / "2_shaping" / "brief.md").exists())
+        self.assertTrue((run_dir / "stages" / "3_planning" / "plan.md").exists())
+        self.assertTrue((run_dir / "stages" / "4_building" / "build.md").exists())
+        self.assertTrue((run_dir / "stages" / "5_validating" / "review.md").exists())
+        self.assertTrue((run_dir / "stages" / "5_validating" / "qa" / "report.md").exists())
+        self.assertTrue((run_dir / "stages" / "6_followups" / "follow-ups.md").exists())
         self.assertTrue((run_dir / "HUMAN_REVIEW.md").exists())
         # TODO §1d: the validator detected README.md was claimed but unchanged
         # and appended a Documentation claims section to review.md (now at
-        # stages/validating/review.md after the human_review transition moved it).
-        review = (run_dir / "stages" / "validating" / "review.md").read_text()
+        # stages/5_validating/review.md after the human_review transition moved it).
+        review = (run_dir / "stages" / "5_validating" / "review.md").read_text()
         self.assertIn("## Documentation claims", review)
         self.assertIn("README.md", review)
         # And a DocClaimsVerified event was emitted.
@@ -256,6 +256,11 @@ class TestHappyPath(IntegrationCase):
         self.assertIn("iterations: 1", meta_text)
         self.assertIn("exit_reason: tests_green", meta_text)
         self.assertIn("max_iterations: 5", meta_text)
+        # Followup C: `show` renders the build block.
+        r = cli(self.tmp, "show", run_id)
+        self.assertIn("build:", r.stdout)
+        self.assertIn("iterations", r.stdout)
+        self.assertIn("tests_green", r.stdout)
 
         # Run-root pre-staging files are gone (they were moved on transition).
         self.assertFalse((run_dir / "brief.md").exists())
@@ -334,12 +339,12 @@ class TestBounceLoop(IntegrationCase):
         self.assertIn("human_review -> building", r.stdout)
         self.assertNotIn("change-request:", r.stdout)
 
-        # The prior stages/building/ and stages/validating/ outputs should be
-        # archived as -v1 (TODO §1a supersession rule).
-        self.assertTrue((run_dir / "archive" / "building" / "build-v1.md").exists())
-        self.assertTrue((run_dir / "archive" / "validating" / "review-v1.md").exists())
+        # The prior stages/4_building/ and stages/5_validating/ outputs
+        # should be archived as -v1 (TODO §1a supersession rule).
+        self.assertTrue((run_dir / "archive" / "4_building" / "build-v1.md").exists())
+        self.assertTrue((run_dir / "archive" / "5_validating" / "review-v1.md").exists())
         # And stages/ has been re-emptied for the rebuild.
-        self.assertEqual(list((run_dir / "stages" / "building").iterdir()), [])
+        self.assertEqual(list((run_dir / "stages" / "4_building").iterdir()), [])
 
         # Re-validate. Build a v2 build.md / review.md / HUMAN_REVIEW.md.
         (run_dir / "build.md").write_text("# Build v2\n")

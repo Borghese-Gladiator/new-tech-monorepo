@@ -42,6 +42,12 @@ def run(args) -> int:
             exists = "OK" if full.exists() else "MISSING"
             print(f"  {k:<24} {v} [{exists}]")
     print()
+    build = meta.get("build")
+    if build:
+        print("build:")
+        for k, v in build.items():
+            print(f"  {k:<24} {v}")
+        print()
     print("validation:")
     for k, v in (meta.get("validation") or {}).items():
         print(f"  {k:<24} {v}")

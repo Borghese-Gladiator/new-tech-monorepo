@@ -1,4 +1,4 @@
-"""Parse and validate stages/followups/follow-ups.md (TODO §1f).
+"""Parse and validate the followups stage's follow-ups.md (TODO §1f).
 
 The file contains 1–5 mini-briefs, each delimited by YAML frontmatter:
 

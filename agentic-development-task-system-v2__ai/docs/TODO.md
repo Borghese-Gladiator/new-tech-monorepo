@@ -6,37 +6,13 @@ Next round of work after V1. Each section captures one idea — what it is, why 
 
 - ✅ Renovate task workflow (originally §1; 1a–1g across four commits `d1d8b44`, `d5ee45e`, `90a3daf`, `827a06a`).
 - ✅ Better worktree name (originally §2 after renumbering; merged into `202605_agent_workbench_v2` from `agent/better-worktree-name-template`).
+- ✅ Numbered stage directories (originally §1 after this renumbering; `stages/1_draft/`, `2_shaping/`, …). Same dogfood pass cleared four follow-ups: scope_check path-prefix matching, `extract_run_date` unit tests, `show` rendering the `build:` block, multi-line ASM/DR body parsing.
 
-Order reflects priority: numbered stage directories is the small, isolated warm-up. Then board, summary, E2E, context graph, followup spawn.
+Order reflects priority: task board, summary, E2E, context graph, followup spawn.
 
 ---
 
-## 1. Number stage directories by execution order
-
-Today `stages/<stage>/` directory names sort alphabetically (`building/ draft/ followups/ planning/ shaping/ validating/`), which has nothing to do with the lifecycle flow. A reviewer landing in a run dir sees the stages jumbled. Same problem in `archive/<stage>/` after a bounce. Prefix each directory with its 1-based execution-order number so `ls` shows them top-to-bottom in lifecycle order:
-
-```
-stages/
-  1_draft/
-  2_shaping/
-  3_planning/
-  4_building/
-  5_validating/
-  6_followups/
-```
-
-Surfaced by the dogfood of the previous TODO item (run `2026-05-21-better-worktree-name-template`).
-
-- [ ] Update `lib/lifecycle.py` `stage_dir` / `archive_dir` helpers + `_STAGE_OUTPUTS` move table to emit the numbered names.
-- [ ] Update `HUMAN_REVIEW.md` template's "Where to start" hub links to point at the new paths.
-- [ ] Update `/validate` and `/followups` slash command docs (and any other doc that references `stages/<stage>/`).
-- [ ] Update `docs/lifecycle.md` and any integration tests that assert against `stages/shaping/brief.md` etc.
-- [ ] Update `templates/follow-ups.md`'s pointer in HUMAN_REVIEW.md hub.
-- [ ] Decide whether to also number `qa-v<N>` archives (probably not — they're already version-numbered).
-- [ ] Migration: existing flat-layout runs unaffected. Existing in-flight staged runs created before this change: do NOT rename them. Add a one-line note in `lifecycle.md`.
-- [ ] Confirm `bounce` archiving still works: `archive_for_bounce` iterates `("building", "validating", "followups")` — update those literals to match the new directory names.
-
-## 2. Task board
+## 1. Task board
 
 Right now run state is scattered across `runs/<run_id>/metadata.yaml` files. To see what's in flight you have to `agent-workbench list` and squint. A task board surfaces all runs grouped by lifecycle state so humans can see queue depth and what needs attention.
 
@@ -48,7 +24,7 @@ Right now run state is scattered across `runs/<run_id>/metadata.yaml` files. To 
 - [ ] (Stretch) `agent-workbench board --html <path>` writes a single self-contained HTML file. No server, no JS framework — just a static dump regenerated on demand.
 - [ ] (Stretch) Per-run "blocker" field in metadata so the board can show *why* a run is stalled in `human_review` (e.g., "waiting on QA env").
 
-## 3. Activity log summary
+## 2. Activity log summary
 
 Per-run, human-readable rollup of what a single run produced — not a cross-run digest. Goal: open one file and see at a glance *what changed* and *what was added* in that run, including any mid-flight course corrections from `/bounce`. `events.jsonl` is the source of truth but it's noisy (every `CommandRun` and `ArtifactWritten`); `audit.md` is a chronological dump. Neither answers "what did this run actually do?" in one screen.
 
@@ -65,7 +41,7 @@ Per-run, human-readable rollup of what a single run produced — not a cross-run
 - [ ] Decision: `summary.md` lives inside the run directory (single source of truth, regenerated). Do **not** also append to `LOG.md` — `LOG.md` stays hand-curated.
 - [ ] Test: assert that after a bounce → continue cycle, the addendum section lists the bounce reason and the summary's "what changed" reflects the post-bounce diff.
 
-## 4. Automatic E2E testing
+## 3. Automatic E2E testing
 
 V1 has unit tests + integration tests that drive the CLI through the happy path / bounce / abandon. What's missing is a true end-to-end smoke that exercises the full LLM-bearing flow (`/shape`, `/plan`, `/validate`, `/followups`) against a real throwaway repo without a human in the loop.
 
@@ -78,7 +54,7 @@ V1 has unit tests + integration tests that drive the CLI through the happy path 
 - [ ] Add a second E2E that exercises the **bounce loop** (validate → followups → bounce → validate → followups → complete) and a third for **abandon** at a random non-terminal state.
 - [ ] Document how to add a new E2E scenario in `agent-workbench-live/tests/README.md`.
 
-## 5. Context graph
+## 4. Context graph
 
 A library of small, focused "context files" that the workbench's `AGENTS.md` (or per-stage prompts) link to with `@path/to/file.md`. Claude Code resolves `@`-imports lazily — the file's content only enters the model's context when it's actually relevant to the current task. Today the workbench has no such library, so every run re-derives basics like "use poetry, not pip" or "create a worktree before editing" from scratch (or worse, gets them wrong).
 
@@ -113,7 +89,7 @@ Goal: ship a `agent-workbench-live/context/` directory of opinionated, one-page-
 - [ ] Document the library in `AGENTS.md`: how to add a new context file, naming convention, when to inline vs. reference.
 - [ ] (Stretch) `agent-workbench context list` — print the index. `agent-workbench context show <name>` — print a single file. Useful when debugging "why did the agent do X" — you can see exactly what guidance it had access to.
 
-## 6. Followup spawn (TODO §1f stretch, deferred)
+## 5. Followup spawn (TODO §1f stretch, deferred)
 
 The pass-3 Renovate work landed the `followups` stage but **deliberately did not implement** the `agent-workbench followup spawn` command. That command — create a new `draft` run pre-populated from a chosen mini-brief in a prior run's `follow-ups.md` — is the natural next step now that follow-ups are first-class.
 

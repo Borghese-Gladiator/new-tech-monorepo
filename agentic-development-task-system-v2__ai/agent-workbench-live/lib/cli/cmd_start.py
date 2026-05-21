@@ -34,9 +34,11 @@ def run(args) -> int:
     # Re-verify pre-impl artifacts. Staged runs fold preflight/assumptions/
     # decisions into plan.md, so only brief.md + plan.md are checked here.
     if staged:
+        brief_p = lifecycle.stage_dir(cfg, run_id, "shaping") / "brief.md"
+        plan_p = lifecycle.stage_dir(cfg, run_id, "planning") / "plan.md"
         pre_impl = (
-            ("stages/shaping/brief.md", rd / "stages" / "shaping" / "brief.md"),
-            ("stages/planning/plan.md", rd / "stages" / "planning" / "plan.md"),
+            (str(brief_p.relative_to(rd)), brief_p),
+            (str(plan_p.relative_to(rd)), plan_p),
         )
     else:
         pre_impl = tuple(

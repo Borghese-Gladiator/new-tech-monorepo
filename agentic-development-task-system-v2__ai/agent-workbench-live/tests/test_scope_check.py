@@ -126,6 +126,28 @@ class TestDetectCreep(unittest.TestCase):
     def test_no_actual_means_no_creep(self):
         self.assertEqual(scope_check.detect_creep(["a.py"], []), [])
 
+    def test_suffix_match_workbench_relative_expected(self):
+        # Brief author wrote a workbench-relative path; `git diff` emitted
+        # a worktree-root-relative path. They should match.
+        creep = scope_check.detect_creep(
+            ["lib/run_ids.py"],
+            ["agentic-development-task-system-v2__ai/agent-workbench-live/lib/run_ids.py"],
+        )
+        self.assertEqual(creep, [])
+
+    def test_suffix_match_worktree_relative_expected(self):
+        # The reverse direction: brief wrote the long path, diff is short.
+        creep = scope_check.detect_creep(
+            ["agentic-development-task-system-v2__ai/agent-workbench-live/lib/run_ids.py"],
+            ["lib/run_ids.py"],
+        )
+        self.assertEqual(creep, [])
+
+    def test_suffix_match_respects_slash_boundary(self):
+        # "foo.py" should NOT match "barfoo.py" — only a `/` separator counts.
+        creep = scope_check.detect_creep(["foo.py"], ["barfoo.py"])
+        self.assertEqual(creep, ["barfoo.py"])
+
 
 if __name__ == "__main__":
     unittest.main()

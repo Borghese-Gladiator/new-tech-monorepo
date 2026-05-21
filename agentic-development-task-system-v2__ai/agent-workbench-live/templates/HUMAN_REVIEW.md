@@ -9,11 +9,11 @@ below are missing.
 
 ## Where to start
 
-- Want to see diffs? → `stages/building/build.md`
-- Want to verify QA? → `stages/validating/qa/report.md` (+ `qa/commands.txt`)
-- Want to confirm each AC is tested? → `stages/building/build.md` § Acceptance criteria coverage
-- Want to argue with decisions? → `stages/planning/plan.md` § Decisions & assumptions, then `stages/validating/review.md`
-- Want to see what's next? → `stages/followups/follow-ups.md`
+- Want to see diffs? → `stages/4_building/build.md`
+- Want to verify QA? → `stages/5_validating/qa/report.md` (+ `qa/commands.txt`)
+- Want to confirm each AC is tested? → `stages/4_building/build.md` § Acceptance criteria coverage
+- Want to argue with decisions? → `stages/3_planning/plan.md` § Decisions & assumptions, then `stages/5_validating/review.md`
+- Want to see what's next? → `stages/6_followups/follow-ups.md`
 
 ## Suggested first checks
 
