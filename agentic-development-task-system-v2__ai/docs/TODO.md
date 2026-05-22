@@ -9,7 +9,7 @@ Next round of work after V1. Each section captures one idea — what it is, why 
 - ✅ Numbered stage directories (originally §1 after this renumbering; `stages/1_draft/`, `2_shaping/`, …). Same dogfood pass cleared four follow-ups: scope_check path-prefix matching, `extract_run_date` unit tests, `show` rendering the `build:` block, multi-line ASM/DR body parsing.
 - ⚠️ Task board v0 (originally §1, commit `0fe9214`) — shipped a simple `agent-workbench board` / `/board` that prints a static text Kanban grouped by lifecycle state. This is a placeholder; the real implementation is §1 below (live Textual TUI directly on top of `runs/`). Keep the v0 binary working until §1 lands so `/board` doesn't break.
 
-Order reflects priority: live task board, summary, E2E, context graph, followup spawn.
+Order reflects priority: live task board, E2E, context graph, followup spawn.
 
 ---
 
@@ -180,24 +180,7 @@ Layout properties:
 - [x] Smoke test plan: start `agent-workbench board` in one pane; drive a fresh run through `new-run` → `shape --init` → … in another pane; visually confirm cards move columns and "last events" updates in real time without the user pressing anything. — verified in-process with `app.run_test()` pilot: dropped a run on disk while the app was mounted; watchdog fired; the building column rendered the new card without input.
 - [x] Drop the `tests/test_cmd_board.py` rendering-format assertions that no longer apply; keep the format-age + grouping tests by retargeting them at `lib/board/snapshot.py`. — `format_age` + grouping live in `tests/test_board_snapshot.py`; `tests/test_cmd_board.py` now exercises the `--static` fallback path.
 
-## 2. Activity log summary
-
-Per-run, human-readable rollup of what a single run produced — not a cross-run digest. Goal: open one file and see at a glance *what changed* and *what was added* in that run, including any mid-flight course corrections from `/bounce`. `events.jsonl` is the source of truth but it's noisy (every `CommandRun` and `ArtifactWritten`); `audit.md` is a chronological dump. Neither answers "what did this run actually do?" in one screen.
-
-- [ ] Add `agent-workbench summary <run_id>` subcommand. Default target: the run identified by `<run_id>`; with no arg, the most recently updated run. Writes (or refreshes) `runs/<run_id>/summary.md`.
-- [ ] **Keep it current.** The summary must be regenerated on every state transition and every artifact write so it never lags behind the run. Wire the regen into the same hook that appends to `events.jsonl` (or call it from the lifecycle layer in `lib/lifecycle.py`). If regen is expensive, gate it behind a debounce — but staleness is the failure mode to avoid.
-- [ ] Output sections (one screen, markdown):
-  - **Header** — `run_id`, current status, repo, worktree, branch, created/updated timestamps.
-  - **What changed** — files touched in the worktree, grouped by add / modify / delete. Pull from `stages/building/build.md` if present; otherwise from `git diff --name-status` against `base_ref`.
-  - **What was added** — high-level list of new capabilities / artifacts produced in this run (derived from `stages/shaping/brief.md` scope + `stages/building/build.md` if present).
-  - **Course corrections (addendum)** — every `BounceRequested` event in this run's `events.jsonl`, with `bounce_reason`, requester, and which state it bounced from. This is the change-request log.
-  - **Timeline** — collapsed: one line per state transition (`draft → shaping → planning → …`), with timestamps. `CommandRun` / `ArtifactWritten` rolled up into counts per state, not listed individually.
-- [ ] Slash command `/summary` — thin wrapper, defaults to the current run, prints `summary.md` inline.
-- [ ] `--format json` for machine readers (same data, structured).
-- [ ] Decision: `summary.md` lives inside the run directory (single source of truth, regenerated). Do **not** also append to `LOG.md` — `LOG.md` stays hand-curated.
-- [ ] Test: assert that after a bounce → continue cycle, the addendum section lists the bounce reason and the summary's "what changed" reflects the post-bounce diff.
-
-## 3. Automatic E2E testing
+## 2. Automatic E2E testing
 
 V1 has unit tests + integration tests that drive the CLI through the happy path / bounce / abandon. What's missing is a true end-to-end smoke that exercises the full LLM-bearing flow (`/shape`, `/plan`, `/validate`, `/followups`) against a real throwaway repo without a human in the loop.
 
@@ -210,7 +193,7 @@ V1 has unit tests + integration tests that drive the CLI through the happy path 
 - [ ] Add a second E2E that exercises the **bounce loop** (validate → followups → bounce → validate → followups → complete) and a third for **abandon** at a random non-terminal state.
 - [ ] Document how to add a new E2E scenario in `agent-workbench-live/tests/README.md`.
 
-## 4. Context graph
+## 3. Context graph
 
 A library of small, focused "context files" that the workbench's `AGENTS.md` (or per-stage prompts) link to with `@path/to/file.md`. Claude Code resolves `@`-imports lazily — the file's content only enters the model's context when it's actually relevant to the current task. Today the workbench has no such library, so every run re-derives basics like "use poetry, not pip" or "create a worktree before editing" from scratch (or worse, gets them wrong).
 
@@ -245,7 +228,7 @@ Goal: ship a `agent-workbench-live/context/` directory of opinionated, one-page-
 - [ ] Document the library in `AGENTS.md`: how to add a new context file, naming convention, when to inline vs. reference.
 - [ ] (Stretch) `agent-workbench context list` — print the index. `agent-workbench context show <name>` — print a single file. Useful when debugging "why did the agent do X" — you can see exactly what guidance it had access to.
 
-## 5. Followup spawn (TODO §1f stretch, deferred)
+## 4. Followup spawn (TODO §1f stretch, deferred)
 
 The pass-3 Renovate work landed the `followups` stage but **deliberately did not implement** the `agent-workbench followup spawn` command. That command — create a new `draft` run pre-populated from a chosen mini-brief in a prior run's `follow-ups.md` — is the natural next step now that follow-ups are first-class.
 
