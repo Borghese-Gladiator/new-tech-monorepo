@@ -214,6 +214,8 @@ def _static_card_stack(run) -> list[str]:
             lines.append(f"bounces: {run.bounce_count}")
         if run.followups_entry_count is not None:
             lines.append(f"follow-ups: {run.followups_entry_count}")
+        for cat, count in run.followups_categories:
+            lines.append(f"  {count} {cat}")
     elif run.status == "done":
         if run.accepted_by or run.completed_at:
             who = run.accepted_by or "?"
