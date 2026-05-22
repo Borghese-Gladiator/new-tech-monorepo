@@ -11,7 +11,7 @@ Do:
 - Use the four-marker template literally: `Applies when:` / `Do:` / `Do not:` / `Commands:`.
 - Add an entry to `@context/README.md` whenever you add a file.
 - Name files in lowercase kebab-case (`draft-pr.md`, not `DraftPR.md`).
-- Compose, don't duplicate: if two contexts share guidance, factor it into a meta file and reference it.
+- Compose, don't duplicate: if two contexts share guidance, factor it into a shared leaf and reference it from both.
 
 Do not:
 

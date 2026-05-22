@@ -8,7 +8,7 @@ approve
 
 Yes. Every acceptance criterion in `brief.md` is covered:
 
-- The full 21-file tree exists under `agent-workbench-live/context/` exactly as the layout block specified.
+- The library exists under `agent-workbench-live/context/` — 19 files net after the meta trim (see "Deviations from plan" in `build.md`).
 - Every non-README file carries the literal four markers (`Applies when:`, `Do:`, `Do not:`, `Commands:`).
 - Every non-README file is ≤40 lines; the README is 59. All under the 60-line hard cap.
 - `context/README.md` indexes every leaf as an `@context/...` import grouped by section.
@@ -60,7 +60,7 @@ depth 1 (changed files on the branch, net of the revert):
   AGENTS.md
   CLAUDE.md
   agent-workbench-live/AGENTS.md
-  agent-workbench-live/context/* (21 new files)
+  agent-workbench-live/context/* (19 new files net after trim)
   agent-workbench-live/tests/test_context_library.py
   docs/TODO.md, docs/LOG.md  (two-file contract)
 

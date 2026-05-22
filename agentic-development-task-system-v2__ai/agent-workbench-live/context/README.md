@@ -1,6 +1,6 @@
 # Context library
 
-Small, opinionated, lazily-imported convention files. Agents pull in only what they need via `@context/path/to/file.md`. Slash commands compose targeted imports instead of duplicating instructions inline.
+Small, opinionated, lazily-imported convention files. Agents pull in only what they need via `@context/path/to/file.md` — on demand, at the moment the leaf applies.
 
 Each leaf file is one screen (≤~50 lines) and follows the same template:
 
@@ -9,13 +9,9 @@ Each leaf file is one screen (≤~50 lines) and follows the same template:
 - **Do not:** explicit anti-patterns.
 - **Commands:** copy-pasteable shell snippets where useful.
 
-Workflows belong in `.claude/commands/*`, not here. If you find yourself describing a multi-step process, put it in a command and import the relevant context files there.
+Workflows belong in `.claude/commands/*`, not here. If you find yourself describing a multi-step process, put it in a command instead.
 
-## Meta
-
-- [`@context/meta/context-authoring.md`](meta/context-authoring.md) — how to add or split context files; one screen, examples > prose, no workflow duplication.
-- [`@context/meta/repo-discovery.md`](meta/repo-discovery.md) — detect language, package manager, test runner, CI; prefer repo-local scripts.
-- [`@context/meta/risk-and-approval.md`](meta/risk-and-approval.md) — classify low / medium / high risk; ask before force-push, destructive deletes, destructive migrations.
+See [`@context/AUTHORING.md`](AUTHORING.md) before adding or editing a leaf.
 
 ## Git
 

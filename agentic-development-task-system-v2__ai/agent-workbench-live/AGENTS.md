@@ -103,10 +103,7 @@ Conventions, safety defaults, and per-language quartets live under `context/`. A
 
 Start at `@context/README.md` — it indexes every file with one-line descriptions and import paths. Do not enumerate the library here; the index is the single source of truth and stays in sync as files are added or removed.
 
-Two meta files an agent almost always needs first:
-
-- `@context/meta/repo-discovery.md` — language / package manager / test runner detection.
-- `@context/meta/risk-and-approval.md` — when to stop and ask before an action.
+Adding or editing a leaf? Read `@context/AUTHORING.md` first.
 
 ## Where to read more
 

@@ -7,7 +7,7 @@ Project-specific guidance for Claude Code sessions opened against this repo. Rea
 Conventions, safety defaults, and per-language quartets live under `agent-workbench-live/context/`. Use Claude Code's lazy `@context/...` import to pull in only the file you need at the moment you need it — do not load the whole tree.
 
 - Start here: `@context/README.md` — indexes every file with one-line descriptions and import paths.
-- Almost always relevant: `@context/meta/repo-discovery.md` and `@context/meta/risk-and-approval.md`.
+- Adding or editing a leaf? `@context/AUTHORING.md` covers the template and one-screen rule.
 
 Prefer focused imports. Each context file is one screen and follows the same four-marker template (`Applies when:` / `Do:` / `Do not:` / `Commands:`). Pull in `@context/git/commit.md` when you're about to commit; pull in `@context/languages/python/testing.md` when you're about to write a Python test. Do not preload everything.
 

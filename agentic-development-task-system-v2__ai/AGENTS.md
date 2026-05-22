@@ -71,5 +71,5 @@ Start at `@context/README.md` — it indexes every file with one-line descriptio
 ## Related conventions
 
 - `~/.claude/CLAUDE.md` (user global): write a `plan.md` at the repo root before any non-trivial change. That's a session-local scratch file — separate from this LOG/TODO contract. Both apply.
-- `CLAUDE.md` (repo root): wires the `@context/...` library and points at the two meta files an agent reads first.
+- `CLAUDE.md` (repo root): wires the `@context/...` library.
 - `agent-workbench-live/AGENTS.md`: governs in-run behavior (the lifecycle rules, only-`draft`-asks-questions, only-`transitions.transition`-writes-status). That file is what you read if you're inside a `/shape` / `/plan` / `/validate` invocation.

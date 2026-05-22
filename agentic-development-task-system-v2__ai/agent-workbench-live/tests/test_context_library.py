@@ -18,9 +18,7 @@ CONTEXT_ROOT = ROOT / "context"
 # by concern. If the brief changes, change this list.
 REQUIRED_FILES = (
     "README.md",
-    "meta/context-authoring.md",
-    "meta/repo-discovery.md",
-    "meta/risk-and-approval.md",
+    "AUTHORING.md",
     "git/commit.md",
     "git/worktrees.md",
     "git/draft-pr.md",

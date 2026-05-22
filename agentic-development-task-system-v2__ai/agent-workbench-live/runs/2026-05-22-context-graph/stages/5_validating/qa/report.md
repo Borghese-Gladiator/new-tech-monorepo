@@ -39,8 +39,8 @@ N/A — no UI surface changed.
 
 ### Smoke scripts
 
-`find agent-workbench-live/context -name '*.md' | wc -l` → 21 (1 README + 20 leaves), matching the brief.
-`grep -L '^Applies when:' agent-workbench-live/context/**/*.md` → returns README only.
+`find agent-workbench-live/context -name '*.md' | wc -l` → 19 net (after the meta trim; see `build.md` § Deviations from plan).
+`grep -L '^Applies when:' agent-workbench-live/context/**/*.md` → returns README only (AUTHORING.md has the marker too).
 `[ ! -d agent-workbench-live/context/workflows ]` → exits 0.
 
 ## Captured artifacts
