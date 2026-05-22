@@ -11,27 +11,57 @@ Next round of work after V1. Each section captures one idea — what it is, why 
 - ✅ Live task board — Textual TUI (originally §1 after renumbering, commit `f10b6d8`). `agent-workbench board` launches a full-screen Textual app over `runs/` with a watchdog file-watcher + 1Hz fallback timer; cards re-render on every `metadata.yaml` / `events.jsonl` change. Status-aware card bodies, loud-card highlighting, `--static` / `--compact` / `--all` / `--status` knobs. `textual` + `watchdog` shipped as a `[board]` optional-deps group (`requirements-board.txt`) — core CLI stays stdlib-only.
 - ✅ Live board card attributes (originally §2 after renumbering, commits `549c9aa` + `445f3cd` + `52926b5`). Eleven on-disk fields that the anemic v1 card body never surfaced now render status-aware: lifecycle state badge, scope kind, idle/`● live` signal, AC coverage (parsed from build.md), git diff shortstat (cached on `(run_id, updated_at)`), avg iteration time, bounce origin, followup category breakdown, repo-path tail, terminal-card `accepted_by`/`abandoned_reason`, worktree-existence flag, tests-recorded age. Dogfood (`445f3cd`, run `2026-05-22-s2-attrs`) drove a fresh `repair`-scope run through every column and surfaced one renderer bug — the static path's `human_review` branch missed the followups-category breakdown — fixed inline and locked in by a regression test (`52926b5`).
 - ✅ Live board — UX polish on the card layout (originally §1 after renumbering). Card now renders as five bands separated by `─` rules: title (slug bright + dim date prefix + state badge + scope + `● live`), meta (age-in-stage · age since update · total · repo · branch — dim), body (status-aware progress with severity-led reason), events (`[mm:ss ago] EventType detail`, fixed-width timestamp column), files (labelled `run` / `wt` lines, `$HOME → ~`, workbench root → `…`, off by default; `--verbose` opts in). Loudness graded: warning (`⚠`, yellow border) for known issues / recent error / worktree missing; blocking (`✕`, red border) for failing tests / builder-gave-up / stale `human_review`. Reason rendered as the first body line (`✕ tests failing`, `⚠ 2 known issues`). Each column gains a one-line subtitle pulled from `COLUMN_SUBTITLES` in `lib/board/source.py`. Twenty-four new tests across severity classification, path abbreviation, band content selection, event-timestamp format, the `--verbose` knob, and the column subtitle line. Suite is 188/188 green.
+- ✅ Automatic E2E testing (originally §1 after renumbering). New `lib/stub_llm.py` + `AGENT_WORKBENCH_STUB_LLM` env-var mode lets the four LLM-bearing CLI subcommands (`shape`, `plan`, `validate`, `followups`) copy canned artifacts from a fixture directory in lieu of authoring them with a model. Slash command bodies stay unchanged — the hook fires from inside each `--init` Bash step. Two fixture sets shipped under `tests/fixtures/e2e/`: `happy/` (single-pass run to `done`) and `bounce_pass1/` + `bounce_pass2/` (request-changes review on pass 1, accept on pass 2). New `tests/test_e2e.py` drives three scenarios: `TestE2EHappyPath` (full `new-run → complete`), `TestE2EBounceLoop` (full happy path + bounce + re-validate + complete, asserts archived `-v1` outputs and event-log counts per transition), and `TestE2EAbandon` (`*->abandoned` from draft / shaping / building). `tests/README.md` documents how to add a scenario. Five new tests; suite is 193/193 green.
 
-Order reflects priority: E2E, context graph, followup spawn.
+Order reflects priority: context graph, followup spawn, audit duplication.
 
 ---
 
-## 1. Automatic E2E testing
+## 1. Context Graph
 
-V1 has unit tests + integration tests that drive the CLI through the happy path / bounce / abandon. What's missing is a true end-to-end smoke that exercises the full LLM-bearing flow (`/shape`, `/plan`, `/validate`, `/followups`) against a real throwaway repo without a human in the loop.
+Stop agents from repeatedly rediscovering project conventions (package manager, testing, Git safety, PR rules, infra/migration safety, bug triage) by adding a small opinionated context library under `agent-workbench-live/context/`. Agents lazy-import individual files via `@context/path/to/file.md`; slash commands compose targeted imports instead of duplicating instructions inline.
 
-- [ ] Define what "E2E" means here: one fixture repo + one canned `raw-idea.md` driven from `new-run` to `complete` with no manual prompts.
-- [ ] Pick the harness. Options: a `scripts/e2e.sh` shell driver, a `tests/test_e2e.py` that subprocesses the CLI + a stub LLM, or a real Claude Code headless invocation. Default: shell driver that calls the CLI; LLM steps stubbed by writing canned artifact files (`brief.md`, `plan.md`, `build.md`, `review.md`, `qa/report.md`, `HUMAN_REVIEW.md`, `follow-ups.md`).
-- [ ] Build a `tests/fixtures/e2e/` tree: throwaway repo seed, `raw-idea.md`, canned outputs for each LLM-bearing stage.
-- [ ] Wire a `--stub-llm` (or env var `AGENT_WORKBENCH_STUB_LLM=1`) mode so `/shape`, `/plan`, `/validate`, `/followups` skip the model and copy fixture artifacts into the run directory. Slash command bodies stay unchanged; the Bash prefix branches on the flag.
-- [ ] Assertions per stage: state advanced correctly, expected artifacts exist, `events.jsonl` contains the expected event types in order, `audit.md` renders.
-- [ ] Run the E2E in CI on every push to a feature branch. Fail loudly on any unexpected event or state.
-- [ ] Add a second E2E that exercises the **bounce loop** (validate → followups → bounce → validate → followups → complete) and a third for **abandon** at a random non-terminal state.
-- [ ] Document how to add a new E2E scenario in `agent-workbench-live/tests/README.md`.
+**Design principles**
 
-## 2. Context Graph
+- Context files are conventions/safety/defaults, not workflows. Workflows belong in `.claude/commands/*`, which compose context files.
+- One concern per file, one screen max (~50 lines), example-heavy over prose, one default way ("it depends" is a smell).
+- Organized by concern: `meta`, `git`, `languages`, `infra`, `diagnostics`. No `context/workflows/` directory.
+- Every file follows the same template: `Applies when:` / `Do:` / `Do not:` / `Commands:`.
 
-## 3. Followup spawn (TODO §1f stretch, deferred)
+**Directory layout**
+
+```text
+agent-workbench-live/context/
+  README.md
+  meta/{context-authoring,repo-discovery,risk-and-approval}.md
+  git/{commit,worktrees,draft-pr}.md
+  languages/python/{setup,dependencies,testing,quality}.md
+  languages/javascript-typescript/{setup,dependencies,testing,quality}.md
+  languages/go/{setup,dependencies,testing,quality}.md
+  infra/{secrets,shell,docker,ci,sql-migrations}.md
+  diagnostics/sentry-bug-triage.md
+```
+
+**Tasks**
+
+- [ ] Inspect existing `AGENTS.md`, `CLAUDE.md`, `.claude/commands/*`, and repo conventions before authoring; preserve any defaults that already differ from the generic ones below.
+- [ ] Create the normalized directory tree under `agent-workbench-live/context/`.
+- [ ] **Meta** — `context-authoring.md` (naming, one-screen rule, when to split, examples > prose, when to inline vs. import, avoid workflow duplication); `repo-discovery.md` (detect language / package manager / test runner / CI / lint+format+typecheck commands; prefer repo-local scripts; example commands: `pwd`, `ls`, `find . -maxdepth 3 -name pyproject.toml -o -name package.json -o -name go.mod`, `find . -maxdepth 3 -name AGENTS.md -o -name CLAUDE.md -o -name Makefile`); `risk-and-approval.md` (ask before force-push / destructive deletes / destructive migrations; classify low/medium/high risk; prefer reversible operations).
+- [ ] **Git** — intent-oriented, not one file per porcelain command. `commit.md` (one logical change per commit, imperative ≤70-char subject, HEREDOC for multiline, never `--no-verify` without approval, never amend published commits unless approved). `worktrees.md` (`LOCAL_worktrees/` convention, cleanup expectations, always `pwd` + `git branch --show-current` + `git status --short` before Git ops). `draft-pr.md` (inspect diff, run validation + tests before PR, draft PRs for incomplete work, body = Summary + Test plan, never force-push to `main`).
+- [ ] **Languages** — same `setup` / `dependencies` / `testing` / `quality` quartet for each. **Python**: Poetry default; `bin/pytest` if present else `poetry run pytest`; `ruff check`, `ruff format --check`, `mypy`, `pytest`. **JS/TS** (directory `javascript-typescript`): Yarn default, no global installs, TS-first; `yarn lint` / `typecheck` / `build` / `test`; avoid `any`. **Go**: Go modules, `gofmt`, `go test ./...`, wrap errors with `%w`, small interfaces, no mutable package globals.
+- [ ] **Infra** — `secrets.md` (never commit secrets or `.env`, redact tokens in logs, no creds in PRs/issues/tests); `shell.md` (`set -euo pipefail`, quote variables, `mktemp`, guard destructive deletes); `docker.md` (multi-stage builds, `.dockerignore`, pinned bases, never `latest`, no baked secrets); `ci.md` (mirror CI checks locally, prefer repo scripts, never weaken CI to pass, document skipped checks); `sql-migrations.md` (backwards-compatible, expand-then-contract, backfill before `NOT NULL`, avoid long locks, never drop columns in the same release that stops writes).
+- [ ] **Diagnostics** — `sentry-bug-triage.md`: tool-agnostic (no Sentry CLI/API assumptions). Identify project/env/release, inspect frequency/impact, find first in-repo stack frame, correlate with recent deploys / dependency bumps, add regression tests after root-cause, never log sensitive data, never close issues without rationale.
+- [ ] Create `context/README.md` — primary discovery entrypoint. Lists every file with one-line description + `@context/...` import path, organized by section.
+- [ ] Wire `AGENTS.md`: add a section that references `@context/README.md`, explains lazy loading + composition by commands, does **not** inline the file list.
+- [ ] Wire `CLAUDE.md`: explain Claude Code's lazy `@context/...` resolution, prefer focused imports, reference `@context/README.md` + `@context/meta/repo-discovery.md` + `@context/meta/risk-and-approval.md`.
+- [ ] Update existing `.claude/commands/*` files to compose targeted imports (examples: validation → `@context/meta/repo-discovery.md` + `@context/git/draft-pr.md` + `@context/infra/ci.md`; Python implementation → `@context/languages/python/testing.md` + `@context/languages/python/quality.md` + `@context/git/worktrees.md`; Sentry triage → `@context/diagnostics/sentry-bug-triage.md` + `@context/git/draft-pr.md` + `@context/meta/risk-and-approval.md`).
+- [ ] Run formatting / lint / tests; confirm acceptance: every required file exists and follows the template, every file ≤~50 lines, no `context/workflows/` directory, `README.md` indexes every file, `AGENTS.md` + `CLAUDE.md` reference the library, relevant commands use targeted imports, existing repo conventions preserved over generic defaults.
+
+**Non-goals**
+
+Large workflow documents; one file per Git command; duplicated guidance; long-form architecture docs; tutorials; assuming tools the repo doesn't already use; Sentry-specific API integrations.
+
+## 2. Followup spawn (TODO §1f stretch, deferred)
 
 The pass-3 Renovate work landed the `followups` stage but **deliberately did not implement** the `agent-workbench followup spawn` command. That command — create a new `draft` run pre-populated from a chosen mini-brief in a prior run's `follow-ups.md` — is the natural next step now that follow-ups are first-class.
 
@@ -40,3 +70,15 @@ The pass-3 Renovate work landed the `followups` stage but **deliberately did not
 - [ ] Slash command `/followup-spawn` — thin wrapper.
 - [ ] Event: emit a `FollowupSpawned` event in the *source* run's events.jsonl noting which entry was picked + the new run_id (so spawn lineage is queryable).
 - [ ] Test: spawn from a recorded entry → new run lands in `draft` with correct raw-idea.
+
+## 3. Audit unit tests for duplication
+
+193 tests is fine; redundant tests are not. Several rounds of feature work each added their own test class, and some assertions now overlap (e.g. `TestStaticDumpStructure.test_terminal_states_hidden_by_default` vs `TestColumnsAndOrdering.test_terminal_states_hidden_by_default` in `test_board_snapshot.py` — same condition, different scaffolding). Goal: shrink the suite without losing coverage.
+
+- [ ] Walk every test module under `agent-workbench-live/tests/`. For each test, note its preconditions (fixture state) and its assertions (which fields / branches it exercises).
+- [ ] Identify pairs/triples that share preconditions and only differ in assertion targets — merge them with `parametrize` or combined assertions on a single fixture. (See `~/.claude/CLAUDE.md` "App Testing Rules": *Merge tests with identical setup that differ only in assertions.*)
+- [ ] Identify tests that overlap with newer, more-specific tests (e.g. an end-to-end smoke that's now subsumed by a unit test against the same helper). Drop the older one when the newer one is strictly stronger.
+- [ ] Identify tests asserting framework behaviour rather than our code (e.g. asserting `argparse` rejects an unknown flag, asserting `dataclasses.frozen=True` raises on mutation). Delete.
+- [ ] Watch for over-specified assertions that pin formatting rather than behaviour (e.g. `assertEqual(line, "✕ tests failing")` when `assertIn("tests failing", line)` is enough). Relax where the surrounding code is allowed to evolve.
+- [ ] Don't touch tests that were added as regression locks (look for "regression" / commit-sha references in docstrings, e.g. `52926b5` in `TestStaticCardStack`). Those exist precisely because the bug came back once.
+- [ ] Run the full suite after each pruning pass and confirm the count went *down* without losing real coverage. Report final count + biggest reductions in `docs/LOG.md`.
