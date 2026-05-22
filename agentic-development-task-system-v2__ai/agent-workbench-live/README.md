@@ -13,9 +13,10 @@ See `../docs/TODO.md` for the full implementation plan. Sections checked off in 
 
 ## Prerequisites
 
-- Python 3 (stdlib only — no `pip install`).
+- Python 3 (stdlib only for the core CLI — no `pip install` needed for everything except the live board).
 - `git` on `PATH`.
 - A target git repo to work against (or a path where one should be created).
+- **Optional**: `pip install -r requirements-board.txt` to enable the live TUI under `agent-workbench board`. The static fallback (`board --static`) stays stdlib-only.
 
 ## 1. Add the CLI to your PATH
 
@@ -47,7 +48,7 @@ cd /path/to/agent-workbench-live
 python3 -m unittest discover -s tests -v
 ```
 
-You should see `33 tests, OK`. If anything fails, stop and report it — the system isn't safe to use against your code.
+You should see a passing run (`OK` at the bottom). If anything fails, stop and report it — the system isn't safe to use against your code.
 
 ## 3. Run #1: a tiny existing-repo run
 

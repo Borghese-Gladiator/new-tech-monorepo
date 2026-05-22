@@ -1,4 +1,14 @@
-"""Unit tests for the `board` subcommand."""
+"""CLI smoke tests for `agent-workbench board --static`.
+
+The default `board` invocation launches a Textual TUI (lib/board/app.py) which
+can't be driven from a non-interactive test runner. The structural assertions
+about grouping, ordering, terminal-state hiding, and stale flagging now live
+in tests/test_board_snapshot.py against lib/board/snapshot.py directly.
+
+This file keeps the end-to-end CLI smoke against the `--static` fallback path
+so we know the subprocess wiring still works and the static dump is callable
+without third-party deps installed.
+"""
 from __future__ import annotations
 
 import datetime as dt
@@ -105,82 +115,61 @@ class BoardCase(unittest.TestCase):
         cleanup(self.tmp)
 
 
-class TestFormatAge(unittest.TestCase):
-    def test_buckets(self):
-        from lib.cli.cmd_board import format_age
-        self.assertEqual(format_age(0), "0m")
-        self.assertEqual(format_age(59), "0m")
-        self.assertEqual(format_age(90), "1m")
-        self.assertEqual(format_age(60 * 60), "1h")
-        self.assertEqual(format_age(2 * 60 * 60), "2h")
-        self.assertEqual(format_age(25 * 60 * 60), "1d")
-        self.assertEqual(format_age(48 * 60 * 60), "2d")
-
-
 class TestEmpty(BoardCase):
     def test_empty_workbench(self):
-        r = cli(self.tmp, "board")
+        r = cli(self.tmp, "board", "--static")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("(no runs)", r.stdout)
 
 
-class TestGroupingAndOrdering(BoardCase):
+class TestStaticDumpStructure(BoardCase):
     def test_columns_appear_in_canonical_order(self):
-        # Seed runs out of canonical order.
         write_run(self.tmp, "r-building", status="building", repo_name="alpha")
         write_run(self.tmp, "r-draft", status="draft", repo_name="beta")
         write_run(self.tmp, "r-planning", status="planning", repo_name="gamma")
 
-        r = cli(self.tmp, "board")
+        r = cli(self.tmp, "board", "--static")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         out = r.stdout
-        # Header row should contain the columns in canonical order:
-        # draft .. planning .. building.
         i_draft = out.find("draft")
         i_planning = out.find("planning")
         i_building = out.find("building")
         self.assertGreater(i_draft, -1, out)
         self.assertGreater(i_planning, i_draft, out)
         self.assertGreater(i_building, i_planning, out)
-        # Each run id present.
         self.assertIn("r-draft", out)
         self.assertIn("r-planning", out)
         self.assertIn("r-building", out)
 
-
-class TestTerminalStateHiding(BoardCase):
-    def test_done_hidden_by_default(self):
+    def test_terminal_states_hidden_by_default(self):
         write_run(self.tmp, "r-active", status="building")
         write_run(self.tmp, "r-done", status="done")
 
-        r = cli(self.tmp, "board")
+        r = cli(self.tmp, "board", "--static")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
-        # The card is what we're checking — the run_id is unique.
         self.assertIn("r-active", r.stdout)
         self.assertNotIn("r-done", r.stdout)
 
-    def test_done_visible_with_all_flag(self):
+    def test_terminal_states_with_all(self):
         write_run(self.tmp, "r-done", status="done")
         write_run(self.tmp, "r-abandoned", status="abandoned")
 
-        r = cli(self.tmp, "board", "--all")
+        r = cli(self.tmp, "board", "--static", "--all")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("r-done", r.stdout)
         self.assertIn("r-abandoned", r.stdout)
 
-
-class TestStatusFilter(BoardCase):
-    def test_status_filter_shows_only_one_column(self):
+    def test_status_filter(self):
         write_run(self.tmp, "r-build", status="building")
         write_run(self.tmp, "r-plan", status="planning")
 
-        r = cli(self.tmp, "board", "--status", "building")
+        r = cli(self.tmp, "board", "--static", "--status", "building")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("r-build", r.stdout)
         self.assertNotIn("r-plan", r.stdout)
 
 
-class TestStaleHumanReview(BoardCase):
+class TestStaleHumanReviewStatic(BoardCase):
     def test_stale_marker_and_footer(self):
         fresh = dt.datetime.now().astimezone() - dt.timedelta(hours=1)
         stale = dt.datetime.now().astimezone() - dt.timedelta(hours=48)
@@ -189,17 +178,14 @@ class TestStaleHumanReview(BoardCase):
         write_run(self.tmp, "r-stale", status="human_review",
                   updated_at=stale, repo_name="r2")
 
-        r = cli(self.tmp, "board")
+        r = cli(self.tmp, "board", "--static")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
 
-        # Both run_ids appear, but only the stale one is prefixed with `!`
-        # in the column body.
         self.assertIn("r-fresh", r.stdout)
         self.assertIn("r-stale", r.stdout)
         self.assertIn("! r-stale", r.stdout)
         self.assertNotIn("! r-fresh", r.stdout)
 
-        # Footer lists the stale one.
         self.assertIn("Stale human_review:", r.stdout)
         footer_start = r.stdout.find("Stale human_review:")
         footer = r.stdout[footer_start:]
@@ -207,15 +193,14 @@ class TestStaleHumanReview(BoardCase):
         self.assertNotIn("r-fresh", footer)
 
 
-class TestUnreadableRunSkipped(BoardCase):
+class TestUnreadableRunSkippedStatic(BoardCase):
     def test_bad_metadata_is_skipped_not_fatal(self):
         write_run(self.tmp, "r-good", status="building")
-        # Drop a directory with a malformed metadata.yaml.
         bad = self.tmp / "runs" / "r-bad"
         bad.mkdir(parents=True)
         (bad / "metadata.yaml").write_text("not: [valid: yaml")
 
-        r = cli(self.tmp, "board")
+        r = cli(self.tmp, "board", "--static")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("r-good", r.stdout)
         self.assertNotIn("r-bad", r.stdout)

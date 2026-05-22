@@ -170,15 +170,15 @@ Layout properties:
 
 ### Implementation order
 
-- [ ] Add `textual` + `watchdog` to a new `[board]` optional-deps group in `agent-workbench-live/` (still stdlib-only by default).
-- [ ] Build `lib/board/source.py` — pure-function readers that produce `RunSnapshot` dataclasses from `metadata.yaml` + a configurable tail of `events.jsonl`. Includes derived fields (age, time-in-stage, last-3-events, build-progress, health flags). No Textual import.
-- [ ] Build `lib/board/snapshot.py` — `BoardSnapshot.build(cfg)` walks runs/, groups by status, returns a frozen snapshot ready for rendering.
-- [ ] Unit tests against snapshot.py: seed fake `runs/` trees (same pattern as the v0 tests), assert health flags, progress fields, last-events list, stage-aware card content.
-- [ ] Build `lib/board/app.py` — Textual app. One screen, fixed column row + footer. Driven by a `watchdog` observer on `runs/` + 1 Hz fallback `set_interval`. Each refresh: rebuild snapshot, swap into the column widgets.
-- [ ] Rewrite `lib/cli/cmd_board.py` so it imports lazily (`from lib.board import app`) and launches the Textual app. Keep the existing CLI flags (`--all`, `--status`) and add `--compact`. Preserve the static text output behind `--static` so headless / CI usage still works.
-- [ ] Update `/board` slash command doc to describe the new live behavior.
-- [ ] Smoke test plan: start `agent-workbench board` in one pane; drive a fresh run through `new-run` → `shape --init` → … in another pane; visually confirm cards move columns and "last events" updates in real time without the user pressing anything.
-- [ ] Drop the `tests/test_cmd_board.py` rendering-format assertions that no longer apply; keep the format-age + grouping tests by retargeting them at `lib/board/snapshot.py`.
+- [x] Add `textual` + `watchdog` to a new `[board]` optional-deps group in `agent-workbench-live/` (still stdlib-only by default). — shipped as `agent-workbench-live/requirements-board.txt`; README updated.
+- [x] Build `lib/board/source.py` — pure-function readers that produce `RunSnapshot` dataclasses from `metadata.yaml` + a configurable tail of `events.jsonl`. Includes derived fields (age, time-in-stage, last-3-events, build-progress, health flags). No Textual import.
+- [x] Build `lib/board/snapshot.py` — `BoardSnapshot.build(cfg)` walks runs/, groups by status, returns a frozen snapshot ready for rendering.
+- [x] Unit tests against snapshot.py: seed fake `runs/` trees (same pattern as the v0 tests), assert health flags, progress fields, last-events list, stage-aware card content. — `tests/test_board_snapshot.py`, 17 cases.
+- [x] Build `lib/board/app.py` — Textual app. One screen, fixed column row + footer. Driven by a `watchdog` observer on `runs/` + 1 Hz fallback `set_interval`. Each refresh: rebuild snapshot, swap into the column widgets.
+- [x] Rewrite `lib/cli/cmd_board.py` so it imports lazily (`from lib.board import app`) and launches the Textual app. Keep the existing CLI flags (`--all`, `--status`) and add `--compact`. Preserve the static text output behind `--static` so headless / CI usage still works.
+- [x] Update `/board` slash command doc to describe the new live behavior.
+- [x] Smoke test plan: start `agent-workbench board` in one pane; drive a fresh run through `new-run` → `shape --init` → … in another pane; visually confirm cards move columns and "last events" updates in real time without the user pressing anything. — verified in-process with `app.run_test()` pilot: dropped a run on disk while the app was mounted; watchdog fired; the building column rendered the new card without input.
+- [x] Drop the `tests/test_cmd_board.py` rendering-format assertions that no longer apply; keep the format-age + grouping tests by retargeting them at `lib/board/snapshot.py`. — `format_age` + grouping live in `tests/test_board_snapshot.py`; `tests/test_cmd_board.py` now exercises the `--static` fallback path.
 
 ## 2. Activity log summary
 

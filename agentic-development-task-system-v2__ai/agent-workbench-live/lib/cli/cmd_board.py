@@ -1,44 +1,22 @@
-"""board subcommand. Terminal-rendered Kanban over runs/.
+"""board subcommand. Live Textual TUI over runs/.
 
-One column per lifecycle state. Each card shows run_id, age since last update,
-repo name, and branch. Terminal states (done, abandoned) are hidden unless
---all. Runs in human_review past the configured staleness threshold are
-flagged.
+The default behaviour is the live board (`lib.board.app.AgentBoardApp`),
+which auto-refreshes via watchdog + a 1Hz fallback. This requires the
+optional `textual` + `watchdog` dependencies. Install with:
 
-The reader is `lib/metadata.load`; unreadable runs are skipped (board never
-aborts because of one bad file).
+    pip install -r requirements-board.txt
+
+Run `agent-workbench board --static` for the stdlib-only one-shot text
+render. CI and headless callers should use that path.
 """
 from __future__ import annotations
 
 import datetime as dt
 
-from lib import metadata
-from lib.cli._common import load_config
+from lib.cli._common import fail, load_config
 
 
-HELP = "Show all runs grouped by lifecycle state."
-
-
-# Canonical lifecycle order (matches docs/lifecycle.md, left to right).
-COLUMN_ORDER = (
-    "draft",
-    "shaping",
-    "planning",
-    "ready",
-    "building",
-    "validating",
-    "followups",
-    "human_review",
-    "done",
-    "abandoned",
-)
-
-TERMINAL_STATES = ("done", "abandoned")
-
-# Visual width of each column (chars). Wide enough for a typical run_id like
-# `2026-05-21-better-worktree-name-template` (40 chars) without truncation.
-COLUMN_WIDTH = 42
-COLUMN_GUTTER = "  "
+HELP = "Live task board: Kanban over runs/, refreshes on every file change."
 
 
 def register(p) -> None:
@@ -51,175 +29,128 @@ def register(p) -> None:
         "--status",
         help="Show only this status column.",
     )
-
-
-def format_age(seconds: float) -> str:
-    """Largest unit ≥ 1 (m/h/d), integer. <1m shown as 0m."""
-    s = max(0, int(seconds))
-    minutes = s // 60
-    if minutes < 60:
-        return f"{minutes}m"
-    hours = minutes // 60
-    if hours < 24:
-        return f"{hours}h"
-    return f"{hours // 24}d"
-
-
-def _parse_iso(ts: str) -> dt.datetime:
-    return dt.datetime.fromisoformat(ts)
-
-
-def _age_seconds(updated_at: str, now: dt.datetime) -> float:
-    try:
-        u = _parse_iso(updated_at)
-    except Exception:
-        return 0.0
-    if u.tzinfo is None:
-        u = u.replace(tzinfo=now.tzinfo)
-    return (now - u).total_seconds()
-
-
-def _stale_threshold_hours(cfg) -> int:
-    board = (cfg.raw.get("board") or {})
-    return int(board.get("stale_human_review_hours", 24))
-
-
-def _truncate(s: str, width: int) -> str:
-    if len(s) <= width:
-        return s
-    if width <= 1:
-        return s[:width]
-    return s[: width - 1] + "…"
-
-
-def _pad(s: str, width: int) -> str:
-    s = _truncate(s, width)
-    return s + " " * (width - len(s))
-
-
-def build_columns(
-    runs: list[dict],
-    *,
-    show_all: bool,
-    only_status: str | None,
-    stale_hours: int,
-    now: dt.datetime,
-) -> dict[str, list[dict]]:
-    """Group runs by status. Returns ordered dict-of-list keyed by COLUMN_ORDER."""
-    cols: dict[str, list[dict]] = {s: [] for s in COLUMN_ORDER}
-    for m in runs:
-        status = m.get("status")
-        if status not in cols:
-            continue
-        if only_status and status != only_status:
-            continue
-        if not show_all and not only_status and status in TERMINAL_STATES:
-            continue
-        age_s = _age_seconds(m.get("updated_at", ""), now)
-        is_stale = (
-            status == "human_review"
-            and age_s >= stale_hours * 3600
-        )
-        cols[status].append({
-            "run_id": m["run_id"],
-            "age_seconds": age_s,
-            "repo_name": (m.get("target") or {}).get("repo", {}).get("name", ""),
-            "branch": (m.get("target") or {}).get("worktree", {}).get("branch_name", ""),
-            "is_stale": is_stale,
-        })
-    # Sort cards within a column oldest-update-first (largest age first) so
-    # the things that have sat the longest float to the top.
-    for s in cols:
-        cols[s].sort(key=lambda c: -c["age_seconds"])
-    return cols
-
-
-def _card_lines(card: dict) -> list[str]:
-    marker = "! " if card["is_stale"] else ""
-    return [
-        f"{marker}{card['run_id']}",
-        f"{format_age(card['age_seconds'])} · {card['repo_name']}",
-        card["branch"],
-    ]
-
-
-def _render(cols: dict[str, list[dict]]) -> str:
-    visible = [(s, cards) for s, cards in cols.items() if cards]
-    if not visible:
-        return ""
-
-    # Header row.
-    out: list[str] = []
-    header = COLUMN_GUTTER.join(_pad(s, COLUMN_WIDTH) for s, _ in visible)
-    rule = COLUMN_GUTTER.join("-" * COLUMN_WIDTH for _ in visible)
-    counts = COLUMN_GUTTER.join(
-        _pad(f"({len(cards)})", COLUMN_WIDTH) for _, cards in visible
+    p.add_argument(
+        "--compact",
+        action="store_true",
+        help="One-line cards. Useful in narrow terminals.",
     )
-    out.append(header.rstrip())
-    out.append(counts.rstrip())
-    out.append(rule)
+    p.add_argument(
+        "--static",
+        action="store_true",
+        help="Print a one-shot stdlib-only text render and exit (no TUI).",
+    )
 
-    # Card rows: stack cards vertically within each column, aligned by row.
-    max_cards = max(len(cards) for _, cards in visible)
+
+def _static_render(cfg, *, show_all: bool, only_status: str | None, compact: bool) -> int:
+    """Stdlib-only one-shot text render. No textual import."""
+    from lib.board import snapshot as snapshot_mod
+    from lib.board.snapshot import format_age
+    from lib.board.source import is_loud
+
+    snap = snapshot_mod.build(cfg, show_all=show_all, only_status=only_status)
+    visible = snap.visible_columns()
+    if not visible:
+        print("(no runs)")
+        return 0
+
+    column_width = 42
+    gutter = "  "
+
+    def pad(s: str, w: int) -> str:
+        s = s if len(s) <= w else (s[: w - 1] + "…")
+        return s + " " * (w - len(s))
+
+    # Headers + counts + rule.
+    header = gutter.join(pad(c.status, column_width) for c in visible)
+    counts = gutter.join(
+        pad(f"({c.count}){' !' if c.has_loud_card else ''}", column_width)
+        for c in visible
+    )
+    rule = gutter.join("-" * column_width for _ in visible)
+    print(header.rstrip())
+    print(counts.rstrip())
+    print(rule)
+
+    # Per card: a short stack of lines.
+    if compact:
+        lines_per_card = 1
+    else:
+        lines_per_card = 4  # title, age/repo, branch, blank
+    max_cards = max(c.count for c in visible) if visible else 0
+
     for i in range(max_cards):
-        # 3 card lines + 1 blank.
-        for line_idx in range(3):
+        for line_idx in range(lines_per_card):
             row_pieces = []
-            for _, cards in visible:
-                if i < len(cards):
-                    line = _card_lines(cards[i])[line_idx]
+            for c in visible:
+                if i < c.count:
+                    run = c.runs[i]
+                    line = _static_card_line(run, line_idx, compact=compact)
                 else:
                     line = ""
-                row_pieces.append(_pad(line, COLUMN_WIDTH))
-            out.append(COLUMN_GUTTER.join(row_pieces).rstrip())
-        out.append("")  # blank separator between cards
-    return "\n".join(out).rstrip() + "\n"
+                row_pieces.append(pad(line, column_width))
+            print(gutter.join(row_pieces).rstrip())
+
+    # Stale human_review footer (preserves the v0 contract that the
+    # static dump still ends with a stale-list footer).
+    stale = [
+        r for c in visible
+        for r in c.runs
+        if r.is_stale_human_review
+    ]
+    if stale:
+        print()
+        print("Stale human_review:")
+        for r in stale:
+            print(f"  ! {r.run_id}  ({format_age(r.age_seconds)})")
+    return 0
 
 
-def _stale_footer(cols: dict[str, list[dict]]) -> str:
-    stale = [c for c in cols.get("human_review", []) if c["is_stale"]]
-    if not stale:
-        return ""
-    lines = ["Stale human_review:"]
-    for c in stale:
-        lines.append(f"  ! {c['run_id']}  ({format_age(c['age_seconds'])})")
-    return "\n".join(lines) + "\n"
+def _static_card_line(run, line_idx: int, *, compact: bool) -> str:
+    from lib.board.snapshot import format_age
+    from lib.board.source import is_loud
+
+    marker = "! " if is_loud(run) else ""
+    if compact:
+        bits = [marker + run.run_id, format_age(run.age_seconds)]
+        if run.repo_name:
+            bits.append(run.repo_name)
+        return " · ".join(bits)
+
+    if line_idx == 0:
+        return f"{marker}{run.run_id}"
+    if line_idx == 1:
+        return f"{format_age(run.age_seconds)} · {run.repo_name}"
+    if line_idx == 2:
+        return run.branch_name
+    return ""
 
 
 def run(args) -> int:
     cfg = load_config(args)
-    now = dt.datetime.now().astimezone()
-    stale_hours = _stale_threshold_hours(cfg)
 
-    loaded: list[dict] = []
-    for rid in metadata.list_runs(cfg):
-        try:
-            loaded.append(metadata.load(cfg, rid))
-        except Exception:
-            # Board should never abort because one run's metadata is unreadable
-            # (malformed YAML, missing fields, etc). Skip and continue.
-            continue
+    if args.static:
+        return _static_render(
+            cfg,
+            show_all=bool(args.all),
+            only_status=args.status,
+            compact=bool(args.compact),
+        )
 
-    if not loaded:
-        print("(no runs)")
-        return 0
+    # Live TUI. Lazy-import: keep the rest of the CLI stdlib-only.
+    try:
+        from lib.board.app import AgentBoardApp, BoardOptions
+    except ImportError as e:
+        return fail(
+            "live board needs `textual` and `watchdog`. install with:\n"
+            "    pip install -r requirements-board.txt\n"
+            f"(import failed: {e})\n"
+            "Use `agent-workbench board --static` for the stdlib-only fallback."
+        )
 
-    cols = build_columns(
-        loaded,
+    opts = BoardOptions(
         show_all=bool(args.all),
         only_status=args.status,
-        stale_hours=stale_hours,
-        now=now,
+        compact=bool(args.compact),
     )
-
-    rendered = _render(cols)
-    if not rendered:
-        print("(no runs)")
-        return 0
-
-    print(rendered, end="")
-    footer = _stale_footer(cols)
-    if footer:
-        print()
-        print(footer, end="")
+    AgentBoardApp(cfg, opts).run()
     return 0
