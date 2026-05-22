@@ -24,8 +24,10 @@ def seed_run(
     *,
     status: str,
     repo_name: str = "repo",
+    repo_path: str = "/tmp/{repo_name}",
     branch: str = "agent/branch",
     worktree_name: str = "wt",
+    worktree_created: bool = True,
     created_at: dt.datetime | None = None,
     updated_at: dt.datetime | None = None,
     review_completed: bool = False,
@@ -36,6 +38,11 @@ def seed_run(
     build_max_iterations: int = 5,
     build_exit_reason: str | None = None,
     build_md: bool = False,
+    build_md_body: str | None = None,
+    scope_kind: str = "implementation",
+    accepted_by: str | None = None,
+    completed_at: dt.datetime | None = None,
+    abandoned_reason: str | None = None,
 ) -> pathlib.Path:
     """Write metadata.yaml for a fake run. Returns the run dir."""
     rd = root / "runs" / run_id
@@ -48,6 +55,11 @@ def seed_run(
     tp = "null" if tests_passed is None else ("true" if tests_passed else "false")
     rc = "true" if review_completed else "false"
     qc = "true" if qa_completed else "false"
+    wt_created = "true" if worktree_created else "false"
+    accepted = "null" if accepted_by is None else f'"{accepted_by}"'
+    completed_iso = "null" if completed_at is None else f'"{_iso(completed_at)}"'
+    abandoned = "null" if abandoned_reason is None else f'"{abandoned_reason}"'
+    repo_path_resolved = repo_path.format(repo_name=repo_name)
 
     body = textwrap.dedent(f"""\
         schema_version: 1
@@ -58,7 +70,7 @@ def seed_run(
         target:
           repo:
             mode: existing
-            path: /tmp/{repo_name}
+            path: {repo_path_resolved}
             name: {repo_name}
             base_ref: main
             fingerprint: null
@@ -67,11 +79,11 @@ def seed_run(
             name: {worktree_name}
             path: /tmp/wt-{worktree_name}
             branch_name: {branch}
-            created: true
+            created: {wt_created}
             base_ref: main
             initial_commit_sha: null
         scope:
-          kind: implementation
+          kind: {scope_kind}
           summary: ""
         artifacts:
           raw_idea: raw-idea.md
@@ -96,10 +108,10 @@ def seed_run(
           tests_passed: {tp}
           known_issues_count: {known_issues_count}
         completion:
-          accepted_by: null
+          accepted_by: {accepted}
           completion_ref: null
-          completed_at: null
-          abandoned_reason: null
+          completed_at: {completed_iso}
+          abandoned_reason: {abandoned}
         build:
           iterations: {iters}
           exit_reason: {exit_reason}
@@ -110,7 +122,7 @@ def seed_run(
     if build_md:
         stages = rd / "stages" / "4_building"
         stages.mkdir(parents=True)
-        (stages / "build.md").write_text("# build\n")
+        (stages / "build.md").write_text(build_md_body or "# build\n")
     return rd
 
 
@@ -443,6 +455,349 @@ class TestMalformedRunSkipped(BoardSnapshotTestBase):
         ids = {r.run_id for c in snap.columns for r in c.runs}
         self.assertIn("r-good", ids)
         self.assertNotIn("r-bad", ids)
+
+
+class TestScopeAndIdentity(BoardSnapshotTestBase):
+    def test_scope_kind_passthrough(self):
+        from lib.board import snapshot
+
+        seed_run(self.tmp, "r-scope", status="building", scope_kind="bootstrap")
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertEqual(r.scope_kind, "bootstrap")
+
+    def test_repo_path_tail(self):
+        from lib.board import snapshot
+
+        seed_run(
+            self.tmp, "r-path", status="building",
+            repo_path="/Users/tim/code/parent/repo-x", repo_name="repo-x",
+        )
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertEqual(r.repo_path_tail, "parent/repo-x")
+
+    def test_repo_path_tail_short_path(self):
+        from lib.board.source import _repo_path_tail
+        self.assertEqual(_repo_path_tail(""), "")
+        self.assertEqual(_repo_path_tail("/abc"), "abc")
+        self.assertEqual(_repo_path_tail("/a/b/c"), "b/c")
+
+
+class TestLiveSignal(BoardSnapshotTestBase):
+    def test_is_live_when_recent_event(self):
+        from lib.board import snapshot
+
+        rd = seed_run(self.tmp, "r-live", status="building")
+        now = dt.datetime.now().astimezone()
+        append_event(rd, base_event(
+            1, "r-live", "ArtifactWritten",
+            status="building",
+            at=now - dt.timedelta(seconds=5),
+            payload={"artifact_key": "build", "path": "/tmp/x/build.md"},
+        ))
+        snap = snapshot.build(self.cfg, now=now)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertTrue(r.is_live)
+
+    def test_not_live_when_event_old(self):
+        from lib.board import snapshot
+
+        rd = seed_run(self.tmp, "r-quiet", status="building")
+        now = dt.datetime.now().astimezone()
+        append_event(rd, base_event(
+            1, "r-quiet", "ArtifactWritten",
+            status="building",
+            at=now - dt.timedelta(minutes=10),
+            payload={"artifact_key": "build", "path": "/tmp/x/build.md"},
+        ))
+        snap = snapshot.build(self.cfg, now=now)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertFalse(r.is_live)
+
+    def test_not_live_when_no_events(self):
+        from lib.board import snapshot
+
+        seed_run(self.tmp, "r-empty", status="building")
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertFalse(r.is_live)
+
+
+class TestAcceptanceCoverage(BoardSnapshotTestBase):
+    AC_BODY = (
+        "# build\n\n"
+        "## What changed\nthings\n\n"
+        "## Acceptance criteria coverage\n\n"
+        "| AC | Test or justification |\n"
+        "|----|-----------------------|\n"
+        "| 1. foo | `test_foo` |\n"
+        "| 2. bar | `test_bar` |\n"
+        "| 3. baz | missing |\n\n"
+        "## Deviations from plan\nnone\n"
+    )
+
+    def test_ac_coverage_parsed(self):
+        from lib.board import snapshot
+
+        seed_run(
+            self.tmp, "r-ac", status="validating",
+            build_md=True, build_md_body=self.AC_BODY,
+        )
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertEqual(r.ac_total, 3)
+        self.assertEqual(r.ac_covered, 2)
+        self.assertFalse(r.ac_table_missing)
+
+    def test_ac_table_missing_flag(self):
+        from lib.board import snapshot
+
+        seed_run(
+            self.tmp, "r-noac", status="validating",
+            build_md=True, build_md_body="# build\n\nno table here\n",
+        )
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertTrue(r.ac_table_missing)
+        self.assertIsNone(r.ac_total)
+
+    def test_no_build_md_means_no_signal(self):
+        from lib.board import snapshot
+
+        seed_run(self.tmp, "r-no-build", status="validating", build_md=False)
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertFalse(r.ac_table_missing)
+        self.assertIsNone(r.ac_total)
+
+
+class TestDiffShortstat(BoardSnapshotTestBase):
+    def test_diff_caches_per_run_updated_at(self):
+        from lib.board import snapshot, source
+
+        # Reset the module-level cache so test isolation is clean.
+        source._DIFF_CACHE.clear()
+
+        # Seed two runs but both will pretend to have a worktree at the
+        # same path. We monkeypatch _git_shortstat to count calls.
+        seed_run(
+            self.tmp, "r-diff", status="building",
+            worktree_created=True,
+        )
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        # /tmp/wt-wt doesn't exist; the shortstat helper short-circuits
+        # to (None, None, None) without shelling out. That's fine — what
+        # we're really asserting is the field type.
+        self.assertIsNone(r.diff_added)
+        self.assertIsNone(r.diff_removed)
+        self.assertIsNone(r.diff_files)
+
+    def test_parse_shortstat(self):
+        from lib.board.source import _parse_shortstat
+        self.assertEqual(
+            _parse_shortstat(" 11 files changed, 940 insertions(+), 3 deletions(-)"),
+            (940, 3, 11),
+        )
+        self.assertEqual(_parse_shortstat(""), (0, 0, 0))
+        # No deletions reported (delete-only diffs report 0 too).
+        self.assertEqual(
+            _parse_shortstat(" 1 file changed, 2 insertions(+)"),
+            (2, 0, 1),
+        )
+
+
+class TestIterationTiming(BoardSnapshotTestBase):
+    def test_avg_iteration_seconds(self):
+        from lib.board import snapshot
+
+        rd = seed_run(self.tmp, "r-iter", status="building")
+        now = dt.datetime.now().astimezone()
+        append_event(rd, base_event(
+            1, "r-iter", "TransitionApplied",
+            status="building",
+            at=now - dt.timedelta(minutes=30),
+            extra={"from": "ready", "to": "building"},
+        ))
+        append_event(rd, base_event(
+            2, "r-iter", "TransitionApplied",
+            status="building",
+            at=now - dt.timedelta(minutes=20),
+            extra={"from": "human_review", "to": "building"},
+        ))
+        append_event(rd, base_event(
+            3, "r-iter", "TransitionApplied",
+            status="building",
+            at=now - dt.timedelta(minutes=5),
+            extra={"from": "human_review", "to": "building"},
+        ))
+        snap = snapshot.build(self.cfg, now=now)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        # Two gaps: 10 min and 15 min → 12.5 min avg.
+        self.assertIsNotNone(r.avg_iteration_seconds)
+        self.assertGreaterEqual(r.avg_iteration_seconds, 12 * 60)
+        self.assertLessEqual(r.avg_iteration_seconds, 13 * 60)
+
+    def test_avg_iteration_none_with_single_start(self):
+        from lib.board import snapshot
+
+        rd = seed_run(self.tmp, "r-once", status="building")
+        now = dt.datetime.now().astimezone()
+        append_event(rd, base_event(
+            1, "r-once", "TransitionApplied",
+            status="building",
+            at=now - dt.timedelta(minutes=10),
+            extra={"from": "ready", "to": "building"},
+        ))
+        snap = snapshot.build(self.cfg, now=now)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertIsNone(r.avg_iteration_seconds)
+
+
+class TestBounceOrigin(BoardSnapshotTestBase):
+    def test_bounced_from_when_latest_transition_is_bounce(self):
+        from lib.board import snapshot
+
+        rd = seed_run(self.tmp, "r-bnc", status="building")
+        now = dt.datetime.now().astimezone()
+        append_event(rd, base_event(
+            1, "r-bnc", "TransitionApplied",
+            status="building",
+            at=now - dt.timedelta(hours=2),
+            extra={"from": "ready", "to": "building"},
+        ))
+        append_event(rd, base_event(
+            2, "r-bnc", "TransitionApplied",
+            status="building",
+            at=now - dt.timedelta(minutes=12),
+            extra={"from": "human_review", "to": "building"},
+        ))
+        snap = snapshot.build(self.cfg, now=now)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertEqual(r.bounced_from, "human_review")
+        self.assertIsNotNone(r.bounced_at_age_seconds)
+        self.assertGreaterEqual(r.bounced_at_age_seconds, 11 * 60)
+
+    def test_no_bounce_when_initial_entry(self):
+        from lib.board import snapshot
+
+        rd = seed_run(self.tmp, "r-fresh", status="building")
+        now = dt.datetime.now().astimezone()
+        append_event(rd, base_event(
+            1, "r-fresh", "TransitionApplied",
+            status="building",
+            at=now - dt.timedelta(minutes=5),
+            extra={"from": "ready", "to": "building"},
+        ))
+        snap = snapshot.build(self.cfg, now=now)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertIsNone(r.bounced_from)
+
+
+class TestFollowupsCategories(BoardSnapshotTestBase):
+    def test_followups_categories_counts(self):
+        from lib.board import snapshot
+
+        rd = seed_run(self.tmp, "r-cats", status="followups")
+        now = dt.datetime.now().astimezone()
+        append_event(rd, base_event(
+            1, "r-cats", "FollowupsRecorded",
+            status="followups",
+            at=now - dt.timedelta(minutes=1),
+            payload={
+                "followups_path": "/tmp/x/follow-ups.md",
+                "entry_count": 5,
+                "categories": [
+                    "scope_extension", "scope_extension",
+                    "bug_risk", "tech_debt", "tech_debt",
+                ],
+            },
+        ))
+        snap = snapshot.build(self.cfg, now=now)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        # Highest count first, alphabetical tiebreak.
+        self.assertEqual(
+            r.followups_categories,
+            (
+                ("scope_extension", 2),
+                ("tech_debt", 2),
+                ("bug_risk", 1),
+            ),
+        )
+
+    def test_followups_categories_empty_when_no_event(self):
+        from lib.board import snapshot
+
+        seed_run(self.tmp, "r-noflw", status="followups")
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertEqual(r.followups_categories, ())
+
+
+class TestTestsRecordedAge(BoardSnapshotTestBase):
+    def test_tests_age_from_qa_completed(self):
+        from lib.board import snapshot
+
+        rd = seed_run(self.tmp, "r-qa", status="validating", tests_passed=True)
+        now = dt.datetime.now().astimezone()
+        append_event(rd, base_event(
+            1, "r-qa", "QACompleted",
+            status="validating",
+            at=now - dt.timedelta(minutes=2),
+            payload={"tests_passed": True, "known_issues_count": 0,
+                     "qa_report_path": "/tmp/x/qa/report.md"},
+        ))
+        snap = snapshot.build(self.cfg, now=now)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertIsNotNone(r.tests_recorded_age_seconds)
+        self.assertGreaterEqual(r.tests_recorded_age_seconds, 110)
+        self.assertLessEqual(r.tests_recorded_age_seconds, 130)
+
+
+class TestWorktreeMissingFlag(BoardSnapshotTestBase):
+    def test_worktree_missing_in_building(self):
+        from lib.board import snapshot
+
+        seed_run(self.tmp, "r-wt", status="building", worktree_created=False)
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertTrue(r.worktree_missing)
+
+    def test_worktree_missing_not_set_early(self):
+        from lib.board import snapshot
+
+        seed_run(self.tmp, "r-draft", status="draft", worktree_created=False)
+        snap = snapshot.build(self.cfg)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        # Pre-`building` runs commonly haven't created a worktree yet.
+        self.assertFalse(r.worktree_missing)
+
+
+class TestCompletionPassthrough(BoardSnapshotTestBase):
+    def test_done_card_completion_fields(self):
+        from lib.board import snapshot
+
+        when = dt.datetime.now().astimezone() - dt.timedelta(hours=1)
+        seed_run(
+            self.tmp, "r-done", status="done",
+            accepted_by="tim", completed_at=when,
+        )
+        snap = snapshot.build(self.cfg, show_all=True)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertEqual(r.accepted_by, "tim")
+        self.assertIsNotNone(r.completed_at)
+
+    def test_abandoned_reason(self):
+        from lib.board import snapshot
+
+        seed_run(
+            self.tmp, "r-aban", status="abandoned",
+            abandoned_reason="scope creep",
+        )
+        snap = snapshot.build(self.cfg, show_all=True)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertEqual(r.abandoned_reason, "scope creep")
 
 
 class TestFormatAge(unittest.TestCase):

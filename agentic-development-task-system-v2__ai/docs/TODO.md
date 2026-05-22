@@ -186,23 +186,23 @@ The §1 board ships with an anemic card body: title, age, repo, branch, status-a
 
 Highest leverage first; pick top-down. Land them as additive fields on `RunSnapshot` so the renderer (and the `--static` fallback) can opt in to showing them.
 
-- [ ] **Lifecycle state badge on the card itself.** Today the state is implied by column position only. Render `[<status>]` in the top-right of the title band so a single-card screenshot is self-describing. Pulled from `meta.status` (already on the snapshot).
-- [ ] **Scope kind.** `meta.scope.kind` (`implementation` / `bootstrap` / `bugfix` / etc.) shapes how the card should read. Render as a small tag near the badge.
-- [ ] **Idle vs working signal.** Show a `● live` indicator when any event fired within the last ~60s (`ArtifactWritten`, `CommandRun`, `TransitionApplied`). Distinguishes "this run is being driven right now" from "this run is parked, waiting on a human". Already derivable from the existing `recent_events` tail; promote into a boolean flag on the snapshot.
-- [ ] **Acceptance-criteria coverage on `validating`.** Parse the `## Acceptance criteria coverage` table from `stages/4_building/build.md`; render `5/5 ACs covered` (or `3/5` with the missing-row count flagged loud). If the section is absent, show `AC table missing` as a soft flag.
-- [ ] **Diff size on `building` / `validating`.** `git diff --shortstat <base_ref>...HEAD` against the worktree → `+940/-3 across 11 files`. Computed lazily, cached on `(run_id, updated_at)` so we don't re-shell each refresh. The cache key requirement is already noted in §1's architecture section ("No subprocess shells from inside the render loop").
-- [ ] **Iteration time on `building`.** Beyond `2/5`, surface `avg 14m/iter` derived from the gap between successive `TransitionApplied`-into-building events (post-bounce) or `CommandRun` clusters. Lights up a slow loop before it becomes a stuck loop.
-- [ ] **Bounce origin on `building`.** If the most recent `TransitionApplied` is `human_review -> building`, render `↩ bounced from human_review · 12m ago` so it's clear this isn't a fresh build. We already track `bounce_count` + `recent_bounce_reason`; this is the visual surfacing.
-- [ ] **Followups categories on `followups` / `human_review`.** The `FollowupsRecorded` payload already carries `categories`; today we only show `entry_count`. Render `5 follow-ups · 2 scope_extension · 1 bug_risk · 2 tech_debt` so a reviewer can prioritise without opening the file.
-- [ ] **Repo path's last segment alongside repo name.** Two repos can share a basename (monorepo + fork). Render `repo_name · …/grandparent/repo_dir`.
-- [ ] **`completed_at` / `accepted_by` on terminal cards under `--all`.** Today a `done` card is indistinguishable from any other. Render `accepted_by tim · 14:32` (or `abandoned: <reason>`) on terminal cards so the audit trail is visible inline.
-- [ ] **Worktree existence flag.** If `target.worktree.created == false` while the card is in `building` or later, surface `! worktree missing` as a soft warning. Cheap consistency check; never shown today.
-- [ ] **Tests per `validating` card need an outcome timestamp.** Currently we show `tests ✓`; show `tests ✓ · 2m ago` so the reviewer can tell whether the green came from this iteration or a stale cached run.
+- [x] **Lifecycle state badge on the card itself.** Today the state is implied by column position only. Render `[<status>]` in the top-right of the title band so a single-card screenshot is self-describing. Pulled from `meta.status` (already on the snapshot).
+- [x] **Scope kind.** `meta.scope.kind` (`implementation` / `bootstrap` / `bugfix` / etc.) shapes how the card should read. Render as a small tag near the badge.
+- [x] **Idle vs working signal.** Show a `● live` indicator when any event fired within the last ~60s (`ArtifactWritten`, `CommandRun`, `TransitionApplied`). Distinguishes "this run is being driven right now" from "this run is parked, waiting on a human". Already derivable from the existing `recent_events` tail; promote into a boolean flag on the snapshot.
+- [x] **Acceptance-criteria coverage on `validating`.** Parse the `## Acceptance criteria coverage` table from `stages/4_building/build.md`; render `5/5 ACs covered` (or `3/5` with the missing-row count flagged loud). If the section is absent, show `AC table missing` as a soft flag.
+- [x] **Diff size on `building` / `validating`.** `git diff --shortstat <base_ref>...HEAD` against the worktree → `+940/-3 across 11 files`. Computed lazily, cached on `(run_id, updated_at)` so we don't re-shell each refresh. The cache key requirement is already noted in §1's architecture section ("No subprocess shells from inside the render loop").
+- [x] **Iteration time on `building`.** Beyond `2/5`, surface `avg 14m/iter` derived from the gap between successive `TransitionApplied`-into-building events (post-bounce) or `CommandRun` clusters. Lights up a slow loop before it becomes a stuck loop.
+- [x] **Bounce origin on `building`.** If the most recent `TransitionApplied` is `human_review -> building`, render `↩ bounced from human_review · 12m ago` so it's clear this isn't a fresh build. We already track `bounce_count` + `recent_bounce_reason`; this is the visual surfacing.
+- [x] **Followups categories on `followups` / `human_review`.** The `FollowupsRecorded` payload already carries `categories`; today we only show `entry_count`. Render `5 follow-ups · 2 scope_extension · 1 bug_risk · 2 tech_debt` so a reviewer can prioritise without opening the file.
+- [x] **Repo path's last segment alongside repo name.** Two repos can share a basename (monorepo + fork). Render `repo_name · …/grandparent/repo_dir`.
+- [x] **`completed_at` / `accepted_by` on terminal cards under `--all`.** Today a `done` card is indistinguishable from any other. Render `accepted_by tim · 14:32` (or `abandoned: <reason>`) on terminal cards so the audit trail is visible inline.
+- [x] **Worktree existence flag.** If `target.worktree.created == false` while the card is in `building` or later, surface `! worktree missing` as a soft warning. Cheap consistency check; never shown today.
+- [x] **Tests per `validating` card need an outcome timestamp.** Currently we show `tests ✓`; show `tests ✓ · 2m ago` so the reviewer can tell whether the green came from this iteration or a stale cached run.
 
 Implementation discipline:
 
-- [ ] Each new field lands as a frozen attribute on `RunSnapshot` with a unit test under `tests/test_board_snapshot.py` that seeds the relevant metadata + events and asserts the derived value.
-- [ ] The renderer changes (status-aware bodies in `lib/board/app.py` + the `--static` path in `cmd_board.py`) are separate from the data work — easier to review.
+- [x] Each new field lands as a frozen attribute on `RunSnapshot` with a unit test under `tests/test_board_snapshot.py` that seeds the relevant metadata + events and asserts the derived value.
+- [x] The renderer changes (status-aware bodies in `lib/board/app.py` + the `--static` path in `cmd_board.py`) are separate from the data work — easier to review.
 
 ## 3. Live board — UX polish on the card layout
 

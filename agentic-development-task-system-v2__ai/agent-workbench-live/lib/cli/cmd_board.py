@@ -45,7 +45,6 @@ def _static_render(cfg, *, show_all: bool, only_status: str | None, compact: boo
     """Stdlib-only one-shot text render. No textual import."""
     from lib.board import snapshot as snapshot_mod
     from lib.board.snapshot import format_age
-    from lib.board.source import is_loud
 
     snap = snapshot_mod.build(cfg, show_all=show_all, only_status=only_status)
     visible = snap.visible_columns()
@@ -71,24 +70,38 @@ def _static_render(cfg, *, show_all: bool, only_status: str | None, compact: boo
     print(counts.rstrip())
     print(rule)
 
-    # Per card: a short stack of lines.
+    # Per card: a stack of lines. In compact mode it's one. Otherwise the
+    # static dump precomputes a status-aware stack and pads every column
+    # to the tallest stack.
     if compact:
-        lines_per_card = 1
+        column_lines: list[list[list[str]]] = [
+            [[_static_card_line(r, 0, compact=True)] for r in c.runs]
+            for c in visible
+        ]
     else:
-        lines_per_card = 4  # title, age/repo, branch, blank
-    max_cards = max(c.count for c in visible) if visible else 0
+        column_lines = [
+            [_static_card_stack(r) for r in c.runs]
+            for c in visible
+        ]
 
+    max_cards = max(c.count for c in visible) if visible else 0
     for i in range(max_cards):
-        for line_idx in range(lines_per_card):
+        # Each card across columns may have a different stack height;
+        # render the tallest stack here, padding shorter cards with blanks.
+        per_column_card_lines: list[list[str]] = []
+        for col_idx in range(len(visible)):
+            cards = column_lines[col_idx]
+            per_column_card_lines.append(cards[i] if i < len(cards) else [])
+        stack_height = max((len(lines) for lines in per_column_card_lines), default=0)
+        for line_idx in range(stack_height):
             row_pieces = []
-            for c in visible:
-                if i < c.count:
-                    run = c.runs[i]
-                    line = _static_card_line(run, line_idx, compact=compact)
-                else:
-                    line = ""
+            for lines in per_column_card_lines:
+                line = lines[line_idx] if line_idx < len(lines) else ""
                 row_pieces.append(pad(line, column_width))
             print(gutter.join(row_pieces).rstrip())
+        # Blank separator between cards.
+        if i + 1 < max_cards:
+            print(gutter.join(pad("", column_width) for _ in visible).rstrip())
 
     # Stale human_review footer (preserves the v0 contract that the
     # static dump still ends with a stale-list footer).
@@ -106,23 +119,113 @@ def _static_render(cfg, *, show_all: bool, only_status: str | None, compact: boo
 
 
 def _static_card_line(run, line_idx: int, *, compact: bool) -> str:
+    """Compact one-liner (used in --compact mode only)."""
     from lib.board.snapshot import format_age
     from lib.board.source import is_loud
 
     marker = "! " if is_loud(run) else ""
-    if compact:
-        bits = [marker + run.run_id, format_age(run.age_seconds)]
-        if run.repo_name:
-            bits.append(run.repo_name)
-        return " · ".join(bits)
+    bits = [marker + run.run_id, format_age(run.age_seconds)]
+    if run.repo_name:
+        bits.append(run.repo_name)
+    if run.is_live:
+        bits.append("live")
+    if run.worktree_missing:
+        bits.append("wt-missing")
+    if run.failing_tests:
+        bits.append("tests-fail")
+    if run.builder_gave_up:
+        bits.append("max-iter")
+    return " · ".join(bits)
 
-    if line_idx == 0:
-        return f"{marker}{run.run_id}"
-    if line_idx == 1:
-        return f"{format_age(run.age_seconds)} · {run.repo_name}"
-    if line_idx == 2:
-        return run.branch_name
-    return ""
+
+def _static_card_stack(run) -> list[str]:
+    """Status-aware stack of lines for the non-compact static renderer."""
+    from lib.board.snapshot import format_age
+    from lib.board.source import is_loud
+
+    marker = "! " if is_loud(run) else ""
+    lines: list[str] = []
+
+    head = f"{marker}{run.run_id}  [{run.status}]"
+    if run.scope_kind:
+        head += f"  {run.scope_kind}"
+    if run.is_live:
+        head += "  live"
+    lines.append(head)
+
+    lines.append(f"{format_age(run.age_seconds)} · {run.repo_name}")
+    if run.repo_path_tail and run.repo_path_tail != run.repo_name:
+        lines.append(f"  {run.repo_path_tail}")
+    if run.branch_name:
+        lines.append(run.branch_name)
+
+    # Status-aware data lines.
+    if run.status == "building":
+        if run.build_iterations is not None and run.build_max_iterations:
+            lines.append(f"build {run.build_iterations}/{run.build_max_iterations}")
+        if run.avg_iteration_seconds is not None:
+            lines.append(f"avg {format_age(run.avg_iteration_seconds)}/iter")
+        if run.bounced_from:
+            age = (
+                format_age(run.bounced_at_age_seconds)
+                if run.bounced_at_age_seconds is not None else "?"
+            )
+            lines.append(f"bounced from {run.bounced_from} · {age} ago")
+        if run.diff_files:
+            lines.append(
+                f"+{run.diff_added or 0}/-{run.diff_removed or 0} "
+                f"across {run.diff_files} files"
+            )
+    elif run.status == "validating":
+        tp = run.tests_passed
+        mark = "?" if tp is None else ("✓" if tp else "✗")
+        head = f"tests {mark}"
+        if run.tests_recorded_age_seconds is not None:
+            head += f" · {format_age(run.tests_recorded_age_seconds)} ago"
+        lines.append(
+            f"{head}  rev {'✓' if run.review_completed else '·'}"
+            f"  qa {'✓' if run.qa_completed else '·'}"
+        )
+        if run.ac_total is not None:
+            tag = " !" if (
+                run.ac_covered is not None
+                and run.ac_total > 0
+                and run.ac_covered < run.ac_total
+            ) else ""
+            lines.append(f"{run.ac_covered}/{run.ac_total} ACs covered{tag}")
+        elif run.ac_table_missing:
+            lines.append("AC table missing")
+        if run.has_known_issues:
+            lines.append(f"known_issues: {run.known_issues_count}")
+        if run.diff_files:
+            lines.append(
+                f"+{run.diff_added or 0}/-{run.diff_removed or 0} "
+                f"across {run.diff_files} files"
+            )
+    elif run.status == "followups":
+        if run.followups_entry_count is not None:
+            lines.append(f"follow-ups: {run.followups_entry_count}")
+        for cat, count in run.followups_categories:
+            lines.append(f"  {count} {cat}")
+    elif run.status == "human_review":
+        if run.is_stale_human_review:
+            lines.append(f"! stale {format_age(run.age_seconds)}")
+        if run.bounce_count:
+            lines.append(f"bounces: {run.bounce_count}")
+        if run.followups_entry_count is not None:
+            lines.append(f"follow-ups: {run.followups_entry_count}")
+    elif run.status == "done":
+        if run.accepted_by or run.completed_at:
+            who = run.accepted_by or "?"
+            when = (run.completed_at or "")[11:16]
+            lines.append(f"accepted_by {who} · {when}")
+    elif run.status == "abandoned":
+        if run.abandoned_reason:
+            lines.append(f"abandoned: {run.abandoned_reason}")
+
+    if run.worktree_missing:
+        lines.append("! worktree missing")
+    return lines
 
 
 def run(args) -> int:

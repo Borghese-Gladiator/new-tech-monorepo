@@ -54,10 +54,16 @@ def _card_text(run: RunSnapshot, *, compact: bool) -> Text:
     loud = is_loud(run)
     text = Text()
 
-    # Title line — run_id (with optional `!` marker if loud).
+    # Title line — run_id, status badge, optional scope kind, live marker.
     marker = "! " if loud else ""
     title_style = "bold red" if loud else "bold"
-    text.append(f"{marker}{run.run_id}\n", style=title_style)
+    text.append(f"{marker}{run.run_id}", style=title_style)
+    text.append(f"  [{run.status}]", style="dim")
+    if run.scope_kind:
+        text.append(f"  {run.scope_kind}", style="dim")
+    if run.is_live:
+        text.append("  ● live", style="green")
+    text.append("\n")
 
     if compact:
         bits = []
@@ -69,6 +75,8 @@ def _card_text(run: RunSnapshot, *, compact: bool) -> Text:
             bits.append("tests-fail")
         if run.builder_gave_up:
             bits.append("max-iter")
+        if run.worktree_missing:
+            bits.append("wt-missing")
         text.append(" · ".join(b for b in bits if b))
         return text
 
@@ -78,6 +86,11 @@ def _card_text(run: RunSnapshot, *, compact: bool) -> Text:
         text.append(f" · {run.repo_name}", style="dim")
     text.append("\n")
 
+    # Show repo_path_tail when it adds info beyond repo_name (basename
+    # collisions across two repos called `repo`, for example).
+    if run.repo_path_tail and run.repo_path_tail != run.repo_name:
+        text.append(f"repo {run.repo_path_tail}\n", style="dim")
+
     if run.branch_name:
         text.append(f"branch {run.branch_name}\n", style="dim")
 
@@ -85,6 +98,9 @@ def _card_text(run: RunSnapshot, *, compact: bool) -> Text:
     body_lines = list(_status_body(run))
     for ln in body_lines:
         text.append(ln + "\n")
+
+    if run.worktree_missing:
+        text.append("! worktree missing\n", style="yellow")
 
     # Last events tail.
     if run.recent_events:
@@ -115,34 +131,103 @@ def _status_body(run: RunSnapshot) -> Iterable[str]:
         if cur is not None and mx:
             bar = _progress_bar(cur, mx, width=10)
             yield f"build {cur}/{mx} {bar}"
+        if run.avg_iteration_seconds is not None:
+            yield f"avg {format_age(run.avg_iteration_seconds)}/iter"
         if run.build_md_exists:
             yield "build.md present"
         if run.builder_gave_up:
             yield "! builder gave up (max_iterations)"
-        if run.recent_bounce_reason:
+        if run.bounced_from:
+            age = (
+                format_age(run.bounced_at_age_seconds)
+                if run.bounced_at_age_seconds is not None else "?"
+            )
+            yield f"↩ bounced from {run.bounced_from} · {age} ago"
+        if run.recent_bounce_reason and not run.bounced_from:
+            # Surface the most recent reason even when the latest transition
+            # wasn't a bounce (e.g., a reviewer asked for changes earlier).
             yield f"bounced: {run.recent_bounce_reason}"
+        for line in _diff_lines(run):
+            yield line
         return
     if run.status == "validating":
         ck = "tests"
         tp = run.tests_passed
         mark = "?" if tp is None else ("✓" if tp else "✗")
-        yield f"{ck} {mark}  rev {'✓' if run.review_completed else '·'}  qa {'✓' if run.qa_completed else '·'}"
+        head = f"{ck} {mark}"
+        if run.tests_recorded_age_seconds is not None:
+            head += f" · {format_age(run.tests_recorded_age_seconds)} ago"
+        yield (
+            f"{head}  rev {'✓' if run.review_completed else '·'}"
+            f"  qa {'✓' if run.qa_completed else '·'}"
+        )
+        if run.ac_total is not None:
+            mark = ""
+            if run.ac_covered is not None and run.ac_total > 0 and run.ac_covered < run.ac_total:
+                mark = " !"
+            yield f"{run.ac_covered}/{run.ac_total} ACs covered{mark}"
+        elif run.ac_table_missing:
+            yield "AC table missing"
         if run.has_known_issues:
             yield f"known_issues: {run.known_issues_count}"
+        for line in _diff_lines(run):
+            yield line
         return
     if run.status == "followups":
         if run.followups_entry_count is not None:
             yield f"follow-ups: {run.followups_entry_count}"
+        for line in _followups_breakdown(run):
+            yield line
         return
     if run.status == "human_review":
         if run.is_stale_human_review:
             yield f"! stale {format_age(run.age_seconds)}"
         if run.bounce_count:
             yield f"bounces: {run.bounce_count}"
+        if run.followups_entry_count is not None:
+            yield f"follow-ups: {run.followups_entry_count}"
+        for line in _followups_breakdown(run):
+            yield line
         return
-    # Other states (shaping, planning, ready, done, abandoned) currently
-    # add no extra lines; identity + age suffice.
+    if run.status == "done":
+        if run.accepted_by or run.completed_at:
+            who = run.accepted_by or "?"
+            when = _hhmm(run.completed_at) if run.completed_at else "?"
+            yield f"accepted_by {who} · {when}"
+        return
+    if run.status == "abandoned":
+        if run.abandoned_reason:
+            yield f"abandoned: {run.abandoned_reason}"
+        return
+    # Other states (shaping, planning, ready) currently add no extra
+    # lines; identity + age suffice.
     return
+
+
+def _diff_lines(run: RunSnapshot) -> Iterable[str]:
+    if run.diff_files is None:
+        return
+    if not run.diff_files and not run.diff_added and not run.diff_removed:
+        return
+    yield (
+        f"+{run.diff_added or 0}/-{run.diff_removed or 0} "
+        f"across {run.diff_files} file{'s' if run.diff_files != 1 else ''}"
+    )
+
+
+def _followups_breakdown(run: RunSnapshot) -> Iterable[str]:
+    if not run.followups_categories:
+        return
+    bits = [f"{count} {cat}" for cat, count in run.followups_categories]
+    yield "  · " + " · ".join(bits)
+
+
+def _hhmm(ts: str) -> str:
+    """Format an ISO timestamp as HH:MM (local). Best-effort."""
+    try:
+        return dt.datetime.fromisoformat(ts).strftime("%H:%M")
+    except Exception:
+        return ts[11:16] if len(ts) >= 16 else ts
 
 
 def _progress_bar(cur: int, mx: int, *, width: int = 10) -> str:

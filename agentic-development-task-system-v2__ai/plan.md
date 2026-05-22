@@ -1,49 +1,123 @@
-# Plan — Task board (TODO §1)
+# Plan — TODO §2: Live board card attributes
 
 ## Brief
 
-Add `agent-workbench board`, a terminal-rendered Kanban over `runs/<run_id>/metadata.yaml`. One column per lifecycle state. Each card carries `run_id`, age since `updated_at`, `repo_name`, branch. Terminal states (`done`, `abandoned`) hidden by default; `--all` includes them. Runs in `human_review` longer than a configurable threshold are flagged stale. Wire `/board` as a thin slash wrapper.
+Surface twelve already-on-disk fields on the live-board card so a reviewer
+can triage from the board without opening the run dir. Land each as an
+additive frozen attribute on `RunSnapshot` (lib/board/source.py) with a
+unit test, then expose it in the Textual renderer (lib/board/app.py) and
+the `--static` fallback (lib/cli/cmd_board.py).
 
-Out of scope (TODO §1 explicit Stretch — deferred):
-- `--html` static dump.
-- Per-run `blocker` metadata field.
+The §3 layout polish (bands, rules, colour grading) is *not* in scope —
+this pass only adds the data + the simplest renderer change that surfaces
+it. §3 will restructure how it's displayed.
 
 ## Changes
 
-1. **`agent-workbench-live/agent-workbench.yaml`** — add `board.stale_human_review_hours: 24`.
-2. **`agent-workbench-live/lib/cli/cmd_board.py`** — new subcommand.
-   - Loads each run via `metadata.load(cfg, run_id)`; skips unreadable runs without aborting.
-   - Groups by `status` in canonical lifecycle order: `draft, shaping, planning, ready, building, validating, followups, human_review, done, abandoned`.
-   - Hides `done` + `abandoned` columns unless `--all`.
-   - Filters to a single status when `--status X` is passed.
-   - Columns rendered side-by-side using fixed-width formatting (no curses; plain stdout — same model as `cmd_list_runs`).
-   - Card lines (3 lines per card + blank separator):
-     - `<run_id>`
-     - `<age> · <repo_name>`
-     - `<branch>`
-   - Age computed from `metadata.updated_at`, displayed as `Nm`, `Nh`, or `Nd` (largest unit ≥ 1, integer; `<1m` shown as `0m`).
-   - Stale: if `status == "human_review"` and age ≥ `board.stale_human_review_hours`, prepend `!` to the run_id line and surface in a "Stale" footer.
-   - Empty board prints `(no runs)`.
-3. **`agent-workbench-live/bin/agent-workbench`** — append `"board"` to `SUBCOMMANDS`.
-4. **`agent-workbench-live/.claude/commands/board.md`** — thin slash wrapper.
-5. **`agent-workbench-live/tests/test_cmd_board.py`** — new test module.
+### lib/board/source.py
+
+Add to `RunSnapshot`:
+
+- `scope_kind: str` — `meta.scope.kind`.
+- `is_live: bool` — any `recent_events[0].age_seconds <= 60`.
+- `ac_total: int | None`, `ac_covered: int | None` — parsed from the
+  `## Acceptance criteria coverage` table in `stages/4_building/build.md`.
+  None if section missing.
+- `ac_table_missing: bool` — build.md exists but no AC section.
+- `diff_added: int | None`, `diff_removed: int | None`,
+  `diff_files: int | None` — `git diff --shortstat <base_ref>...HEAD` run
+  against the worktree, lazy + TTL-cached on `(run_id, updated_at)`.
+- `avg_iteration_seconds: float | None` — derived from gaps between
+  successive `TransitionApplied` *into* `building`.
+- `bounced_from: str | None`, `bounced_at_age_seconds: float | None` —
+  populated when the most recent `TransitionApplied` is `human_review ->
+  building`. Distinct from `recent_bounce_reason`, which tracks the most
+  recent `BounceRequested` payload.
+- `followups_categories: tuple[tuple[str, int], ...]` — counts per
+  category, derived from the most recent `FollowupsRecorded` payload's
+  `categories` list.
+- `repo_path_tail: str` — last 2 path segments of `target.repo.path`.
+- `worktree_missing: bool` — `target.worktree.created == False` AND
+  status is `building` or later.
+- `tests_recorded_age_seconds: float | None` — age of most recent
+  `QACompleted` event.
+- `completed_at: str | None`, `accepted_by: str | None`,
+  `abandoned_reason: str | None` — direct passthrough from
+  `meta.completion`.
+
+The git-diff cache lives in source.py at module level: dict keyed by
+`(run_id, updated_at)`. Cache eviction = unbounded across a board
+session; that's fine — tens of runs, each entry tiny.
+
+### lib/board/app.py
+
+Status-aware additions in `_status_body` + supporting text fragments in
+the title line:
+
+- Title line: append `  [<status>]` (badge) and `<scope_kind>` to the
+  right of the run_id.
+- Title line gets a `● live` suffix when `run.is_live`.
+- Title line gets `repo · <repo_path_tail>` underneath repo line when
+  `repo_path_tail` differs from `repo_name`.
+- `building` body: add `↩ bounced from <from> · <age>` when `bounced_from`
+  set; add `avg <N>m/iter` when `avg_iteration_seconds` present; add
+  `+A/-R across F files` diff line when diff present.
+- `validating` body: replace `tests <mark>` with `tests <mark> · <age> ago`
+  when `tests_recorded_age_seconds` present. Add `<C>/<T> ACs covered`
+  (or `AC table missing` soft flag). Add the same diff line.
+- `followups`/`human_review` body: append per-category breakdown when
+  `followups_categories` non-empty.
+- Soft warning line `! worktree missing` when `worktree_missing`.
+- Terminal cards (`done`/`abandoned`) under `--all`: append
+  `accepted_by <name> · <HH:MM>` or `abandoned: <reason>`.
+
+### lib/cli/cmd_board.py
+
+The `--static` text path currently renders a 4-line card. Promote it to
+mirror the new info: leave the per-line API but extend it to include a
+status-aware data line and a flags line. Add light support so the static
+output shows the bounce / diff / AC counts when present — same source
+field for both renderers, so the tests cover both.
+
+### tests/test_board_snapshot.py
+
+One test per new field, mostly small additions:
+
+- `test_scope_kind`
+- `test_is_live_when_recent_event`
+- `test_ac_coverage_parsed`
+- `test_ac_table_missing_flag`
+- `test_avg_iteration_seconds`
+- `test_bounced_from_on_recent_transition`
+- `test_followups_categories_counts`
+- `test_repo_path_tail`
+- `test_worktree_missing_flag`
+- `test_tests_recorded_age_seconds`
+- `test_completion_fields_passthrough`
+
+Git diff: skip the cache-key-aware test in unit tests; the cache + shell
+behaviour is exercised by a single lazy test that monkeypatches
+`subprocess.run` and asserts the cache hit on the second call.
 
 ## Tests
 
 ### Unit
 
-`tests/test_cmd_board.py` builds a tmp workbench, seeds fake `runs/<id>/metadata.yaml` files at various statuses (draft, building, fresh human_review, stale human_review, done), then invokes the CLI via subprocess (same pattern as `tests/test_integration.py`). Assertions:
-
-- Columns appear in canonical order.
-- Each non-empty column contains the run_id of the seeded run.
-- Stale human_review run is prefixed with `!` and listed in the Stale footer.
-- `done` column hidden by default; visible with `--all`.
-- `--status building` shows only the building column.
-- Empty workbench prints `(no runs)`.
-- Age formatter (invoked directly on the module): 0s → `0m`, 90s → `1m`, 7200s → `2h`, 90000s → `1d`.
+`bin/pytest -m unit agent-workbench-live/tests/test_board_snapshot.py`
 
 ### Manual
 
-- `agent-workbench board` against this repo's real `runs/` (one `done`, one `human_review` — verify the human_review run is flagged stale since it's > 24h old).
-- `agent-workbench board --all` — adds the `done` column.
-- `agent-workbench board --status human_review` — only that column.
+- Static fallback against the existing `runs/`:
+  ```
+  cd agent-workbench-live
+  python agent-workbench board --static --all
+  ```
+  Eyeball:
+  - The Shogi run shows `[done]`, scope `bootstrap`, `accepted_by tim`.
+  - The Poker run is loud + shows `bounces:` if it had any.
+- Live TUI smoke (deps required):
+  ```
+  pip install -r agent-workbench-live/requirements-board.txt
+  python agent-workbench-live/agent-workbench board --all
+  ```
+  Inspect a building / validating / followups card visually. Quit with q.
