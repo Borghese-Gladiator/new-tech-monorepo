@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import subprocess
 
-from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims, scope_check
+from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims, scope_check, stub_llm
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -179,6 +179,16 @@ def run(args) -> int:
     if args.init:
         if meta["status"] != "building":
             return fail(f"--init requires status=building, got {meta['status']!r}", 2)
+        # Stub-LLM mode (TODO §1 E2E): materialize build.md from the fixture
+        # BEFORE the missing-file check so the run gets real content (not the
+        # template fallback that init writes when no builder ran). The
+        # validating fixtures get materialized after templates are staged below.
+        try:
+            stub_fix = stub_llm.fixture_dir_from_env()
+        except stub_llm.StubLLMError as e:
+            return fail(str(e), 2)
+        if stub_fix is not None:
+            stub_llm.materialize(rd, "building", stub_fix)
         # Staged runs require build.md to already exist (builder writes it
         # during building). Stage it from the template only if absent, but
         # that's the builder's job — warn by failing loudly here.
@@ -189,6 +199,11 @@ def run(args) -> int:
             tpl = cfg.root / "templates" / "build.md"
             (rd / "build.md").write_text(tpl.read_text() if tpl.exists() else "# Build\n")
         _stage(cfg, rd, staged)
+        # Stub-LLM mode (TODO §1 E2E): overwrite the just-staged validating
+        # templates (review.md, qa/report.md, HUMAN_REVIEW.md) with the
+        # fixture's canned content.
+        if stub_fix is not None:
+            stub_llm.materialize(rd, "validating", stub_fix)
         # Build-loop metadata (TODO §1e). Fill defaults if the builder didn't
         # set them, then carry them into the transition evidence. The
         # transitions schema now requires these on building -> validating.

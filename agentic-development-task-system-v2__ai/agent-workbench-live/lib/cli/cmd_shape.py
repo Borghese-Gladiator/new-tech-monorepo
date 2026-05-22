@@ -7,7 +7,7 @@ Two modes:
 """
 from __future__ import annotations
 
-from lib import metadata, events, transitions, locks
+from lib import metadata, events, transitions, locks, stub_llm
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -60,6 +60,14 @@ def run(args) -> int:
         def _m(d):
             d["artifacts"]["brief"] = "brief.md"
         metadata.update(cfg, run_id, _m)
+        # Stub-LLM mode (TODO §1 E2E): if the env var is set, overwrite the
+        # template with the fixture's canned brief.md.
+        try:
+            fix = stub_llm.fixture_dir_from_env()
+        except stub_llm.StubLLMError as e:
+            return fail(str(e), 2)
+        if fix is not None:
+            stub_llm.materialize(rd, "shaping", fix)
         print(f"{run_id}: draft -> shaping; edit {dest}")
         return 0
 

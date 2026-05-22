@@ -18,7 +18,7 @@ other stage commands.
 """
 from __future__ import annotations
 
-from lib import metadata, events, transitions, locks, lifecycle, followups as followups_mod
+from lib import metadata, events, transitions, locks, lifecycle, stub_llm, followups as followups_mod
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -55,6 +55,14 @@ def run(args) -> int:
                 f"--init requires status=validating, got {meta['status']!r}", 2,
             )
         _stage_template(cfg, rd)
+        # Stub-LLM mode (TODO §1 E2E): overwrite the template with the
+        # fixture's canned follow-ups.md.
+        try:
+            stub_fix = stub_llm.fixture_dir_from_env()
+        except stub_llm.StubLLMError as e:
+            return fail(str(e), 2)
+        if stub_fix is not None:
+            stub_llm.materialize(rd, "followups", stub_fix)
         try:
             with locks.acquire(cfg, run_id):
                 transitions.transition(
@@ -76,6 +84,16 @@ def run(args) -> int:
         return fail(
             f"default mode requires status=followups, got {meta['status']!r}", 2,
         )
+
+    # Stub-LLM mode (TODO §1 E2E): if the user came in via `validate`
+    # (which transitions validating -> followups without staging
+    # follow-ups.md), the fixture's follow-ups.md still needs to land.
+    try:
+        stub_fix = stub_llm.fixture_dir_from_env()
+    except stub_llm.StubLLMError as e:
+        return fail(str(e), 2)
+    if stub_fix is not None:
+        stub_llm.materialize(rd, "followups", stub_fix)
 
     follow_path = rd / "follow-ups.md"
     if not follow_path.exists():

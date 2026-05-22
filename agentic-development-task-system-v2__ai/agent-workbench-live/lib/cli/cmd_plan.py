@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 
-from lib import metadata, events, transitions, locks, lifecycle
+from lib import metadata, events, transitions, locks, lifecycle, stub_llm
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -143,6 +143,13 @@ def run(args) -> int:
                 payload={"artifact_key": name.replace(".md",""), "path": str(rd / name), "summary": "template staged"},
                 actor=actor,
             )
+        # Stub-LLM mode (TODO §1 E2E).
+        try:
+            fix = stub_llm.fixture_dir_from_env()
+        except stub_llm.StubLLMError as e:
+            return fail(str(e), 2)
+        if fix is not None:
+            stub_llm.materialize(rd, "planning", fix)
         print(f"{run_id}: staged {', '.join(templates)}")
         return 0
 
