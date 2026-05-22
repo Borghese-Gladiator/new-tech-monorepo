@@ -2,7 +2,7 @@
 
 ## Completed work
 
-- ✅ **Human Review polish** (2026-05-22). Replaced LLM-authored `HUMAN_REVIEW.md` with a code-derived render: clickable absolute-path `## Files` table, code-derived `## Summary of changes` bullets, outcome-only `## Manual testing performed`, and an `events.jsonl`-projected timestamped `## Run timeline`. The `followups -> human_review` transition stdout now carries the absolute path. New module `lib/human_review.py`; wired into `cmd_followups`; required-heading gate updated; snapshot tests added for `happy/` and `bounce_pass2/` fixtures. Commit `<pending>`.
+- ✅ **Human Review polish** (2026-05-22). Replaced LLM-authored `HUMAN_REVIEW.md` with a code-derived render: clickable absolute-path `## Files` table, code-derived `## Summary of changes` bullets, outcome-only `## Manual testing performed`, and an `events.jsonl`-projected timestamped `## Run timeline`. The `followups -> human_review` transition stdout now carries the absolute path. New module `lib/human_review.py`; wired into `cmd_followups`; required-heading gate updated; snapshot tests added for `happy/` and `bounce_pass2/` fixtures. Commit `623f1af`.
 
 ---
 
