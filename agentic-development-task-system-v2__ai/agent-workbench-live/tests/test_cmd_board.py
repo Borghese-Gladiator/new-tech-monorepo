@@ -206,5 +206,121 @@ class TestUnreadableRunSkippedStatic(BoardCase):
         self.assertNotIn("r-bad", r.stdout)
 
 
+def _make_snapshot(**overrides):
+    """Construct a RunSnapshot with sane defaults for the static-renderer
+    tests. Every required field has a default; tests override what they
+    care about."""
+    from lib.board.source import RunSnapshot
+
+    defaults = dict(
+        run_id="r-1",
+        status="building",
+        scope_kind="implementation",
+        repo_name="alpha",
+        repo_path="/tmp/alpha",
+        repo_path_tail="tmp/alpha",
+        branch_name="agent/x",
+        worktree_name="wt",
+        run_dir="/tmp/runs/r-1",
+        worktree_path="/tmp/wt-1",
+        created_at="2026-05-22T00:00:00-04:00",
+        updated_at="2026-05-22T00:00:00-04:00",
+        age_seconds=0.0,
+        total_age_seconds=0.0,
+        time_in_stage_seconds=None,
+        is_live=False,
+        build_iterations=None,
+        build_max_iterations=None,
+        build_exit_reason=None,
+        build_md_exists=False,
+        avg_iteration_seconds=None,
+        ac_total=None,
+        ac_covered=None,
+        ac_table_missing=False,
+        diff_added=None,
+        diff_removed=None,
+        diff_files=None,
+        review_completed=False,
+        qa_completed=False,
+        tests_passed=None,
+        known_issues_count=0,
+        tests_recorded_age_seconds=None,
+        followups_entry_count=None,
+        followups_categories=(),
+        is_stale_human_review=False,
+        builder_gave_up=False,
+        failing_tests=False,
+        has_known_issues=False,
+        has_recent_error=False,
+        bounce_count=0,
+        recent_bounce_reason=None,
+        bounced_from=None,
+        bounced_at_age_seconds=None,
+        worktree_missing=False,
+        completed_at=None,
+        accepted_by=None,
+        abandoned_reason=None,
+        recent_events=(),
+    )
+    defaults.update(overrides)
+    return RunSnapshot(**defaults)
+
+
+class TestStaticCardStack(unittest.TestCase):
+    """Direct unit tests for lib/cli/cmd_board._static_card_stack.
+
+    These cover the status-aware rendering branches that the subprocess
+    smoke tests above can't easily assert against (the subprocess relies on
+    `metadata.list_runs` scanning a tmp dir).
+    """
+
+    def test_human_review_includes_followups_category_breakdown(self):
+        """Regression: the dogfood run (2026-05-22-s2-attrs) showed that
+        the static renderer's `human_review` branch wrote `follow-ups: 3`
+        but skipped the per-category breakdown lines. The Textual
+        renderer was already correct via the shared helper; the static
+        path drifted. Lock the fix in so it can't silently regress."""
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(
+            status="human_review",
+            followups_entry_count=3,
+            followups_categories=(
+                ("scope_extension", 1),
+                ("bug_risk", 1),
+                ("docs", 1),
+            ),
+        )
+        lines = _static_card_stack(run)
+        body = "\n".join(lines)
+        self.assertIn("follow-ups: 3", body)
+        self.assertIn("1 scope_extension", body)
+        self.assertIn("1 bug_risk", body)
+        self.assertIn("1 docs", body)
+
+    def test_followups_status_also_includes_breakdown(self):
+        """Sanity: the followups column has always rendered the
+        breakdown; assert it still does so the two branches stay in
+        sync."""
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(
+            status="followups",
+            followups_entry_count=2,
+            followups_categories=(("tech_debt", 2),),
+        )
+        body = "\n".join(_static_card_stack(run))
+        self.assertIn("follow-ups: 2", body)
+        self.assertIn("2 tech_debt", body)
+
+    def test_human_review_without_followups_omits_lines(self):
+        """No follow-up data → no follow-up lines (avoid empty noise)."""
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(status="human_review")
+        body = "\n".join(_static_card_stack(run))
+        self.assertNotIn("follow-ups:", body)
+
+
 if __name__ == "__main__":
     unittest.main()
