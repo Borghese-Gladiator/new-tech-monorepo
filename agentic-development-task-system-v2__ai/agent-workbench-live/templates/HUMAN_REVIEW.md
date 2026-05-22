@@ -1,47 +1,31 @@
 # Human review — <run_id>
 
 <!--
-Persona-keyed hub for the human reviewer. Replaces handoff.md for staged runs
-(TODO §1c). Keep this file SHORT — routing + a smoke checklist + a timeline.
-The transition validating → human_review fails if the two required headings
-below are missing.
+This file is rendered programmatically by `lib/human_review.py` immediately
+before the followups → human_review transition fires. The template below is
+only what `validate --init` stages for runs that never reach followups (e.g.
+abandoned runs); a real handoff replaces it with the renderer's output.
+
+The transition engine validates that all of the headings below are present.
+Don't drop them.
 -->
 
-## Where to start
+## Files
 
-- Want to see diffs? → `stages/4_building/build.md`
-- Want to verify QA? → `stages/5_validating/qa/report.md` (+ `qa/commands.txt`)
-- Want to confirm each AC is tested? → `stages/4_building/build.md` § Acceptance criteria coverage
-- Want to argue with decisions? → `stages/3_planning/plan.md` § Decisions & assumptions, then `stages/5_validating/review.md`
-- Want to see what's next? → `stages/6_followups/follow-ups.md`
+_Renderer-produced table of clickable artifact paths._
 
-## Suggested first checks
+## Summary of changes
 
-<!--
-REQUIRED. Ordered, copy-pasteable checklist from clean checkout to verified
-working feature in ~10 minutes.
+_Renderer-produced bullets from `stages/4_building/build.md`._
 
-Format (see TODO §1c):
-1. Automatable steps first as a single fenced bash block (install, build,
-   tests, server start). Don't interleave commands with prose.
-2. Then numbered manual / browser steps, each with exact UI actions and
-   concrete test data.
-3. Close with "If steps 1–N pass, the run is delivered."
--->
+## Manual testing performed
 
-```bash
-# Automatable steps — fill in.
-```
+_Renderer-produced outcomes from `QACompleted` / `ReviewCompleted` events._
 
-1. <manual step 1>
-2. <manual step 2>
+## Needs human verification
 
-If steps 1–N pass, the run is delivered.
+_None._
 
 ## Run timeline
 
-<!--
-REQUIRED. Chronological summary rendered from events.jsonl. Folded in from
-the old audit.md (TODO §1b). For this pass the audit module still writes
-audit.md at run root; copy or link its content here.
--->
+_Renderer-produced; pulled from `events.jsonl`._

@@ -1,68 +1,12 @@
 # TODO
-## 2. Human Review polish
 
-`HUMAN_REVIEW.md` is the human's landing page when a run moves into `human_review`, but today it's awkward to use:
+## Completed work
 
-- File pointers are relative (`stages/4_building/build.md`) — not clickable from a text editor.
-- The `human_review` transition surfaces the run id but not the path to `HUMAN_REVIEW.md` itself, so the reviewer has to hunt for it.
-- "Suggested first checks" reads like a manual QA script the reviewer is expected to run by hand; in reality validation already ran the tests — the reviewer wants the result, not the recipe.
-- "Run timeline" is too generic — every run says "draft created", "brief transcribed", "plan written". It never names *what* the brief said, *what* the plan decided, *what* the build delivered, or *what* the reviewer accepted.
-- No timestamps on the timeline, even though `events.jsonl` already carries ISO timestamps per event.
-- No table-of-contents at the top, so click-to-open in a text editor is friction-heavy.
-
-**Design principles**
-
-- Treat `HUMAN_REVIEW.md` as a launchpad, not a checklist. Every interesting artifact should be one click away.
-- Prefer absolute paths in the rendered file (most editors only auto-link absolute paths). Pair them with a relative-path table-of-contents at the top so the file is still readable when checked in.
-- Trust validation. Surface *what was tested and what the result was*, not a script the human re-runs.
-- The timeline must answer "what changed at each stage?" — pull specifics from `events.jsonl` (`payload.summary`, artifact paths, decision evidence) rather than templated prose.
-
-**Tasks**
-
-- [ ] **Surface the path on transition.** When a run moves into `human_review`, the slash command / CLI output (and the board card body) must print the absolute path to `HUMAN_REVIEW.md` so the reviewer can click it directly. Add a regression test that the `human_review` transition's stdout contains the absolute path.
-- [ ] **Table of contents.** Render a TOC block at the top of `HUMAN_REVIEW.md` with one row per linked artifact. Each row carries a relative path (readable on GitHub / in git diffs) **and** the absolute path on the same line (clickable from VS Code / terminal). Suggested shape:
-  ```markdown
-  ## Files
-  | Artifact | Relative | Absolute (click) |
-  | --- | --- | --- |
-  | Brief | `stages/2_shaping/brief.md` | `/Users/.../runs/<id>/stages/2_shaping/brief.md` |
-  | Plan | `stages/3_planning/plan.md` | `/Users/.../runs/<id>/stages/3_planning/plan.md` |
-  | Build (diffs + AC coverage) | `stages/4_building/build.md` | `/Users/.../runs/<id>/stages/4_building/build.md` |
-  | QA report | `stages/5_validating/qa/report.md` | `/Users/.../runs/<id>/stages/5_validating/qa/report.md` |
-  | Review decision | `stages/5_validating/review.md` | `/Users/.../runs/<id>/stages/5_validating/review.md` |
-  | Follow-ups | `stages/6_followups/follow-ups.md` | `/Users/.../runs/<id>/stages/6_followups/follow-ups.md` |
-  ```
-  Only list files that actually exist (e.g. omit `follow-ups.md` when the run hasn't reached `6_followups`).
-- [ ] **Change summary up top.** Replace "Where to start" with a `## Summary of changes` section: 3–5 bullets describing what the build delivered (files touched, ACs satisfied, test-count delta) followed by a single line `→ Full diff: <absolute path to build.md>`. The bullets are pulled from existing build.md fields (no new authoring step — this is a render-time projection of data the builder already wrote).
-- [ ] **Replace "Suggested first checks" with "Manual testing performed".** This section reports what `validate` already ran:
-  - Command (e.g. `python -m pytest tests/ -q`)
-  - Outcome (`193 passed, 0 failed` — read from `qa/report.md` / `events.jsonl`)
-  - One-line interpretation (`✓ all green` / `⚠ 2 known issues, see qa/report.md`)
-  No imperative steps for the human to execute. If a check genuinely needs human eyes (UI screenshot review, etc.), surface it in a separate `## Needs human verification` block, but keep it empty by default.
-- [ ] **Specific, timestamped run timeline.** Normalize each row to `[HH:MM:SS] STAGE — what specifically happened`. Pull `at` (existing ISO timestamp) and `payload.summary` / artifact paths from `events.jsonl`. Examples of the level of specificity wanted:
-  - `[05:38:49] SHAPING — brief.md written: "audit unit tests for duplication across 6 modules; preserve regression locks"`
-  - `[05:40:10] PLANNING — plan.md written: DR-001..DR-004 (combined-assertions folds; no prod changes; single-commit landing)`
-  - `[05:52:18] BUILDING — baseline 193 tests; after pruning 134 tests (−59)`
-  - `[06:11:02] VALIDATING — review.md decision: APPROVE; qa/report.md: 134 passed twice, 0 known issues`
-  - `[06:11:47] HUMAN_REVIEW — handed off`
-  Implementation note: extend the renderer to derive these rows from `events.jsonl` (`ArtifactWritten.payload.summary`, `TransitionApplied.from`/`to`, builder/validator events). Drop the freeform paragraph form entirely.
-- [ ] **Tests.** Snapshot test the rendered `HUMAN_REVIEW.md` for the existing `happy/` and `bounce_pass2/` E2E fixtures. Add a unit test for the timeline projector that asserts each row has a timestamp, a stage name, and a non-templated description (reject rows that match a denylist like `"template staged"` or `"draft created"` with no further detail).
-
-**Acceptance**
-
-- `HUMAN_REVIEW.md` opens with a Files table whose absolute-path column is click-to-open in VS Code and the terminal.
-- The `human_review` transition prints the absolute path to `HUMAN_REVIEW.md`.
-- No section instructs the human to run shell commands; the manual-testing section reports outcomes only.
-- Every timeline row is `[HH:MM:SS] STAGE — <specific description>`; none read like "brief transcribed" / "draft created" without further detail.
-- E2E snapshot tests cover the rendered output for happy and bounce scenarios.
-
-**Non-goals**
-
-Redesigning the review *decision* flow (`stages/5_validating/review.md`); changing what the builder writes into `build.md`; adding new event types to `events.jsonl` (this work only consumes existing fields).
+- ✅ **Human Review polish** (2026-05-22). Replaced LLM-authored `HUMAN_REVIEW.md` with a code-derived render: clickable absolute-path `## Files` table, code-derived `## Summary of changes` bullets, outcome-only `## Manual testing performed`, and an `events.jsonl`-projected timestamped `## Run timeline`. The `followups -> human_review` transition stdout now carries the absolute path. New module `lib/human_review.py`; wired into `cmd_followups`; required-heading gate updated; snapshot tests added for `happy/` and `bounce_pass2/` fixtures. Commit `<pending>`.
 
 ---
 
-## 3. Token Efficiency tracking
+## 2. Token Efficiency tracking
 
 Today we have no idea how expensive a run is. We don't know which stage burns the most tokens, whether bouncing through validation is a 2× or 10× tax, or which scope kinds (`implementation` vs `repair` vs `audit`) deliver the most accepted code per dollar. This work adds per-run token + cost + acceptance tracking — measurement only, no limits or budgets.
 

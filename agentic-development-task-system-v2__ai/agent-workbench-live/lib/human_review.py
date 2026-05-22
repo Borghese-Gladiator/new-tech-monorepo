@@ -1,0 +1,428 @@
+"""Render runs/<run_id>/HUMAN_REVIEW.md from metadata + events + artifacts.
+
+This module replaces LLM-authored HUMAN_REVIEW.md content with a code-derived
+projection of the run's events and artifacts. Called from cmd_followups right
+before the followups -> human_review transition fires.
+
+Public surface:
+
+    render(cfg, run_id) -> pathlib.Path
+        Write HUMAN_REVIEW.md at the run root. Idempotent: re-running
+        overwrites the file. Returns the path written.
+
+    project_timeline(events, ...) -> list[TimelineRow]
+        Pure function: given an iterable of events, return the rows that the
+        ## Run timeline section should contain. Exposed for unit testing.
+
+    FILE_TABLE_CANDIDATES
+        Ordered list of (label, relpath) tuples the ## Files table iterates
+        over. Only rows whose relpath exists on disk are rendered.
+
+Required headings written:
+    ## Files
+    ## Summary of changes
+    ## Manual testing performed
+    ## Run timeline
+
+These are exactly the headings that lib.lifecycle.REQUIRED_HUMAN_REVIEW_HEADINGS
+gates on.
+"""
+from __future__ import annotations
+
+import dataclasses
+import pathlib
+import re
+from typing import Iterable
+
+from lib import events as events_mod, metadata as metadata_mod
+from lib.config import Config
+from lib.metadata import run_dir
+
+
+# ---------- Files-table catalogue ----------
+
+# Each entry: (label, relpath_from_run_root). Order is render order.
+# Only entries whose relpath exists are rendered.
+FILE_TABLE_CANDIDATES: tuple[tuple[str, str], ...] = (
+    ("Brief", "stages/2_shaping/brief.md"),
+    ("Plan", "stages/3_planning/plan.md"),
+    ("Build (diffs + AC coverage)", "stages/4_building/build.md"),
+    ("QA report", "stages/5_validating/qa/report.md"),
+    ("Review decision", "stages/5_validating/review.md"),
+    ("Follow-ups", "stages/6_followups/follow-ups.md"),
+    ("Audit", "audit.md"),
+)
+
+
+# ---------- timeline projection ----------
+
+# Descriptions that are too templated to surface on their own. A row whose
+# description matches one of these literals (after specific-field projection)
+# is dropped. The denylist exists to enforce AC4.
+TIMELINE_DENYLIST: frozenset[str] = frozenset({
+    "template staged",
+    "draft created",
+    "brief transcribed",
+    "plan written",
+})
+
+
+@dataclasses.dataclass(frozen=True)
+class TimelineRow:
+    at_hhmmss: str
+    stage: str
+    description: str
+
+    def render(self) -> str:
+        return f"[{self.at_hhmmss}] {self.stage} — {self.description}"
+
+
+def _hhmmss(iso_at: str) -> str:
+    """Extract HH:MM:SS from an ISO timestamp like '2026-05-22T05:38:49-04:00'.
+
+    Falls back to the input if the format doesn't match (no error)."""
+    m = re.search(r"T(\d{2}:\d{2}:\d{2})", iso_at)
+    return m.group(1) if m else iso_at
+
+
+def _short(s: str | None, limit: int = 160) -> str:
+    if not s:
+        return ""
+    s = s.strip().replace("\n", " ")
+    return s if len(s) <= limit else s[: limit - 1] + "…"
+
+
+def _describe(event: dict) -> str | None:
+    """Project one event into a one-line description, or None if the event is
+    not interesting enough to surface in the timeline."""
+    et = event.get("type") or ""
+    payload = event.get("payload") or {}
+
+    if et == "TransitionApplied":
+        # Use destination stage as the row's stage; describe what closed.
+        to_state = (event.get("to") or "").lower()
+        from_state = (event.get("from") or "").lower()
+        if to_state == "abandoned":
+            reason = payload.get("evidence", {}).get("abandoned_reason") or "abandoned"
+            return f"abandoned — {_short(reason)}"
+        if to_state == "done":
+            ev = payload.get("evidence") or {}
+            ref = ev.get("completion_ref") or ev.get("accepted_by") or "accepted"
+            return f"accepted — {_short(ref)}"
+        if to_state == "human_review":
+            return "handed off"
+        if to_state == "building" and from_state == "human_review":
+            reason = (
+                payload.get("evidence", {}).get("bounce_reason")
+                or payload.get("notes")
+                or "changes requested"
+            )
+            return f"bounced — {_short(reason)}"
+        if to_state == "building" and from_state == "ready":
+            ev = payload.get("evidence") or {}
+            wt = ev.get("worktree_path")
+            branch = ev.get("branch_name")
+            if wt and branch:
+                return f"worktree at `{wt}` on `{branch}`"
+            return "worktree created"
+        # Default: terse "entered <state>".
+        return f"entered {to_state}" if to_state else None
+
+    if et == "ArtifactWritten":
+        summary = (payload.get("summary") or "").strip()
+        artifact = payload.get("artifact_key") or ""
+        # Drop template-staged rows; they're not the real story.
+        if summary.lower() == "template staged":
+            return None
+        if summary:
+            label = artifact or pathlib.Path(payload.get("path") or "").name
+            return f"{label}.md written: {_short(summary)}" if label else _short(summary)
+        return None
+
+    if et == "AssumptionRecorded":
+        aid = payload.get("assumption_id") or "?"
+        return f"assumption {aid}: {_short(payload.get('text'))}"
+
+    if et == "DecisionRecorded":
+        did = payload.get("decision_id") or "?"
+        return f"decision {did}: {_short(payload.get('decision'))}"
+
+    if et == "WorktreeCreated":
+        branch = payload.get("branch_name")
+        wt = payload.get("worktree_path")
+        if branch and wt:
+            return f"worktree on `{branch}` at `{wt}`"
+        return "worktree created"
+
+    if et == "ReviewCompleted":
+        d = (payload.get("review_decision") or "").lower()
+        return f"review decision: {d or 'unknown'}"
+
+    if et == "QACompleted":
+        tp = payload.get("tests_passed")
+        ki = payload.get("known_issues_count") or 0
+        verdict = "tests_passed=true" if tp else ("tests_passed=false" if tp is False else "tests result unrecorded")
+        return f"{verdict}; known_issues={ki}"
+
+    if et == "FollowupsRecorded":
+        n = payload.get("entry_count") or 0
+        cats = ", ".join(payload.get("categories") or []) or "none"
+        return f"{n} follow-up(s) recorded ({cats})"
+
+    if et == "BounceRequested":
+        reason = payload.get("bounce_reason") or "no reason given"
+        return f"bounce requested — {_short(reason)}"
+
+    if et == "HumanHandoffCreated":
+        return "handoff record created"
+
+    if et == "ScopeCreepChecked":
+        creep = payload.get("creep") or []
+        return f"scope creep: {len(creep)} unexpected file(s)" if creep else "scope creep: none"
+
+    if et == "DocClaimsVerified":
+        unverified = payload.get("unverified") or []
+        return f"doc claims: {len(unverified)} unverified" if unverified else "doc claims: all verified"
+
+    return None
+
+
+def project_timeline(events: Iterable[dict]) -> list[TimelineRow]:
+    """Project an iterable of events into the rows of the Run timeline section."""
+    rows: list[TimelineRow] = []
+    for ev in events:
+        desc = _describe(ev)
+        if not desc:
+            continue
+        if desc.strip().lower() in TIMELINE_DENYLIST:
+            continue
+        stage = (ev.get("status") or ev.get("to") or "").upper()
+        rows.append(TimelineRow(_hhmmss(ev.get("at") or ""), stage, desc))
+    return rows
+
+
+# ---------- build.md extraction ----------
+
+def _extract_build_summary(build_path: pathlib.Path) -> list[str]:
+    """Return up to ~5 bullets describing what the build delivered.
+
+    Pulls from:
+      - "## Implementation summary" — one short bullet (the first paragraph).
+      - "## Files changed" — flatten the list into one bullet (or two if long).
+      - "## Acceptance criteria coverage" — one bullet counting covered ACs.
+
+    Falls back to an empty list if the file is missing or has none of the
+    expected headers; the caller renders a single "→ Full diff" line in that
+    case.
+    """
+    if not build_path.exists():
+        return []
+    text = build_path.read_text()
+    bullets: list[str] = []
+
+    impl = _section(text, "Implementation summary")
+    if impl:
+        # First paragraph only, single line.
+        first_para = impl.strip().split("\n\n", 1)[0].strip().replace("\n", " ")
+        if first_para:
+            bullets.append(_short(first_para, limit=240))
+
+    files = _section(text, "Files changed")
+    if files:
+        items = _bullet_items(files)
+        if items:
+            n = len(items)
+            shown = ", ".join(f"`{i}`" for i in items[:4])
+            extra = f" (+{n - 4} more)" if n > 4 else ""
+            bullets.append(f"{n} file(s) touched: {shown}{extra}")
+
+    coverage = _section(text, "Acceptance criteria coverage")
+    if coverage:
+        # Match `| AC-<id> |` data rows; header (`| AC | …`) and separator
+        # (`|----|…`) rows fail this pattern and are skipped.
+        row_pat = re.compile(r"^\|\s*AC[-\s]\S+\s*\|", re.IGNORECASE)
+        covered = 0
+        total = 0
+        for ln in coverage.splitlines():
+            ln = ln.strip()
+            if not row_pat.match(ln):
+                continue
+            total += 1
+            if "covered" in ln.lower():
+                covered += 1
+        if total:
+            bullets.append(f"AC coverage: {covered}/{total} covered")
+
+    docs = _section(text, "Documentation touched")
+    if docs:
+        items = _bullet_items(docs)
+        if items and not all(i.strip().lower().startswith("(none") for i in items):
+            n = len(items)
+            shown = ", ".join(f"`{i}`" for i in items[:3])
+            extra = f" (+{n - 3} more)" if n > 3 else ""
+            bullets.append(f"docs touched: {shown}{extra}")
+
+    return bullets
+
+
+def _section(text: str, heading: str) -> str:
+    """Return the body under `## {heading}` up to the next `## ` heading.
+
+    Returns the empty string if the heading isn't found.
+    """
+    pat = re.compile(rf"(?ms)^##\s+{re.escape(heading)}\s*\n(.*?)(?=^##\s|\Z)")
+    m = pat.search(text)
+    return m.group(1) if m else ""
+
+
+def _bullet_items(section_text: str) -> list[str]:
+    items: list[str] = []
+    for ln in section_text.splitlines():
+        s = ln.strip()
+        if not s.startswith("- "):
+            continue
+        item = s[2:].strip()
+        # Strip surrounding backticks if the bullet uses code form.
+        if item.startswith("`") and item.endswith("`"):
+            item = item[1:-1]
+        if item:
+            items.append(item)
+    return items
+
+
+# ---------- Manual testing / QA extraction ----------
+
+def _latest_event(events: list[dict], event_type: str) -> dict | None:
+    """Return the most-recent event of the given type, or None."""
+    for ev in reversed(events):
+        if ev.get("type") == event_type:
+            return ev
+    return None
+
+
+def _testing_block(events: list[dict], qa_path: pathlib.Path) -> list[str]:
+    """Render the body of the ## Manual testing performed section as a list of
+    markdown lines. Returns at least one line; never raises.
+    """
+    qa_ev = _latest_event(events, "QACompleted")
+    review_ev = _latest_event(events, "ReviewCompleted")
+    doc_ev = _latest_event(events, "DocClaimsVerified")
+    scope_ev = _latest_event(events, "ScopeCreepChecked")
+
+    lines: list[str] = []
+
+    if qa_ev:
+        payload = qa_ev.get("payload") or {}
+        tests_passed = payload.get("tests_passed")
+        known = payload.get("known_issues_count") or 0
+        if tests_passed is True:
+            interp = "✓ all green" if known == 0 else f"⚠ {known} known issue(s); see qa report"
+            lines.append(f"- Validation suite → **tests_passed=true** — {interp}")
+        elif tests_passed is False:
+            lines.append(
+                f"- Validation suite → **tests_passed=false** — ⚠ {known} known issue(s); see qa report"
+            )
+        else:
+            lines.append("- Validation suite → outcome unrecorded")
+    else:
+        lines.append("- _Pending: no QACompleted event recorded yet._")
+
+    if review_ev:
+        d = ((review_ev.get("payload") or {}).get("review_decision") or "").lower() or "unknown"
+        lines.append(f"- Review decision → **{d}**")
+
+    if doc_ev:
+        unverified = (doc_ev.get("payload") or {}).get("unverified") or []
+        verdict = "0 unverified" if not unverified else f"{len(unverified)} unverified"
+        lines.append(f"- Documentation claims → {verdict}")
+
+    if scope_ev:
+        creep = (scope_ev.get("payload") or {}).get("creep") or []
+        verdict = "0 unexpected files" if not creep else f"{len(creep)} unexpected file(s)"
+        lines.append(f"- Scope check → {verdict}")
+
+    if qa_path.exists():
+        lines.append(f"")
+        lines.append(f"Report: `{qa_path}`")
+
+    return lines
+
+
+# ---------- main render ----------
+
+def render(cfg: Config, run_id: str) -> pathlib.Path:
+    """Write HUMAN_REVIEW.md at the run root. Returns the path written."""
+    meta = metadata_mod.load(cfg, run_id)
+    rd = run_dir(cfg, run_id)
+    out_path = rd / "HUMAN_REVIEW.md"
+
+    events_list = list(events_mod.iter_events(cfg, run_id))
+
+    # Header.
+    title_summary = (meta.get("scope") or {}).get("summary") or run_id
+    lines: list[str] = [f"# Human review — {run_id}", ""]
+
+    # ## Files table.
+    lines.append("## Files")
+    lines.append("")
+    lines.append("| Artifact | Relative | Absolute (click) |")
+    lines.append("| --- | --- | --- |")
+    for label, relpath in FILE_TABLE_CANDIDATES:
+        abspath = rd / relpath
+        if not abspath.exists():
+            continue
+        lines.append(f"| {label} | `{relpath}` | `{abspath}` |")
+    # HUMAN_REVIEW.md itself always renders (it's about to be written).
+    lines.append(f"| Human review (this file) | `HUMAN_REVIEW.md` | `{out_path}` |")
+    lines.append("")
+
+    # ## Summary of changes.
+    lines.append("## Summary of changes")
+    lines.append("")
+    build_path = rd / "stages" / "4_building" / "build.md"
+    bullets = _extract_build_summary(build_path)
+    if bullets:
+        for b in bullets:
+            lines.append(f"- {b}")
+    else:
+        lines.append("- _Build summary unavailable — see the full diff below._")
+    lines.append("")
+    if build_path.exists():
+        lines.append(f"→ Full diff: `{build_path}`")
+    else:
+        lines.append("→ Full diff: _build.md not produced_")
+    lines.append("")
+
+    # ## Manual testing performed.
+    lines.append("## Manual testing performed")
+    lines.append("")
+    qa_path = rd / "stages" / "5_validating" / "qa" / "report.md"
+    for ln in _testing_block(events_list, qa_path):
+        lines.append(ln)
+    lines.append("")
+    lines.append("## Needs human verification")
+    lines.append("")
+    lines.append("_None._")
+    lines.append("")
+
+    # ## Run timeline.
+    lines.append("## Run timeline")
+    lines.append("")
+    rows = project_timeline(events_list)
+    if rows:
+        for row in rows:
+            lines.append(f"- {row.render()}")
+    else:
+        lines.append("_No timeline events recorded._")
+    lines.append("")
+
+    # The scope summary (from raw idea) — append a small footer so reviewers
+    # have one-line context without having to chase the brief.
+    if title_summary and title_summary != run_id:
+        lines.append("---")
+        lines.append("")
+        lines.append(f"_Scope:_ {title_summary}")
+        lines.append("")
+
+    out_path.write_text("\n".join(lines))
+    return out_path

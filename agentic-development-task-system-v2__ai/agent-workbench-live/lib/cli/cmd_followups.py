@@ -18,7 +18,10 @@ other stage commands.
 """
 from __future__ import annotations
 
-from lib import metadata, events, transitions, locks, lifecycle, stub_llm, followups as followups_mod
+from lib import (
+    metadata, events, transitions, locks, lifecycle, stub_llm,
+    followups as followups_mod, human_review,
+)
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -140,6 +143,12 @@ def run(args) -> int:
         actor=actor,
     )
 
+    # Render HUMAN_REVIEW.md from events + artifacts. This is the sole writer
+    # of the file going forward; whatever was authored or stub-copied earlier
+    # is overwritten. The transition engine's heading gate runs immediately
+    # below, so the render must happen first.
+    human_review.render(cfg, run_id)
+
     try:
         with locks.acquire(cfg, run_id):
             transitions.transition(
@@ -169,6 +178,7 @@ def run(args) -> int:
 
     print(f"{run_id}: followups -> human_review")
     print(f"entries:  {len(entries)} ({', '.join(cats) or 'none'})")
+    print(f"review:   {handoff_path}")
     return 0
 
 
