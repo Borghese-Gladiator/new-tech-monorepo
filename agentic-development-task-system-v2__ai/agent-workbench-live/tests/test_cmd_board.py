@@ -327,137 +327,117 @@ class TestStaticCardStack(unittest.TestCase):
 class TestSeverityClassification(unittest.TestCase):
     """Lock in the warning vs blocking split — TODO §1 graded loudness."""
 
-    def test_failing_tests_is_blocking(self):
-        from lib.board.source import severity, severity_reason, SEVERITY_BLOCKING
-
-        run = _make_snapshot(status="validating", failing_tests=True)
-        self.assertEqual(severity(run), SEVERITY_BLOCKING)
-        self.assertEqual(severity_reason(run), "tests failing")
-
-    def test_builder_gave_up_is_blocking_with_iteration_count(self):
-        from lib.board.source import severity, severity_reason, SEVERITY_BLOCKING
-
-        run = _make_snapshot(
-            status="building",
-            builder_gave_up=True,
-            build_iterations=5,
-            build_max_iterations=5,
+    def test_severity_cases(self):
+        # Each case is (label, snapshot_overrides, expected_level, expected_reason).
+        # `expected_reason` is None when severity_reason() should return None,
+        # and "__SKIP__" when the case doesn't assert on it (only the level).
+        from lib.board.source import (
+            severity, severity_reason,
+            SEVERITY_BLOCKING, SEVERITY_WARNING, SEVERITY_NONE,
         )
-        self.assertEqual(severity(run), SEVERITY_BLOCKING)
-        self.assertEqual(severity_reason(run), "builder gave up 5/5")
 
-    def test_stale_human_review_is_blocking(self):
-        from lib.board.source import severity, severity_reason, SEVERITY_BLOCKING
-
-        run = _make_snapshot(status="human_review", is_stale_human_review=True)
-        self.assertEqual(severity(run), SEVERITY_BLOCKING)
-        self.assertEqual(severity_reason(run), "stale human_review")
-
-    def test_known_issues_is_warning_only(self):
-        from lib.board.source import severity, severity_reason, SEVERITY_WARNING
-
-        run = _make_snapshot(
-            status="validating",
-            has_known_issues=True,
-            known_issues_count=2,
-        )
-        self.assertEqual(severity(run), SEVERITY_WARNING)
-        self.assertEqual(severity_reason(run), "2 known issues")
-
-    def test_recent_error_is_warning(self):
-        from lib.board.source import severity, SEVERITY_WARNING
-
-        run = _make_snapshot(status="building", has_recent_error=True)
-        self.assertEqual(severity(run), SEVERITY_WARNING)
-
-    def test_worktree_missing_is_warning(self):
-        from lib.board.source import severity, SEVERITY_WARNING
-
-        run = _make_snapshot(status="building", worktree_missing=True)
-        self.assertEqual(severity(run), SEVERITY_WARNING)
-
-    def test_failing_tests_wins_over_known_issues(self):
-        """When both flags are on, severity is the strictest level."""
-        from lib.board.source import severity, SEVERITY_BLOCKING
-
-        run = _make_snapshot(
-            status="validating",
-            failing_tests=True,
-            has_known_issues=True,
-            known_issues_count=4,
-        )
-        self.assertEqual(severity(run), SEVERITY_BLOCKING)
-
-    def test_quiet_run_has_no_severity(self):
-        from lib.board.source import severity, severity_reason, SEVERITY_NONE
-
-        run = _make_snapshot(status="building")
-        self.assertEqual(severity(run), SEVERITY_NONE)
-        self.assertIsNone(severity_reason(run))
+        cases = [
+            ("failing tests → blocking + reason",
+             dict(status="validating", failing_tests=True),
+             SEVERITY_BLOCKING, "tests failing"),
+            ("builder gave up → blocking + 'gave up N/M' reason",
+             dict(status="building", builder_gave_up=True,
+                  build_iterations=5, build_max_iterations=5),
+             SEVERITY_BLOCKING, "builder gave up 5/5"),
+            ("stale human_review → blocking",
+             dict(status="human_review", is_stale_human_review=True),
+             SEVERITY_BLOCKING, "stale human_review"),
+            ("known issues → warning + count in reason",
+             dict(status="validating", has_known_issues=True, known_issues_count=2),
+             SEVERITY_WARNING, "2 known issues"),
+            ("recent error → warning",
+             dict(status="building", has_recent_error=True),
+             SEVERITY_WARNING, "__SKIP__"),
+            ("worktree missing → warning",
+             dict(status="building", worktree_missing=True),
+             SEVERITY_WARNING, "__SKIP__"),
+            # When two flags are on, severity is the strictest.
+            ("failing tests wins over known issues",
+             dict(status="validating", failing_tests=True,
+                  has_known_issues=True, known_issues_count=4),
+             SEVERITY_BLOCKING, "__SKIP__"),
+            ("quiet run → none + reason is None",
+             dict(status="building"),
+             SEVERITY_NONE, None),
+        ]
+        for label, overrides, level, reason in cases:
+            run = _make_snapshot(**overrides)
+            self.assertEqual(severity(run), level, msg=label)
+            if reason == "__SKIP__":
+                continue
+            if reason is None:
+                self.assertIsNone(severity_reason(run), msg=label)
+            else:
+                self.assertEqual(severity_reason(run), reason, msg=label)
 
 
 class TestPathAbbreviation(unittest.TestCase):
-    def test_workbench_root_replaced_with_ellipsis(self):
+    def test_abbreviation_cases(self):
         from lib.board.source import abbreviate_path
 
-        result = abbreviate_path(
-            "/Users/dev/wb/runs/2026-05-22-shogi",
-            workbench_root="/Users/dev/wb",
-            home="/Users/dev",
-        )
-        self.assertEqual(result, "…/runs/2026-05-22-shogi")
-
-    def test_workbench_root_wins_over_home(self):
-        """The workbench is more relevant context than $HOME."""
-        from lib.board.source import abbreviate_path
-
-        result = abbreviate_path(
-            "/Users/dev/wb/runs/x",
-            workbench_root="/Users/dev/wb",
-            home="/Users/dev",
-        )
-        self.assertTrue(result.startswith("…/"))
-
-    def test_home_replaced_when_no_workbench_match(self):
-        from lib.board.source import abbreviate_path
-
-        result = abbreviate_path(
-            "/Users/dev/elsewhere/repo",
-            workbench_root="/Users/dev/wb",
-            home="/Users/dev",
-        )
-        self.assertEqual(result, "~/elsewhere/repo")
-
-    def test_empty_input_returns_empty(self):
-        from lib.board.source import abbreviate_path
-
-        self.assertEqual(abbreviate_path(""), "")
+        # Each row: (label, kwargs, expected_exact_or_prefix_marker).
+        # We assert equality for cases that exercise a specific output and
+        # a startswith() for the "workbench-wins-over-home" case (the
+        # original was already only checking the prefix).
+        cases = [
+            ("workbench root replaced with ellipsis",
+             dict(path="/Users/dev/wb/runs/2026-05-22-shogi",
+                  workbench_root="/Users/dev/wb", home="/Users/dev"),
+             ("eq", "…/runs/2026-05-22-shogi")),
+            ("workbench wins over home (assert prefix only)",
+             dict(path="/Users/dev/wb/runs/x",
+                  workbench_root="/Users/dev/wb", home="/Users/dev"),
+             ("startswith", "…/")),
+            ("home replaced when no workbench match",
+             dict(path="/Users/dev/elsewhere/repo",
+                  workbench_root="/Users/dev/wb", home="/Users/dev"),
+             ("eq", "~/elsewhere/repo")),
+            ("empty input returns empty", dict(path=""), ("eq", "")),
+        ]
+        for label, kwargs, (op, expected) in cases:
+            path = kwargs.pop("path")
+            out = abbreviate_path(path, **kwargs)
+            if op == "eq":
+                self.assertEqual(out, expected, msg=label)
+            else:
+                self.assertTrue(out.startswith(expected), msg=f"{label}: got {out!r}")
 
 
 class TestStaticCardBands(unittest.TestCase):
     """Per-band content selection for the static renderer."""
 
-    def test_blocking_severity_marker_in_title(self):
+    def test_title_severity_markers(self):
+        # One test per severity-level → title-prefix decision. Folded because
+        # each row only changes the snapshot overrides and the expected
+        # prefix character.
         from lib.cli.cmd_board import _static_card_stack
 
-        run = _make_snapshot(status="validating", failing_tests=True, tests_passed=False)
-        lines = _static_card_stack(run)
-        self.assertTrue(lines[0].startswith("✕ "), lines[0])
-
-    def test_warning_severity_marker_in_title(self):
-        from lib.cli.cmd_board import _static_card_stack
-
-        run = _make_snapshot(status="building", has_recent_error=True)
-        lines = _static_card_stack(run)
-        self.assertTrue(lines[0].startswith("⚠ "), lines[0])
-
-    def test_quiet_card_has_no_severity_marker(self):
-        from lib.cli.cmd_board import _static_card_stack
-
-        run = _make_snapshot(status="building")
-        # First line is the title; no severity prefix.
-        self.assertNotIn("✕", _static_card_stack(run)[0])
-        self.assertNotIn("⚠", _static_card_stack(run)[0])
+        cases = [
+            ("blocking → '✕ ' prefix",
+             dict(status="validating", failing_tests=True, tests_passed=False),
+             "blocking"),
+            ("warning → '⚠ ' prefix",
+             dict(status="building", has_recent_error=True),
+             "warning"),
+            ("quiet → no severity prefix",
+             dict(status="building"),
+             "none"),
+        ]
+        for label, overrides, expected in cases:
+            run = _make_snapshot(**overrides)
+            title = _static_card_stack(run)[0]
+            if expected == "blocking":
+                self.assertTrue(title.startswith("✕ "), msg=f"{label}: {title!r}")
+            elif expected == "warning":
+                self.assertTrue(title.startswith("⚠ "), msg=f"{label}: {title!r}")
+            else:
+                self.assertNotIn("✕", title, msg=label)
+                self.assertNotIn("⚠", title, msg=label)
 
     def test_severity_reason_appears_in_body(self):
         from lib.cli.cmd_board import _static_card_stack

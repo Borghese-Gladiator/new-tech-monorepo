@@ -226,29 +226,35 @@ class TestHumanReviewValidation(unittest.TestCase):
     def tearDown(self):
         cleanup(self.tmp)
 
-    def test_missing_file_reported(self):
-        errs = lifecycle.validate_human_review_sections(self.cfg, self.run_id)
-        self.assertEqual(len(errs), 1)
-        self.assertIn("not found", errs[0])
+    def test_validation_cases(self):
+        # Each case is (label, file_contents_or_None, predicate(errs)).
+        # Folded into one test because the call shape and the per-test setup
+        # are identical apart from the file contents.
+        full = "# H\n\n## Suggested first checks\n\nstep\n\n## Run timeline\n\nx\n"
+        partial = "# H\n\n## Suggested first checks\n\nok\n"
+        bare = "# bare file\n"
 
-    def test_missing_headings_reported(self):
-        (self.rd / "HUMAN_REVIEW.md").write_text("# bare file\n")
-        errs = lifecycle.validate_human_review_sections(self.cfg, self.run_id)
-        # Both required headings are missing.
-        self.assertEqual(len(errs), 2)
-
-    def test_partial_headings_reported(self):
-        (self.rd / "HUMAN_REVIEW.md").write_text("# H\n\n## Suggested first checks\n\nok\n")
-        errs = lifecycle.validate_human_review_sections(self.cfg, self.run_id)
-        self.assertEqual(len(errs), 1)
-        self.assertIn("Run timeline", errs[0])
-
-    def test_both_headings_present_ok(self):
-        (self.rd / "HUMAN_REVIEW.md").write_text(
-            "# H\n\n## Suggested first checks\n\nstep\n\n## Run timeline\n\nx\n"
-        )
-        errs = lifecycle.validate_human_review_sections(self.cfg, self.run_id)
-        self.assertEqual(errs, [])
+        cases = [
+            ("missing file → one 'not found' error",
+             None,
+             lambda errs: len(errs) == 1 and "not found" in errs[0]),
+            ("bare file → both required headings missing",
+             bare,
+             lambda errs: len(errs) == 2),
+            ("partial (one heading) → one error about Run timeline",
+             partial,
+             lambda errs: len(errs) == 1 and "Run timeline" in errs[0]),
+            ("both headings present → no errors", full, lambda errs: errs == []),
+        ]
+        for label, contents, ok in cases:
+            # Reset between cases.
+            f = self.rd / "HUMAN_REVIEW.md"
+            if f.exists():
+                f.unlink()
+            if contents is not None:
+                f.write_text(contents)
+            errs = lifecycle.validate_human_review_sections(self.cfg, self.run_id)
+            self.assertTrue(ok(errs), msg=f"{label}: got {errs!r}")
 
 
 if __name__ == "__main__":

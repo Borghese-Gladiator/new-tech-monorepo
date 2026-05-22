@@ -61,92 +61,87 @@ x
 
 
 class TestExtractExpectedFiles(unittest.TestCase):
-    def test_returns_none_when_no_section(self):
-        self.assertIsNone(scope_check.extract_expected_files(BRIEF_NO_SECTION))
+    """All call shape: extract_expected_files(text). Cases share no fixture but
+    are folded into one test because the assertions are uniform — each line is
+    one (input, expected) pair.
+    """
 
-    def test_returns_empty_for_empty_section(self):
-        out = scope_check.extract_expected_files(BRIEF_EMPTY_SECTION)
-        self.assertEqual(out, [])
-
-    def test_returns_paths_under_files_likely_to_change(self):
-        out = scope_check.extract_expected_files(BRIEF_WITH_LIKELY)
-        self.assertEqual(
-            out, ["src/server.py", "src/routes/", "*.md", "tests/test_hello.py"]
-        )
-
-    def test_accepts_scope_heading(self):
-        out = scope_check.extract_expected_files(BRIEF_WITH_SCOPE_HEADING)
-        self.assertEqual(out, ["src/foo.py"])
-
-    def test_case_insensitive_heading(self):
-        text = "## files Likely to change\n\n- foo.py\n"
-        self.assertEqual(scope_check.extract_expected_files(text), ["foo.py"])
-
-    def test_skips_html_comment_placeholders(self):
-        text = (
-            "## Files likely to change\n\n"
-            "<!-- - <placeholder> — describe -->\n"
-            "- real.py\n"
-        )
-        self.assertEqual(scope_check.extract_expected_files(text), ["real.py"])
+    def test_extract_cases(self):
+        cases = [
+            ("no section → None", BRIEF_NO_SECTION, None),
+            ("empty section → []", BRIEF_EMPTY_SECTION, []),
+            (
+                "files-likely-to-change → bullets",
+                BRIEF_WITH_LIKELY,
+                ["src/server.py", "src/routes/", "*.md", "tests/test_hello.py"],
+            ),
+            ("scope heading also accepted", BRIEF_WITH_SCOPE_HEADING, ["src/foo.py"]),
+            ("case-insensitive heading", "## files Likely to change\n\n- foo.py\n", ["foo.py"]),
+            (
+                "skips html-comment placeholders",
+                "## Files likely to change\n\n"
+                "<!-- - <placeholder> — describe -->\n"
+                "- real.py\n",
+                ["real.py"],
+            ),
+        ]
+        for label, text, expected in cases:
+            self.assertEqual(
+                scope_check.extract_expected_files(text), expected, msg=label
+            )
 
 
 class TestDetectCreep(unittest.TestCase):
-    def test_exact_match(self):
-        self.assertEqual(
-            scope_check.detect_creep(["foo.py"], ["foo.py"]), []
-        )
+    """All call shape: detect_creep(expected, actual). Cases fold into one
+    test because each is one (expected, actual, creep) row."""
 
-    def test_finds_unexpected(self):
-        creep = scope_check.detect_creep(["foo.py"], ["foo.py", "bar.py"])
-        self.assertEqual(creep, ["bar.py"])
-
-    def test_prefix_match(self):
-        creep = scope_check.detect_creep(
-            ["src/routes/"], ["src/routes/hello.py", "src/routes/auth.py"]
-        )
-        self.assertEqual(creep, [])
-
-    def test_prefix_match_does_not_match_unrelated(self):
-        creep = scope_check.detect_creep(
-            ["src/routes/"], ["src/server.py"]
-        )
-        self.assertEqual(creep, ["src/server.py"])
-
-    def test_glob_match_extension(self):
-        creep = scope_check.detect_creep(
-            ["*.md"], ["README.md", "src/foo.py"]
-        )
-        self.assertEqual(creep, ["src/foo.py"])
-
-    def test_empty_expected_means_all_actual_creep(self):
-        creep = scope_check.detect_creep([], ["a.py", "b.py"])
-        self.assertEqual(creep, ["a.py", "b.py"])
-
-    def test_no_actual_means_no_creep(self):
-        self.assertEqual(scope_check.detect_creep(["a.py"], []), [])
-
-    def test_suffix_match_workbench_relative_expected(self):
-        # Brief author wrote a workbench-relative path; `git diff` emitted
-        # a worktree-root-relative path. They should match.
-        creep = scope_check.detect_creep(
-            ["lib/run_ids.py"],
-            ["agentic-development-task-system-v2__ai/agent-workbench-live/lib/run_ids.py"],
-        )
-        self.assertEqual(creep, [])
-
-    def test_suffix_match_worktree_relative_expected(self):
-        # The reverse direction: brief wrote the long path, diff is short.
-        creep = scope_check.detect_creep(
-            ["agentic-development-task-system-v2__ai/agent-workbench-live/lib/run_ids.py"],
-            ["lib/run_ids.py"],
-        )
-        self.assertEqual(creep, [])
-
-    def test_suffix_match_respects_slash_boundary(self):
-        # "foo.py" should NOT match "barfoo.py" — only a `/` separator counts.
-        creep = scope_check.detect_creep(["foo.py"], ["barfoo.py"])
-        self.assertEqual(creep, ["barfoo.py"])
+    def test_creep_cases(self):
+        cases = [
+            ("exact match → empty", ["foo.py"], ["foo.py"], []),
+            ("extra unexpected file is creep", ["foo.py"], ["foo.py", "bar.py"], ["bar.py"]),
+            (
+                "trailing-slash prefix covers nested files",
+                ["src/routes/"],
+                ["src/routes/hello.py", "src/routes/auth.py"],
+                [],
+            ),
+            (
+                "prefix does NOT cover unrelated paths",
+                ["src/routes/"],
+                ["src/server.py"],
+                ["src/server.py"],
+            ),
+            (
+                "glob *.md matches README but not src/foo.py",
+                ["*.md"],
+                ["README.md", "src/foo.py"],
+                ["src/foo.py"],
+            ),
+            ("empty expected → everything is creep", [], ["a.py", "b.py"], ["a.py", "b.py"]),
+            ("no actuals → no creep", ["a.py"], [], []),
+            (
+                "suffix match: workbench-relative expected, worktree-root actual",
+                ["lib/run_ids.py"],
+                ["agentic-development-task-system-v2__ai/agent-workbench-live/lib/run_ids.py"],
+                [],
+            ),
+            (
+                "suffix match: reverse direction",
+                ["agentic-development-task-system-v2__ai/agent-workbench-live/lib/run_ids.py"],
+                ["lib/run_ids.py"],
+                [],
+            ),
+            (
+                "suffix match respects /-boundary (foo.py does NOT match barfoo.py)",
+                ["foo.py"],
+                ["barfoo.py"],
+                ["barfoo.py"],
+            ),
+        ]
+        for label, expected, actual, creep in cases:
+            self.assertEqual(
+                scope_check.detect_creep(expected, actual), creep, msg=label
+            )
 
 
 if __name__ == "__main__":

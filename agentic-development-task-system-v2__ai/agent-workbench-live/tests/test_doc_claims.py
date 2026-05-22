@@ -59,34 +59,39 @@ SECTION_EMPTY_BODY = """\
 
 
 class TestExtract(unittest.TestCase):
-    def test_extract_three_bulleted_paths(self):
-        out = doc_claims.extract(SECTION_WITH_BULLETS)
-        self.assertEqual(out, ["README.md", "docs/api.md", "AGENTS.md"])
-
-    def test_extract_none_needed(self):
-        out = doc_claims.extract(SECTION_NONE_NEEDED)
-        self.assertIs(out, doc_claims.NONE_NEEDED)
-
-    def test_extract_absent_section_returns_empty(self):
-        self.assertEqual(doc_claims.extract(SECTION_ABSENT), [])
-
-    def test_extract_empty_body_returns_empty(self):
-        # Only an HTML comment in the section -> no claims, not none-needed.
-        self.assertEqual(doc_claims.extract(SECTION_EMPTY_BODY), [])
-
-    def test_extract_skips_template_placeholders(self):
-        text = (
-            "## Documentation touched\n\n"
-            "- <repo-relative path> — example placeholder\n"
-            "- (real-doc.md) — another placeholder shape\n"
-            "- actual.md — claimed update\n"
-        )
-        out = doc_claims.extract(text)
-        self.assertEqual(out, ["actual.md"])
-
-    def test_case_insensitive_heading(self):
-        text = "## documentation Touched\n\n- foo.md — bar\n"
-        self.assertEqual(doc_claims.extract(text), ["foo.md"])
+    def test_extract_cases(self):
+        # Most cases assert `extract(text) == expected`. NONE_NEEDED uses `is`
+        # because doc_claims exports it as a sentinel; we encode that as a
+        # special tuple shape (op, value).
+        cases = [
+            ("three bulleted paths",
+             SECTION_WITH_BULLETS,
+             ("eq", ["README.md", "docs/api.md", "AGENTS.md"])),
+            ("none-needed sentinel",
+             SECTION_NONE_NEEDED,
+             ("is", doc_claims.NONE_NEEDED)),
+            ("absent section → empty", SECTION_ABSENT, ("eq", [])),
+            ("empty body (html comment only) → empty", SECTION_EMPTY_BODY, ("eq", [])),
+            (
+                "skips template placeholders",
+                "## Documentation touched\n\n"
+                "- <repo-relative path> — example placeholder\n"
+                "- (real-doc.md) — another placeholder shape\n"
+                "- actual.md — claimed update\n",
+                ("eq", ["actual.md"]),
+            ),
+            (
+                "case-insensitive heading",
+                "## documentation Touched\n\n- foo.md — bar\n",
+                ("eq", ["foo.md"]),
+            ),
+        ]
+        for label, text, (op, expected) in cases:
+            out = doc_claims.extract(text)
+            if op == "eq":
+                self.assertEqual(out, expected, msg=label)
+            else:  # "is"
+                self.assertIs(out, expected, msg=label)
 
 
 class TestVerify(unittest.TestCase):
@@ -121,20 +126,21 @@ class TestVerify(unittest.TestCase):
         import shutil
         shutil.rmtree(self.repo, ignore_errors=True)
 
-    def test_verify_flags_unchanged_claim(self):
-        unverified = doc_claims.verify(["README.md", "src.py"], self.repo, "main")
-        self.assertEqual(unverified, ["README.md"])
-
-    def test_verify_empty_when_all_claims_changed(self):
-        unverified = doc_claims.verify(["src.py"], self.repo, "main")
-        self.assertEqual(unverified, [])
-
-    def test_verify_empty_input_returns_empty(self):
-        self.assertEqual(doc_claims.verify([], self.repo, "main"), [])
-
-    def test_verify_inconclusive_on_bad_ref(self):
-        # Bad ref -> git exits non-zero -> verify returns [] (inconclusive).
-        self.assertEqual(doc_claims.verify(["x.md"], self.repo, "no-such-ref"), [])
+    def test_verify_cases(self):
+        # Each case shares the git-repo fixture (one branch where src.py
+        # changed, README.md did not). Cases differ only in the
+        # (claims, base_ref) input and the expected `unverified` list.
+        cases = [
+            ("flags unchanged claim", ["README.md", "src.py"], "main", ["README.md"]),
+            ("empty when all claims actually changed", ["src.py"], "main", []),
+            ("empty input → empty output", [], "main", []),
+            # Bad ref → git exits non-zero → verify returns [] (inconclusive).
+            ("inconclusive on bad ref", ["x.md"], "no-such-ref", []),
+        ]
+        for label, claims, base_ref, expected in cases:
+            self.assertEqual(
+                doc_claims.verify(claims, self.repo, base_ref), expected, msg=label
+            )
 
 
 if __name__ == "__main__":

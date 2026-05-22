@@ -54,52 +54,60 @@ class TestExtract(unittest.TestCase):
 
 
 class TestValidate(unittest.TestCase):
-    def test_rejects_empty_file(self):
-        errs = followups.validate("")
-        self.assertEqual(len(errs), 1)
-        self.assertIn("no_followups", errs[0])
+    def test_rejects_bad_inputs(self):
+        # Each case is (label, text, expected_error_substring). Folded into
+        # one test because the call shape is identical: validate(text) → errs
+        # where errs[0] contains the substring (or, for sentinel-mix, any
+        # error contains it).
+        bad = [
+            ("empty file → no_followups required", "", "no_followups"),
+            (
+                "missing required keys",
+                "---\ntitle: missing-others\n---\n",
+                "missing required keys",
+            ),
+            (
+                "invalid category",
+                ENTRY.format(title="bad", category="not_a_real_category"),
+                "invalid category",
+            ),
+            (
+                "duplicate titles",
+                _doc(
+                    ENTRY.format(title="dup", category="docs"),
+                    ENTRY.format(title="dup", category="bug_risk"),
+                ),
+                "duplicate",
+            ),
+            (
+                "sentinel mixed with real entries",
+                _doc(
+                    ENTRY.format(title="real", category="tech_debt"),
+                    ENTRY.format(title="nothing", category="no_followups"),
+                ),
+                "sentinel",
+            ),
+        ]
+        for label, text, substr in bad:
+            errs = followups.validate(text)
+            self.assertTrue(
+                any(substr in e for e in errs),
+                msg=f"{label}: expected substring {substr!r} in {errs!r}",
+            )
 
-    def test_rejects_missing_required_key(self):
-        text = "---\ntitle: missing-others\n---\n"
-        errs = followups.validate(text)
-        self.assertEqual(len(errs), 1)
-        self.assertIn("missing required keys", errs[0])
-
-    def test_rejects_invalid_category(self):
-        text = ENTRY.format(title="bad", category="not_a_real_category")
-        errs = followups.validate(text)
-        self.assertEqual(len(errs), 1)
-        self.assertIn("invalid category", errs[0])
-
-    def test_rejects_duplicate_titles(self):
-        text = _doc(
-            ENTRY.format(title="dup", category="docs"),
-            ENTRY.format(title="dup", category="bug_risk"),
-        )
-        errs = followups.validate(text)
-        self.assertEqual(len(errs), 1)
-        self.assertIn("duplicate", errs[0])
-
-    def test_accepts_no_followups_sentinel(self):
-        text = ENTRY.format(title="nothing to surface", category="no_followups")
-        self.assertEqual(followups.validate(text), [])
-
-    def test_rejects_sentinel_mixed_with_real_entries(self):
-        text = _doc(
-            ENTRY.format(title="real", category="tech_debt"),
-            ENTRY.format(title="nothing", category="no_followups"),
-        )
-        errs = followups.validate(text)
-        self.assertTrue(any("sentinel" in e for e in errs))
-
-    def test_accepts_all_five_real_categories(self):
+    def test_accepts_valid_inputs(self):
+        # All cases share the assertion: validate(text) == [].
         cats = ["tech_debt", "scope_extension", "bug_risk", "refactor", "docs"]
-        text = _doc(*(ENTRY.format(title=f"t{i}", category=c) for i, c in enumerate(cats)))
-        self.assertEqual(followups.validate(text), [])
-
-    def test_accepts_deferred_from_bounce(self):
-        text = ENTRY.format(title="leftover", category="deferred_from_bounce")
-        self.assertEqual(followups.validate(text), [])
+        accepted = [
+            ("no_followups sentinel alone",
+             ENTRY.format(title="nothing to surface", category="no_followups")),
+            ("all five real categories",
+             _doc(*(ENTRY.format(title=f"t{i}", category=c) for i, c in enumerate(cats)))),
+            ("deferred_from_bounce category",
+             ENTRY.format(title="leftover", category="deferred_from_bounce")),
+        ]
+        for label, text in accepted:
+            self.assertEqual(followups.validate(text), [], msg=label)
 
 
 if __name__ == "__main__":

@@ -8,46 +8,32 @@ from lib import run_ids
 
 
 class TestExtractRunDate(unittest.TestCase):
-    def test_happy_path(self):
-        self.assertEqual(run_ids.extract_run_date("2026-05-21-foo"), "20260521")
+    def test_happy_paths(self):
+        cases = [
+            ("2026-05-21-foo", "20260521"),
+            ("2026-12-31-some-longer-slug-here", "20261231"),
+        ]
+        for run_id, expected in cases:
+            self.assertEqual(run_ids.extract_run_date(run_id), expected, msg=run_id)
 
-    def test_longer_slug(self):
-        self.assertEqual(
-            run_ids.extract_run_date("2026-12-31-some-longer-slug-here"),
-            "20261231",
-        )
-
-    def test_empty_string_raises(self):
-        with self.assertRaises(run_ids.NamingError):
-            run_ids.extract_run_date("")
-
-    def test_missing_date_prefix_raises(self):
-        with self.assertRaises(run_ids.NamingError):
-            run_ids.extract_run_date("foo-bar-baz")
-
-    def test_malformed_date_prefix_raises(self):
-        # Two-digit year — not the YYYY-MM-DD shape the regex requires.
-        with self.assertRaises(run_ids.NamingError):
-            run_ids.extract_run_date("99-99-99-foo")
-
-    def test_garbage_prefix_raises(self):
-        with self.assertRaises(run_ids.NamingError):
-            run_ids.extract_run_date("not-a-date-foo")
-
-    def test_no_trailing_hyphen_raises(self):
-        # The regex requires the trailing "-" so a bare date isn't a run_id.
-        with self.assertRaises(run_ids.NamingError):
-            run_ids.extract_run_date("2026-05-21")
+    def test_rejects_bad_inputs(self):
+        bad_inputs = [
+            "",                       # empty
+            "foo-bar-baz",            # no date prefix
+            "99-99-99-foo",           # two-digit year, wrong shape
+            "not-a-date-foo",         # garbage prefix
+            "2026-05-21",             # missing trailing hyphen (bare date isn't a run_id)
+        ]
+        for bad in bad_inputs:
+            with self.assertRaises(run_ids.NamingError, msg=bad):
+                run_ids.extract_run_date(bad)
 
 
 class TestSlugify(unittest.TestCase):
-    def test_empty_raises(self):
-        with self.assertRaises(run_ids.NamingError):
-            run_ids.slugify("")
-
-    def test_all_punctuation_raises(self):
-        with self.assertRaises(run_ids.NamingError):
-            run_ids.slugify("!!!---///")
+    def test_rejects_empty_or_punctuation(self):
+        for bad in ["", "!!!---///"]:
+            with self.assertRaises(run_ids.NamingError, msg=bad):
+                run_ids.slugify(bad)
 
     def test_lowercase_kebab(self):
         self.assertEqual(run_ids.slugify("Hello World"), "hello-world")

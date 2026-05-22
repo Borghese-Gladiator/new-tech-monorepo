@@ -69,19 +69,19 @@ b: 2
 """
         self.assertEqual(yaml_io.loads(text), {"a": 1, "b": 2})
 
-    def test_rejects_flow_style(self):
-        with self.assertRaises(yaml_io.YamlSubsetError):
-            yaml_io.loads("a: {b: 1}")
-        with self.assertRaises(yaml_io.YamlSubsetError):
-            yaml_io.loads("a: [1, 2]")
-
-    def test_rejects_multidoc(self):
-        with self.assertRaises(yaml_io.YamlSubsetError):
-            yaml_io.loads("---\na: 1\n---\nb: 2\n")
-
-    def test_rejects_tab_indent(self):
-        with self.assertRaises(yaml_io.YamlSubsetError):
-            yaml_io.loads("a:\n\tb: 1\n")
+    def test_rejects_unsupported_yaml(self):
+        # Every case is "loads(input) → YamlSubsetError". Folded into one test
+        # because the shape is identical; the label distinguishes the
+        # rejection branch when one regresses.
+        bad_inputs = [
+            ("flow-style mapping", "a: {b: 1}"),
+            ("flow-style sequence", "a: [1, 2]"),
+            ("multi-document stream", "---\na: 1\n---\nb: 2\n"),
+            ("tab indentation", "a:\n\tb: 1\n"),
+        ]
+        for label, text in bad_inputs:
+            with self.assertRaises(yaml_io.YamlSubsetError, msg=label):
+                yaml_io.loads(text)
 
     def test_round_trip_template_shape(self):
         data = {
