@@ -4,8 +4,6 @@ description: Brainstorm forward-looking candidates for FUTURE runs after a run f
 
 # /followups
 
-Context: `@context/meta/risk-and-approval.md`.
-
 LLM-bearing. Reads the just-finished run's artifacts and writes 1–5 forward-looking mini-briefs (or one explicit `no_followups` sentinel) to `follow-ups.md`. **Nothing is executed.** The output is a candidate list for future `/new-run` invocations.
 
 This is a separate stage from `validating` on purpose: validation is backward-looking ("did this run satisfy the brief?"), follow-ups are forward-looking ("what's the next bite worth taking?"). Mixing them biases the review.

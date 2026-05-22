@@ -4,8 +4,6 @@ description: Create a new Agent Workbench run from a repo path and an idea. Work
 
 # /new-run
 
-Context: `@context/meta/context-authoring.md`.
-
 Creates a run record in state `draft`. **No worktree is created here.** The `git worktree add` happens later in `/start`, after `/shape` and `/plan`.
 
 ## Required input from the user

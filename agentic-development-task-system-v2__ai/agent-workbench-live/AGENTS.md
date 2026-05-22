@@ -99,7 +99,7 @@ When you fan out work via Claude Code's Agent tool:
 
 ## Context library
 
-Conventions, safety defaults, and per-language quartets live under `context/`. Agents lazy-import individual files via `@context/path/to/file.md`; slash commands compose targeted imports rather than duplicating instructions inline.
+Conventions, safety defaults, and per-language quartets live under `context/`. Agents lazy-import individual files via `@context/path/to/file.md` on demand — pull in the leaf you need at the moment you need it.
 
 Start at `@context/README.md` — it indexes every file with one-line descriptions and import paths. Do not enumerate the library here; the index is the single source of truth and stays in sync as files are added or removed.
 

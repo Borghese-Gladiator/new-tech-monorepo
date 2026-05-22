@@ -13,7 +13,7 @@ Prefer focused imports. Each context file is one screen and follows the same fou
 
 ## Slash commands
 
-Project slash commands live under `agent-workbench-live/.claude/commands/`. They wrap the `agent-workbench` CLI for the LLM-bearing lifecycle stages (`/shape`, `/plan`, `/validate`, `/followups`) and the thin transitions (`/new-run`, `/start`, `/bounce`, `/complete`, `/abandon`). Each command names the context files it composes near the top.
+Project slash commands live under `agent-workbench-live/.claude/commands/`. They wrap the `agent-workbench` CLI for the LLM-bearing lifecycle stages (`/shape`, `/plan`, `/validate`, `/followups`) and the thin transitions (`/new-run`, `/start`, `/bounce`, `/complete`, `/abandon`). Commands do not pre-declare context imports — pull `@context/...` leaves as you need them.
 
 ## Where to read more
 
