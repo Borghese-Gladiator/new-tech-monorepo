@@ -1,62 +1,146 @@
 # TODO
+## 2. Human Review polish
 
-Next round of work after V1. Each section captures one idea — what it is, why we want it, and the concrete pieces to build.
+`HUMAN_REVIEW.md` is the human's landing page when a run moves into `human_review`, but today it's awkward to use:
 
-**Completed work, summarised at the top so this file shrinks over time:**
-
-- ✅ Renovate task workflow (originally §1; 1a–1g across four commits `d1d8b44`, `d5ee45e`, `90a3daf`, `827a06a`).
-- ✅ Better worktree name (originally §2 after renumbering; merged into `202605_agent_workbench_v2` from `agent/better-worktree-name-template`).
-- ✅ Numbered stage directories (originally §1 after this renumbering; `stages/1_draft/`, `2_shaping/`, …). Same dogfood pass cleared four follow-ups: scope_check path-prefix matching, `extract_run_date` unit tests, `show` rendering the `build:` block, multi-line ASM/DR body parsing.
-- ⚠️ Task board v0 (originally §1, commit `0fe9214`) — shipped a simple `agent-workbench board` / `/board` that prints a static text Kanban grouped by lifecycle state. Superseded by the live Textual TUI below (`f10b6d8`); the v0 contract survives as the `--static` fallback path.
-- ✅ Live task board — Textual TUI (originally §1 after renumbering, commit `f10b6d8`). `agent-workbench board` launches a full-screen Textual app over `runs/` with a watchdog file-watcher + 1Hz fallback timer; cards re-render on every `metadata.yaml` / `events.jsonl` change. Status-aware card bodies, loud-card highlighting, `--static` / `--compact` / `--all` / `--status` knobs. `textual` + `watchdog` shipped as a `[board]` optional-deps group (`requirements-board.txt`) — core CLI stays stdlib-only.
-- ✅ Live board card attributes (originally §2 after renumbering, commits `549c9aa` + `445f3cd` + `52926b5`). Eleven on-disk fields that the anemic v1 card body never surfaced now render status-aware: lifecycle state badge, scope kind, idle/`● live` signal, AC coverage (parsed from build.md), git diff shortstat (cached on `(run_id, updated_at)`), avg iteration time, bounce origin, followup category breakdown, repo-path tail, terminal-card `accepted_by`/`abandoned_reason`, worktree-existence flag, tests-recorded age. Dogfood (`445f3cd`, run `2026-05-22-s2-attrs`) drove a fresh `repair`-scope run through every column and surfaced one renderer bug — the static path's `human_review` branch missed the followups-category breakdown — fixed inline and locked in by a regression test (`52926b5`).
-- ✅ Live board — UX polish on the card layout (originally §1 after renumbering). Card now renders as five bands separated by `─` rules: title (slug bright + dim date prefix + state badge + scope + `● live`), meta (age-in-stage · age since update · total · repo · branch — dim), body (status-aware progress with severity-led reason), events (`[mm:ss ago] EventType detail`, fixed-width timestamp column), files (labelled `run` / `wt` lines, `$HOME → ~`, workbench root → `…`, off by default; `--verbose` opts in). Loudness graded: warning (`⚠`, yellow border) for known issues / recent error / worktree missing; blocking (`✕`, red border) for failing tests / builder-gave-up / stale `human_review`. Reason rendered as the first body line (`✕ tests failing`, `⚠ 2 known issues`). Each column gains a one-line subtitle pulled from `COLUMN_SUBTITLES` in `lib/board/source.py`. Twenty-four new tests across severity classification, path abbreviation, band content selection, event-timestamp format, the `--verbose` knob, and the column subtitle line. Suite is 188/188 green.
-- ✅ Automatic E2E testing (originally §1 after renumbering). New `lib/stub_llm.py` + `AGENT_WORKBENCH_STUB_LLM` env-var mode lets the four LLM-bearing CLI subcommands (`shape`, `plan`, `validate`, `followups`) copy canned artifacts from a fixture directory in lieu of authoring them with a model. Slash command bodies stay unchanged — the hook fires from inside each `--init` Bash step. Two fixture sets shipped under `tests/fixtures/e2e/`: `happy/` (single-pass run to `done`) and `bounce_pass1/` + `bounce_pass2/` (request-changes review on pass 1, accept on pass 2). New `tests/test_e2e.py` drives three scenarios: `TestE2EHappyPath` (full `new-run → complete`), `TestE2EBounceLoop` (full happy path + bounce + re-validate + complete, asserts archived `-v1` outputs and event-log counts per transition), and `TestE2EAbandon` (`*->abandoned` from draft / shaping / building). `tests/README.md` documents how to add a scenario. Five new tests; suite is 193/193 green.
-
-Order reflects priority: context graph, followup spawn, audit duplication.
-
----
-
-## 1. Context Graph
-
-Stop agents from repeatedly rediscovering project conventions (package manager, testing, Git safety, PR rules, infra/migration safety, bug triage) by adding a small opinionated context library under `agent-workbench-live/context/`. Agents lazy-import individual files via `@context/path/to/file.md`; slash commands compose targeted imports instead of duplicating instructions inline.
+- File pointers are relative (`stages/4_building/build.md`) — not clickable from a text editor.
+- The `human_review` transition surfaces the run id but not the path to `HUMAN_REVIEW.md` itself, so the reviewer has to hunt for it.
+- "Suggested first checks" reads like a manual QA script the reviewer is expected to run by hand; in reality validation already ran the tests — the reviewer wants the result, not the recipe.
+- "Run timeline" is too generic — every run says "draft created", "brief transcribed", "plan written". It never names *what* the brief said, *what* the plan decided, *what* the build delivered, or *what* the reviewer accepted.
+- No timestamps on the timeline, even though `events.jsonl` already carries ISO timestamps per event.
+- No table-of-contents at the top, so click-to-open in a text editor is friction-heavy.
 
 **Design principles**
 
-- Context files are conventions/safety/defaults, not workflows. Workflows belong in `.claude/commands/*`, which compose context files.
-- One concern per file, one screen max (~50 lines), example-heavy over prose, one default way ("it depends" is a smell).
-- Organized by concern: `meta`, `git`, `languages`, `infra`, `diagnostics`. No `context/workflows/` directory.
-- Every file follows the same template: `Applies when:` / `Do:` / `Do not:` / `Commands:`.
+- Treat `HUMAN_REVIEW.md` as a launchpad, not a checklist. Every interesting artifact should be one click away.
+- Prefer absolute paths in the rendered file (most editors only auto-link absolute paths). Pair them with a relative-path table-of-contents at the top so the file is still readable when checked in.
+- Trust validation. Surface *what was tested and what the result was*, not a script the human re-runs.
+- The timeline must answer "what changed at each stage?" — pull specifics from `events.jsonl` (`payload.summary`, artifact paths, decision evidence) rather than templated prose.
 
-**Directory layout**
+**Tasks**
+
+- [ ] **Surface the path on transition.** When a run moves into `human_review`, the slash command / CLI output (and the board card body) must print the absolute path to `HUMAN_REVIEW.md` so the reviewer can click it directly. Add a regression test that the `human_review` transition's stdout contains the absolute path.
+- [ ] **Table of contents.** Render a TOC block at the top of `HUMAN_REVIEW.md` with one row per linked artifact. Each row carries a relative path (readable on GitHub / in git diffs) **and** the absolute path on the same line (clickable from VS Code / terminal). Suggested shape:
+  ```markdown
+  ## Files
+  | Artifact | Relative | Absolute (click) |
+  | --- | --- | --- |
+  | Brief | `stages/2_shaping/brief.md` | `/Users/.../runs/<id>/stages/2_shaping/brief.md` |
+  | Plan | `stages/3_planning/plan.md` | `/Users/.../runs/<id>/stages/3_planning/plan.md` |
+  | Build (diffs + AC coverage) | `stages/4_building/build.md` | `/Users/.../runs/<id>/stages/4_building/build.md` |
+  | QA report | `stages/5_validating/qa/report.md` | `/Users/.../runs/<id>/stages/5_validating/qa/report.md` |
+  | Review decision | `stages/5_validating/review.md` | `/Users/.../runs/<id>/stages/5_validating/review.md` |
+  | Follow-ups | `stages/6_followups/follow-ups.md` | `/Users/.../runs/<id>/stages/6_followups/follow-ups.md` |
+  ```
+  Only list files that actually exist (e.g. omit `follow-ups.md` when the run hasn't reached `6_followups`).
+- [ ] **Change summary up top.** Replace "Where to start" with a `## Summary of changes` section: 3–5 bullets describing what the build delivered (files touched, ACs satisfied, test-count delta) followed by a single line `→ Full diff: <absolute path to build.md>`. The bullets are pulled from existing build.md fields (no new authoring step — this is a render-time projection of data the builder already wrote).
+- [ ] **Replace "Suggested first checks" with "Manual testing performed".** This section reports what `validate` already ran:
+  - Command (e.g. `python -m pytest tests/ -q`)
+  - Outcome (`193 passed, 0 failed` — read from `qa/report.md` / `events.jsonl`)
+  - One-line interpretation (`✓ all green` / `⚠ 2 known issues, see qa/report.md`)
+  No imperative steps for the human to execute. If a check genuinely needs human eyes (UI screenshot review, etc.), surface it in a separate `## Needs human verification` block, but keep it empty by default.
+- [ ] **Specific, timestamped run timeline.** Normalize each row to `[HH:MM:SS] STAGE — what specifically happened`. Pull `at` (existing ISO timestamp) and `payload.summary` / artifact paths from `events.jsonl`. Examples of the level of specificity wanted:
+  - `[05:38:49] SHAPING — brief.md written: "audit unit tests for duplication across 6 modules; preserve regression locks"`
+  - `[05:40:10] PLANNING — plan.md written: DR-001..DR-004 (combined-assertions folds; no prod changes; single-commit landing)`
+  - `[05:52:18] BUILDING — baseline 193 tests; after pruning 134 tests (−59)`
+  - `[06:11:02] VALIDATING — review.md decision: APPROVE; qa/report.md: 134 passed twice, 0 known issues`
+  - `[06:11:47] HUMAN_REVIEW — handed off`
+  Implementation note: extend the renderer to derive these rows from `events.jsonl` (`ArtifactWritten.payload.summary`, `TransitionApplied.from`/`to`, builder/validator events). Drop the freeform paragraph form entirely.
+- [ ] **Tests.** Snapshot test the rendered `HUMAN_REVIEW.md` for the existing `happy/` and `bounce_pass2/` E2E fixtures. Add a unit test for the timeline projector that asserts each row has a timestamp, a stage name, and a non-templated description (reject rows that match a denylist like `"template staged"` or `"draft created"` with no further detail).
+
+**Acceptance**
+
+- `HUMAN_REVIEW.md` opens with a Files table whose absolute-path column is click-to-open in VS Code and the terminal.
+- The `human_review` transition prints the absolute path to `HUMAN_REVIEW.md`.
+- No section instructs the human to run shell commands; the manual-testing section reports outcomes only.
+- Every timeline row is `[HH:MM:SS] STAGE — <specific description>`; none read like "brief transcribed" / "draft created" without further detail.
+- E2E snapshot tests cover the rendered output for happy and bounce scenarios.
+
+**Non-goals**
+
+Redesigning the review *decision* flow (`stages/5_validating/review.md`); changing what the builder writes into `build.md`; adding new event types to `events.jsonl` (this work only consumes existing fields).
+
+---
+
+## 3. Token Efficiency tracking
+
+Today we have no idea how expensive a run is. We don't know which stage burns the most tokens, whether bouncing through validation is a 2× or 10× tax, or which scope kinds (`implementation` vs `repair` vs `audit`) deliver the most accepted code per dollar. This work adds per-run token + cost + acceptance tracking — measurement only, no limits or budgets.
+
+The eight metrics, as the user proposed:
+
+1. `total_tokens_per_task` — sum of input + output + cache-read + cache-creation tokens across every Claude Code turn that fired inside the run's slash commands.
+2. `tokens_per_passing_build` — `total_tokens_per_task / number of validate passes that returned APPROVE`. Higher = more retries to get green.
+3. `first_pass_build_rate` — share of runs where the **first** `/validate` after the **first** `/build` returned APPROVE with no subsequent re-validation. Bounces (`request-changes`) and any post-validate session work that fed back into build / re-validate disqualify the run from "first pass." Computed at the **fleet** level (across runs), not per-run.
+4. `attempts_per_success` — for runs that reached `done`, the count of `/build` → `/validate` cycles. For runs that reached `abandoned`, the same count up to the abandon transition.
+5. `context_tokens_by_bucket` — input tokens broken out by where they came from. Initial buckets: `system_prompt`, `tool_defs`, `claude_md_and_agents_md`, `context_imports` (`@context/...` lazy-loads, once §1 lands), `slash_command_body`, `user_messages`, `assistant_history`, `tool_results`. Best-effort attribution from the transcript — fields that can't be cleanly separated go into `other` rather than being silently dropped.
+6. `accepted_lines / generated_lines`:
+   - `generated_lines` = **all** lines the agent wrote during the run across every draft, including discarded attempts. Sum of `+` lines across every `git diff` the builder produced, plus every artifact write captured in `events.jsonl` (`stages/*/*.md`, etc.), counted at write-time before any subsequent overwrite.
+   - `accepted_lines` = `+` lines from `git diff --numstat <base_ref>...<merge_commit>` measured **after** the worktree merges back to its base branch and is torn down. Only lines that actually landed in the destination branch count.
+   - A run that never merges has `accepted_lines = 0` regardless of how clean the build looked.
+7. `repair_tokens_per_task` — tokens consumed by turns inside `/validate` re-runs, `/build` re-entries after a bounce, and any post-`validate` session work that re-touched build artifacts. Effectively: total tokens minus tokens consumed by the first happy-path pass through each stage.
+8. **Total cost (generated)** and **Total cost (accepted)** — dollar cost of every token consumed during the run, computed against a per-model price table at the time the turn fired (Opus / Sonnet / Haiku input/output/cache-read/cache-creation rates). "Generated" = full cost of the run as it actually executed. "Accepted" = the same total, but only counted for runs whose terminal state is `done` (runs that ended in `abandoned` contribute `$0.00` to the accepted total at the fleet-level rollup). Replaces the original `cost_per_user_accepted_task` ratio — we want raw dollars in and dollars out, not a ratio.
+
+**Design principles**
+
+- Tracking only. No budgets, no thresholds, no warnings on the board. The data is for us to read, not for the system to enforce against.
+- Data source is the Claude Code transcript at `~/.claude/projects/<project-slug>/*.jsonl`. Every turn already carries `message.usage.input_tokens` / `output_tokens` / `cache_read_input_tokens` / `cache_creation_input_tokens` and a model id — we just need to correlate the transcript to a run.
+- Per-run `metrics.jsonl` is the source of truth (one file per run, append-only, mirrors `events.jsonl`). A workbench-level rollup at `agent-workbench-live/metrics/index.json` is regenerated on demand from the per-run files — never edited by hand.
+- Best-effort attribution. Where the transcript can't cleanly attribute a turn to a stage or a bucket, drop the value into an `other` bin rather than guessing. We'd rather under-report than mis-report.
+
+**Storage layout**
 
 ```text
-agent-workbench-live/context/
-  README.md
-  meta/{context-authoring,repo-discovery,risk-and-approval}.md
-  git/{commit,worktrees,draft-pr}.md
-  languages/python/{setup,dependencies,testing,quality}.md
-  languages/javascript-typescript/{setup,dependencies,testing,quality}.md
-  languages/go/{setup,dependencies,testing,quality}.md
-  infra/{secrets,shell,docker,ci,sql-migrations}.md
-  diagnostics/sentry-bug-triage.md
+agent-workbench-live/
+  metrics/
+    index.json            # workbench-level rollup (regenerated on demand)
+    prices.yaml           # per-model token prices, hand-edited
+  runs/<run-id>/
+    metrics.jsonl         # append-only, one row per turn / per measurement
+    metrics-summary.json  # derived from metrics.jsonl, regenerated on read
+```
+
+`metrics.jsonl` row shape (draft — finalize during implementation):
+
+```json
+{"schema_version": 1, "kind": "turn", "at": "...", "stage": "building", "command": "/build",
+ "model": "claude-opus-4-7", "usage": {"input": 12345, "output": 678, "cache_read": 90000, "cache_creation": 0},
+ "bucket_attribution": {"system_prompt": 800, "tool_defs": 1200, "context_imports": 400, "...": "..."},
+ "cost_usd": 0.0421, "transcript_ref": {"path": "...", "turn_id": "..."}}
+{"schema_version": 1, "kind": "build_outcome", "at": "...", "attempt": 1, "validate_result": "request-changes"}
+{"schema_version": 1, "kind": "line_count", "at": "...", "phase": "generated", "lines": 412}
+{"schema_version": 1, "kind": "line_count", "at": "...", "phase": "accepted", "lines": 287, "merge_commit": "abc1234"}
 ```
 
 **Tasks**
 
-- [ ] Inspect existing `AGENTS.md`, `CLAUDE.md`, `.claude/commands/*`, and repo conventions before authoring; preserve any defaults that already differ from the generic ones below.
-- [ ] Create the normalized directory tree under `agent-workbench-live/context/`.
-- [ ] **Meta** — `context-authoring.md` (naming, one-screen rule, when to split, examples > prose, when to inline vs. import, avoid workflow duplication); `repo-discovery.md` (detect language / package manager / test runner / CI / lint+format+typecheck commands; prefer repo-local scripts; example commands: `pwd`, `ls`, `find . -maxdepth 3 -name pyproject.toml -o -name package.json -o -name go.mod`, `find . -maxdepth 3 -name AGENTS.md -o -name CLAUDE.md -o -name Makefile`); `risk-and-approval.md` (ask before force-push / destructive deletes / destructive migrations; classify low/medium/high risk; prefer reversible operations).
-- [ ] **Git** — intent-oriented, not one file per porcelain command. `commit.md` (one logical change per commit, imperative ≤70-char subject, HEREDOC for multiline, never `--no-verify` without approval, never amend published commits unless approved). `worktrees.md` (`LOCAL_worktrees/` convention, cleanup expectations, always `pwd` + `git branch --show-current` + `git status --short` before Git ops). `draft-pr.md` (inspect diff, run validation + tests before PR, draft PRs for incomplete work, body = Summary + Test plan, never force-push to `main`).
-- [ ] **Languages** — same `setup` / `dependencies` / `testing` / `quality` quartet for each. **Python**: Poetry default; `bin/pytest` if present else `poetry run pytest`; `ruff check`, `ruff format --check`, `mypy`, `pytest`. **JS/TS** (directory `javascript-typescript`): Yarn default, no global installs, TS-first; `yarn lint` / `typecheck` / `build` / `test`; avoid `any`. **Go**: Go modules, `gofmt`, `go test ./...`, wrap errors with `%w`, small interfaces, no mutable package globals.
-- [ ] **Infra** — `secrets.md` (never commit secrets or `.env`, redact tokens in logs, no creds in PRs/issues/tests); `shell.md` (`set -euo pipefail`, quote variables, `mktemp`, guard destructive deletes); `docker.md` (multi-stage builds, `.dockerignore`, pinned bases, never `latest`, no baked secrets); `ci.md` (mirror CI checks locally, prefer repo scripts, never weaken CI to pass, document skipped checks); `sql-migrations.md` (backwards-compatible, expand-then-contract, backfill before `NOT NULL`, avoid long locks, never drop columns in the same release that stops writes).
-- [ ] **Diagnostics** — `sentry-bug-triage.md`: tool-agnostic (no Sentry CLI/API assumptions). Identify project/env/release, inspect frequency/impact, find first in-repo stack frame, correlate with recent deploys / dependency bumps, add regression tests after root-cause, never log sensitive data, never close issues without rationale.
-- [ ] Create `context/README.md` — primary discovery entrypoint. Lists every file with one-line description + `@context/...` import path, organized by section.
-- [ ] Wire `AGENTS.md`: add a section that references `@context/README.md`, explains lazy loading + composition by commands, does **not** inline the file list.
-- [ ] Wire `CLAUDE.md`: explain Claude Code's lazy `@context/...` resolution, prefer focused imports, reference `@context/README.md` + `@context/meta/repo-discovery.md` + `@context/meta/risk-and-approval.md`.
-- [ ] Update existing `.claude/commands/*` files to compose targeted imports (examples: validation → `@context/meta/repo-discovery.md` + `@context/git/draft-pr.md` + `@context/infra/ci.md`; Python implementation → `@context/languages/python/testing.md` + `@context/languages/python/quality.md` + `@context/git/worktrees.md`; Sentry triage → `@context/diagnostics/sentry-bug-triage.md` + `@context/git/draft-pr.md` + `@context/meta/risk-and-approval.md`).
-- [ ] Run formatting / lint / tests; confirm acceptance: every required file exists and follows the template, every file ≤~50 lines, no `context/workflows/` directory, `README.md` indexes every file, `AGENTS.md` + `CLAUDE.md` reference the library, relevant commands use targeted imports, existing repo conventions preserved over generic defaults.
+- [ ] **Transcript locator + correlator** — given a `run_id`, find the Claude Code transcript JSONL(s) that overlap the run's `created_at`..`updated_at` window for this project, and identify which turns belong to which slash command. Correlation strategy: match on the slash-command tool-use payload at turn start (`/shape`, `/plan`, `/build`, `/validate`, `/followups`) plus the run's working directory. Output a list of `(turn, stage, command)` tuples. Pure function over transcript bytes — no I/O in the unit tests; feed it fixture transcripts. Write at `lib/metrics/transcript.py`.
+- [ ] **Bucket attribution** — for each turn in the correlated list, attribute input tokens to one of the buckets enumerated above. Pull bucket boundaries from the transcript message structure (system prompt, tool defs in `tools`, user/assistant role markers, `@context/...` import expansions, tool-result blocks). Unattributable bytes fall into `other`. Write at `lib/metrics/buckets.py` with a fixture-driven test that covers every named bucket plus `other`.
+- [ ] **Price table** — author `agent-workbench-live/metrics/prices.yaml` with current Anthropic per-model rates (Opus 4.6 / 4.7, Sonnet 4.5 / 4.6, Haiku 4.5) split into `input_per_mtok`, `output_per_mtok`, `cache_read_per_mtok`, `cache_creation_per_mtok`. Loader at `lib/metrics/prices.py` validates the file shape and returns a `dict[model_id, Rates]`. Cost computation = sum of `(tokens * rate) / 1_000_000` per kind. Unknown model = warn and skip (no synthetic price).
+- [ ] **`metrics.jsonl` writer** — `lib/metrics/writer.py` with a single public `record_run_metrics(run_id) -> None` entry point. Walks the transcript via the correlator, attributes via the bucketer, prices via the table, and emits `metrics.jsonl` rows for every turn plus `build_outcome` rows (one per `/validate` result, read from `events.jsonl`). Idempotent: re-running on the same run replaces the file rather than appending duplicates.
+- [ ] **Line-count capture** — `lib/metrics/lines.py`. `generated_lines` is computed at run-completion time by walking `events.jsonl` for `ArtifactWritten` rows + git history of the worktree (`git log --numstat <branch>`). `accepted_lines` is computed at the merge boundary: when a run transitions to `done` and the worktree is torn down, capture `git diff --numstat <base_ref>...<merge_commit>` and write a `line_count` row. If the worktree is torn down without a merge commit (rare; record the case), `accepted_lines = 0`.
+- [ ] **Wire into the lifecycle** — call `record_run_metrics(run_id)` (a) after every `/validate` transition (so partial metrics exist for in-flight runs) and (b) at the terminal `done` / `abandoned` transition (so the file is final). Hook in via the existing transition machinery; do **not** ask slash commands to self-report.
+- [ ] **Per-run summary** — `lib/metrics/summary.py` reads `metrics.jsonl` and returns a `RunMetricsSummary` dataclass with all eight metric values. Cached on `(run_id, mtime(metrics.jsonl))`. Used by every downstream renderer.
+- [ ] **Workbench rollup** — `lib/metrics/rollup.py` walks every `runs/*/metrics.jsonl`, derives the cross-run metrics (`first_pass_build_rate` per scope kind, totals across scope kinds, dollars by month), and writes `agent-workbench-live/metrics/index.json`. Pure regeneration — never edits per-run files.
+- [ ] **CLI: `agent-workbench metrics`** — three forms:
+  - `agent-workbench metrics <run-id>` — prints the eight metrics for one run, plus a per-stage breakdown and the bucket histogram. Plain text by default; `--json` for machines.
+  - `agent-workbench metrics --all` — prints the workbench rollup (leaderboard ordered by `tokens_per_passing_build`, totals, first-pass rate per scope kind).
+  - `agent-workbench metrics --rebuild` — forces a rollup regeneration.
+- [ ] **HUMAN_REVIEW integration** — append a `## Token efficiency` block to the rendered `HUMAN_REVIEW.md` (coordinate with §2). One line per metric, plus a one-line cost summary (`generated: $X.XX · accepted: $Y.YY pending merge`). Only render the block when `metrics.jsonl` exists.
+- [ ] **Live board card band** — new band below the existing meta line, rendered as `tokens 12.3k · build 1/2 · $0.42`. **No loud-card behavior** based on budget thresholds — the user explicitly does not want budget enforcement. The band renders for every state once metrics exist; it's read-only telemetry.
+- [ ] **Tests** —
+  - Unit tests for `transcript.py` (fixture transcripts → expected turn list), `buckets.py` (every bucket + `other`), `prices.py` (valid file, malformed file, unknown model), `lines.py` (generated-only run, merged run, abandoned run).
+  - Integration test: drive the existing E2E `happy/` and `bounce_pass2/` fixtures through `record_run_metrics`, snapshot the resulting `metrics.jsonl`, assert summary values match hand-computed expectations.
+  - CLI smoke test for all three `agent-workbench metrics` forms.
+
+**Acceptance**
+
+- After any run reaches `human_review` or beyond, `runs/<id>/metrics.jsonl` exists and contains at least one `turn` row per Claude Code turn fired inside the run's slash commands.
+- `agent-workbench metrics <run-id>` prints all eight metrics for a finished run, with `accepted_lines` non-zero only after the worktree has merged.
+- `agent-workbench metrics --all` reports a fleet-level `first_pass_build_rate` (a percentage, not a per-run boolean).
+- `HUMAN_REVIEW.md` carries a `## Token efficiency` block for runs that have a `metrics.jsonl`.
+- The live board card shows the `tokens · build · $` band with no threshold-driven loudness.
+- E2E fixture runs (`happy/`, `bounce_pass2/`) produce snapshot-tested `metrics.jsonl` outputs.
 
 **Non-goals**
 
-Large workflow documents; one file per Git command; duplicated guidance; long-form architecture docs; tutorials; assuming tools the repo doesn't already use; Sentry-specific API integrations.
+Budgets, limits, or warnings; per-turn live metering (we batch at transition time from the transcript); supporting non-Claude-Code LLMs; price discovery — `prices.yaml` is hand-maintained; cross-project rollups — scope is this workbench only; cost-allocation per developer / team — run-level only.
