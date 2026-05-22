@@ -10,45 +10,13 @@ Next round of work after V1. Each section captures one idea — what it is, why 
 - ⚠️ Task board v0 (originally §1, commit `0fe9214`) — shipped a simple `agent-workbench board` / `/board` that prints a static text Kanban grouped by lifecycle state. Superseded by the live Textual TUI below (`f10b6d8`); the v0 contract survives as the `--static` fallback path.
 - ✅ Live task board — Textual TUI (originally §1 after renumbering, commit `f10b6d8`). `agent-workbench board` launches a full-screen Textual app over `runs/` with a watchdog file-watcher + 1Hz fallback timer; cards re-render on every `metadata.yaml` / `events.jsonl` change. Status-aware card bodies, loud-card highlighting, `--static` / `--compact` / `--all` / `--status` knobs. `textual` + `watchdog` shipped as a `[board]` optional-deps group (`requirements-board.txt`) — core CLI stays stdlib-only.
 - ✅ Live board card attributes (originally §2 after renumbering, commits `549c9aa` + `445f3cd` + `52926b5`). Eleven on-disk fields that the anemic v1 card body never surfaced now render status-aware: lifecycle state badge, scope kind, idle/`● live` signal, AC coverage (parsed from build.md), git diff shortstat (cached on `(run_id, updated_at)`), avg iteration time, bounce origin, followup category breakdown, repo-path tail, terminal-card `accepted_by`/`abandoned_reason`, worktree-existence flag, tests-recorded age. Dogfood (`445f3cd`, run `2026-05-22-s2-attrs`) drove a fresh `repair`-scope run through every column and surfaced one renderer bug — the static path's `human_review` branch missed the followups-category breakdown — fixed inline and locked in by a regression test (`52926b5`).
+- ✅ Live board — UX polish on the card layout (originally §1 after renumbering). Card now renders as five bands separated by `─` rules: title (slug bright + dim date prefix + state badge + scope + `● live`), meta (age-in-stage · age since update · total · repo · branch — dim), body (status-aware progress with severity-led reason), events (`[mm:ss ago] EventType detail`, fixed-width timestamp column), files (labelled `run` / `wt` lines, `$HOME → ~`, workbench root → `…`, off by default; `--verbose` opts in). Loudness graded: warning (`⚠`, yellow border) for known issues / recent error / worktree missing; blocking (`✕`, red border) for failing tests / builder-gave-up / stale `human_review`. Reason rendered as the first body line (`✕ tests failing`, `⚠ 2 known issues`). Each column gains a one-line subtitle pulled from `COLUMN_SUBTITLES` in `lib/board/source.py`. Twenty-four new tests across severity classification, path abbreviation, band content selection, event-timestamp format, the `--verbose` knob, and the column subtitle line. Suite is 188/188 green.
 
-Order reflects priority: board UX polish, E2E, context graph, followup spawn.
+Order reflects priority: E2E, context graph, followup spawn.
 
 ---
 
-## 1. Live board — UX polish on the card layout
-
-The Shogi dogfood (and the §2 work that surfaced the missing fields) made the second class of problems clear: the card is a wall of dim grey text with no visual hierarchy. A UX engineer would not let this through review. The data is there; the rendering needs structure.
-
-- [ ] **Card bands, separated by horizontal rules.** Today the card is a single Rich `Text` blob using `dim` for everything below the title. Restructure into four bands joined by `─` rules:
-  1. **Title band** — slug + state badge.
-  2. **Meta band** — age in stage · total age · repo · branch.
-  3. **Body band** — status-specific progress (build bar, tests/rev/qa marks, follow-up counts, etc.).
-  4. **Events band** — last 3 events with column-aligned timestamps.
-  5. **Files band** — labelled, abbreviated paths (see the path-formatting bullet below).
-
-  Each band answers exactly one question. The eye stops looking once it has the answer.
-- [ ] **Trim the title.** Run IDs are `YYYY-MM-DD-<slug>`. Six identical date characters lead every card. Render the slug bright + the date dim, or move the date into the meta band entirely so the title is just the slug.
-- [ ] **Column-aligned event timestamps.** Today each event line reads `ArtifactWritten · 4s ago`. Change to `[mm:ss ago] EventType detail` with the timestamp left-aligned in a fixed-width column. Gives the eye an anchor and makes ordering legible at a glance.
-- [ ] **Graded loudness.** Today any of {stale-review, max-iter, failing-tests, known-issues, recent-error} flips the same red border + same `!` marker. Split into two levels:
-  - **Warning** (yellow border, `⚠` marker): `known_issues > 0`, recent error, stale-but-not-blocking.
-  - **Blocking** (red border, `✕` marker): failing tests, builder gave up (`exit_reason == max_iterations`), stale-stuck `human_review`.
-  Surface the *reason* in one body line (`⚠ tests failing` / `✕ builder gave up 5/5`) so loudness is self-explaining.
-- [ ] **Column subtitle.** Under `followups (1)` add a one-line "brainstorm next bites"; under `validating` add "review + QA in flight"; etc. Helps a new reader without a glossary. Pull strings from a per-state constant in `lib/board/source.py`.
-- [ ] **Audit paths: label, abbreviate, separate.** Currently the run-dir + worktree paths render as two long dim-italic strings at the end of the card with no labels — on a 40-char card, a 130-char absolute path wraps into four indistinguishable lines. Fix:
-  - Label each path (`run` / `wt`).
-  - Replace `$HOME` with `~`; replace the workbench root with `…`. Reduces a typical line from ~140 chars to ~45.
-  - Place them in their own band separated by a horizontal rule.
-  - Layout target:
-    ```
-    ─── files ──────────────────────────────
-     run  ~/…/runs/2026-05-22-shogi-core
-     wt   ~/…/worktrees/repo/20260522__shogi-core
-    ```
-- [ ] **`--verbose` / `--no-paths` knob.** Most board sessions don't need absolute paths visible — the reviewer is watching state, not `cd`-ing around. Default the files band to *off* and add `--verbose` to opt in. (Alternative if simpler: drop the files band entirely from the default card and keep it in the `agent-workbench show <id>` text output where it already lives.)
-- [ ] **Don't let `dim` carry semantic weight.** Today the only contrast on the card body is "title bold / everything else dim". Use the default body style for primary content (events, body band) and reserve `dim` for actually-secondary text (meta band, files band). One axis of contrast doing one job.
-- [ ] Snapshot tests for the layout don't make sense (visual), but the renderer should have small unit tests that assert per-band content selection: e.g. given a snapshot with `followups_entry_count=5`, the body band string contains `5 follow-ups` and the events band starts with the youngest event's age.
-
-## 2. Automatic E2E testing
+## 1. Automatic E2E testing
 
 V1 has unit tests + integration tests that drive the CLI through the happy path / bounce / abandon. What's missing is a true end-to-end smoke that exercises the full LLM-bearing flow (`/shape`, `/plan`, `/validate`, `/followups`) against a real throwaway repo without a human in the loop.
 
@@ -61,9 +29,9 @@ V1 has unit tests + integration tests that drive the CLI through the happy path 
 - [ ] Add a second E2E that exercises the **bounce loop** (validate → followups → bounce → validate → followups → complete) and a third for **abandon** at a random non-terminal state.
 - [ ] Document how to add a new E2E scenario in `agent-workbench-live/tests/README.md`.
 
-## 3. Context Graph
+## 2. Context Graph
 
-## 4. Followup spawn (TODO §1f stretch, deferred)
+## 3. Followup spawn (TODO §1f stretch, deferred)
 
 The pass-3 Renovate work landed the `followups` stage but **deliberately did not implement** the `agent-workbench followup spawn` command. That command — create a new `draft` run pre-populated from a chosen mini-brief in a prior run's `follow-ups.md` — is the natural next step now that follow-ups are first-class.
 

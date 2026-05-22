@@ -13,12 +13,21 @@ Refresh model:
 
 The app does not maintain a stateful in-memory model of runs; every refresh
 re-reads disk via lib/board/snapshot.build. Cheap and correct trumps subtle.
+
+Card layout (non-compact):
+  title    — slug (bright) + dim date prefix + state badge + scope + live
+  meta     — age-in-stage · total age · repo · branch (dim)
+  body     — status-specific progress (build bar, tests/rev/qa, follow-ups, …)
+  events   — last 3 events, column-aligned timestamps
+  files    — labelled, abbreviated run / wt paths (off by default; --verbose)
+
+Bands are separated by ─ horizontal rules. Each band answers one question;
+the eye stops looking once it has the answer.
 """
 from __future__ import annotations
 
 import dataclasses
 import datetime as dt
-import pathlib
 from typing import Iterable
 
 from rich.text import Text
@@ -26,15 +35,23 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.message import Message
-from textual.reactive import reactive
-from textual.widget import Widget
 from textual.widgets import Footer, Header, Static
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from lib.board import snapshot as snapshot_mod
 from lib.board.snapshot import format_age
-from lib.board.source import COLUMN_ORDER, RunSnapshot, is_loud
+from lib.board.source import (
+    COLUMN_ORDER,
+    COLUMN_SUBTITLES,
+    SEVERITY_BLOCKING,
+    SEVERITY_WARNING,
+    RunSnapshot,
+    abbreviate_path,
+    is_loud,
+    severity,
+    severity_reason,
+)
 from lib.config import Config
 
 
@@ -42,87 +59,183 @@ from lib.config import Config
 # small padding without horizontal wrap inside the card.
 _CARD_WIDTH = 42
 
+# Timestamp column width inside the events band: `[12:34 ago]` is 11 chars.
+_EVENT_TS_WIDTH = 11
 
-# ---------- Rich-based card rendering ----------
 
-def _card_text(run: RunSnapshot, *, compact: bool) -> Text:
-    """Render one card as a Rich Text object.
+# ---------- Card-rendering primitives ----------
 
-    Status-aware: a draft card shows almost nothing; a building card
-    prioritizes iteration progress; a validating card prioritizes flags.
+def _band_rule(width: int = _CARD_WIDTH - 2) -> Text:
+    """Horizontal rule used to separate bands inside a card."""
+    return Text("─" * width, style="dim")
+
+
+def _trim_title_date(run_id: str) -> tuple[str, str]:
+    """Split ``YYYY-MM-DD-<slug>`` into (date, slug).
+
+    Six date chars + dashes lead every run_id; rendering them dim while
+    the slug stays bright lets the eye latch onto the unique part. If the
+    id doesn't match that shape we return ("", run_id) and let the caller
+    render the whole thing bright.
     """
-    loud = is_loud(run)
+    if len(run_id) >= 11 and run_id[4] == "-" and run_id[7] == "-" and run_id[10] == "-":
+        date = run_id[:10]
+        if date.replace("-", "").isdigit():
+            return date, run_id[11:]
+    return "", run_id
+
+
+def _format_event_ts(seconds: float) -> str:
+    """Compact ``[mm:ss ago]`` for the events column.
+
+    Falls back to the larger format_age (m/h/d) once the event is older
+    than 99 minutes so we keep a fixed-width column.
+    """
+    s = max(0, int(seconds))
+    if s < 60 * 100:
+        mins, secs = divmod(s, 60)
+        return f"[{mins:02d}:{secs:02d} ago]"
+    # Older: format_age returns "Nh" or "Nd"; pad to 11.
+    return f"[{format_age(seconds):>5} ago]"
+
+
+def _card_text(
+    run: RunSnapshot,
+    *,
+    compact: bool,
+    workbench_root: str | None,
+    show_paths: bool,
+) -> Text:
+    """Render one card as a Rich Text object."""
+    sev = severity(run)
     text = Text()
 
-    # Title line — run_id, status badge, optional scope kind, live marker.
-    marker = "! " if loud else ""
-    title_style = "bold red" if loud else "bold"
-    text.append(f"{marker}{run.run_id}", style=title_style)
+    if compact:
+        marker = ""
+        if sev == SEVERITY_BLOCKING:
+            marker = "✕ "
+        elif sev == SEVERITY_WARNING:
+            marker = "⚠ "
+        title_style = "bold"
+        if sev == SEVERITY_BLOCKING:
+            title_style = "bold red"
+        elif sev == SEVERITY_WARNING:
+            title_style = "bold yellow"
+        text.append(f"{marker}{run.run_id}", style=title_style)
+
+        bits = [format_age(run.age_seconds)]
+        if run.repo_name:
+            bits.append(run.repo_name)
+        if run.is_live:
+            bits.append("live")
+        reason = severity_reason(run)
+        if reason:
+            bits.append(reason)
+        text.append("  " + " · ".join(bits), style="dim")
+        return text
+
+    # --- Title band ---
+    _append_title_band(text, run, sev)
+
+    text.append("\n")
+    text.append_text(_band_rule())
+    text.append("\n")
+
+    # --- Meta band (dim) ---
+    _append_meta_band(text, run)
+
+    # --- Body band (default brightness) ---
+    body_lines = list(_status_body(run))
+    reason = severity_reason(run)
+    if reason and sev == SEVERITY_BLOCKING:
+        body_lines.insert(0, f"✕ {reason}")
+    elif reason and sev == SEVERITY_WARNING:
+        body_lines.insert(0, f"⚠ {reason}")
+    if body_lines:
+        text.append("\n")
+        text.append_text(_band_rule())
+        text.append("\n")
+        for ln in body_lines:
+            style = ""
+            if ln.startswith("✕"):
+                style = "red"
+            elif ln.startswith("⚠"):
+                style = "yellow"
+            text.append(ln, style=style)
+            text.append("\n")
+        # Strip the trailing newline so the next band can lead with its rule.
+        text.rstrip()
+
+    # --- Events band ---
+    if run.recent_events:
+        text.append("\n")
+        text.append_text(_band_rule())
+        text.append("\n")
+        for ev in run.recent_events:
+            ts = _format_event_ts(ev.age_seconds)
+            detail = f" {ev.detail}" if ev.detail else ""
+            text.append(f"{ts:<{_EVENT_TS_WIDTH}} {ev.type}{detail}\n")
+        text.rstrip()
+
+    # --- Files band (gated) ---
+    if show_paths and (run.run_dir or run.worktree_path):
+        text.append("\n")
+        text.append_text(_band_rule())
+        text.append("\n")
+        if run.run_dir:
+            text.append(
+                f"  run  {abbreviate_path(run.run_dir, workbench_root=workbench_root)}\n",
+                style="dim",
+            )
+        if run.worktree_path:
+            text.append(
+                f"  wt   {abbreviate_path(run.worktree_path, workbench_root=workbench_root)}\n",
+                style="dim",
+            )
+        text.rstrip()
+
+    return text
+
+
+def _append_title_band(text: Text, run: RunSnapshot, sev: str) -> None:
+    date, slug = _trim_title_date(run.run_id)
+    marker = ""
+    title_style = "bold"
+    if sev == SEVERITY_BLOCKING:
+        marker = "✕ "
+        title_style = "bold red"
+    elif sev == SEVERITY_WARNING:
+        marker = "⚠ "
+        title_style = "bold yellow"
+    if marker:
+        text.append(marker, style=title_style)
+    if date:
+        text.append(f"{date}-", style="dim")
+    text.append(slug, style=title_style)
     text.append(f"  [{run.status}]", style="dim")
     if run.scope_kind:
         text.append(f"  {run.scope_kind}", style="dim")
     if run.is_live:
         text.append("  ● live", style="green")
-    text.append("\n")
 
-    if compact:
-        bits = []
-        bits.append(format_age(run.age_seconds))
-        bits.append(run.repo_name)
-        if run.is_stale_human_review:
-            bits.append("stale")
-        if run.failing_tests:
-            bits.append("tests-fail")
-        if run.builder_gave_up:
-            bits.append("max-iter")
-        if run.worktree_missing:
-            bits.append("wt-missing")
-        text.append(" · ".join(b for b in bits if b))
-        return text
 
-    # Age / repo line.
-    text.append(f"{format_age(run.age_seconds)} since update", style="dim")
+def _append_meta_band(text: Text, run: RunSnapshot) -> None:
+    """Age-in-stage · total age · repo · branch — one line, dim."""
+    pieces: list[str] = []
+    if run.time_in_stage_seconds is not None:
+        pieces.append(f"{format_age(run.time_in_stage_seconds)} in stage")
+    pieces.append(f"{format_age(run.age_seconds)} since update")
+    if run.total_age_seconds > run.age_seconds + 1:
+        pieces.append(f"{format_age(run.total_age_seconds)} total")
     if run.repo_name:
-        text.append(f" · {run.repo_name}", style="dim")
-    text.append("\n")
-
-    # Show repo_path_tail when it adds info beyond repo_name (basename
-    # collisions across two repos called `repo`, for example).
-    if run.repo_path_tail and run.repo_path_tail != run.repo_name:
-        text.append(f"repo {run.repo_path_tail}\n", style="dim")
-
+        pieces.append(run.repo_name)
     if run.branch_name:
-        text.append(f"branch {run.branch_name}\n", style="dim")
-
-    # Stage-aware body.
-    body_lines = list(_status_body(run))
-    for ln in body_lines:
-        text.append(ln + "\n")
-
-    if run.worktree_missing:
-        text.append("! worktree missing\n", style="yellow")
-
-    # Last events tail.
-    if run.recent_events:
-        text.append("\nevents:\n", style="dim")
-        for ev in run.recent_events:
-            line = f"  {ev.type}"
-            if ev.detail:
-                line += f" {ev.detail}"
-            line += f" · {format_age(ev.age_seconds)}\n"
-            text.append(line, style="dim")
-
-    # Audit links.
-    if run.run_dir:
-        text.append(f"\n{run.run_dir}\n", style="dim italic")
-    if run.worktree_path:
-        text.append(f"{run.worktree_path}\n", style="dim italic")
-
-    return text
+        pieces.append(run.branch_name)
+    text.append(" · ".join(pieces), style="dim")
 
 
 def _status_body(run: RunSnapshot) -> Iterable[str]:
-    """Yield status-specific body lines (not including title/age/branch)."""
+    """Yield status-specific body lines (not including title/meta)."""
     if run.status == "draft":
         return
     if run.status == "building":
@@ -135,8 +248,6 @@ def _status_body(run: RunSnapshot) -> Iterable[str]:
             yield f"avg {format_age(run.avg_iteration_seconds)}/iter"
         if run.build_md_exists:
             yield "build.md present"
-        if run.builder_gave_up:
-            yield "! builder gave up (max_iterations)"
         if run.bounced_from:
             age = (
                 format_age(run.bounced_at_age_seconds)
@@ -144,8 +255,6 @@ def _status_body(run: RunSnapshot) -> Iterable[str]:
             )
             yield f"↩ bounced from {run.bounced_from} · {age} ago"
         if run.recent_bounce_reason and not run.bounced_from:
-            # Surface the most recent reason even when the latest transition
-            # wasn't a bounce (e.g., a reviewer asked for changes earlier).
             yield f"bounced: {run.recent_bounce_reason}"
         for line in _diff_lines(run):
             yield line
@@ -175,17 +284,15 @@ def _status_body(run: RunSnapshot) -> Iterable[str]:
         return
     if run.status == "followups":
         if run.followups_entry_count is not None:
-            yield f"follow-ups: {run.followups_entry_count}"
+            yield f"{run.followups_entry_count} follow-ups"
         for line in _followups_breakdown(run):
             yield line
         return
     if run.status == "human_review":
-        if run.is_stale_human_review:
-            yield f"! stale {format_age(run.age_seconds)}"
         if run.bounce_count:
             yield f"bounces: {run.bounce_count}"
         if run.followups_entry_count is not None:
-            yield f"follow-ups: {run.followups_entry_count}"
+            yield f"{run.followups_entry_count} follow-ups"
         for line in _followups_breakdown(run):
             yield line
         return
@@ -199,8 +306,6 @@ def _status_body(run: RunSnapshot) -> Iterable[str]:
         if run.abandoned_reason:
             yield f"abandoned: {run.abandoned_reason}"
         return
-    # Other states (shaping, planning, ready) currently add no extra
-    # lines; identity + age suffice.
     return
 
 
@@ -249,15 +354,30 @@ class RunCard(Static):
         margin: 0 0 1 0;
         border: tall $surface;
     }
-    RunCard.-loud {
+    RunCard.-warning {
+        border: tall yellow;
+    }
+    RunCard.-blocking {
         border: tall red;
     }
     """
 
-    def __init__(self, run: RunSnapshot, *, compact: bool):
-        super().__init__(_card_text(run, compact=compact))
-        if is_loud(run):
-            self.add_class("-loud")
+    def __init__(
+        self,
+        run: RunSnapshot,
+        *,
+        compact: bool,
+        workbench_root: str | None,
+        show_paths: bool,
+    ):
+        super().__init__(_card_text(
+            run, compact=compact, workbench_root=workbench_root, show_paths=show_paths,
+        ))
+        sev = severity(run)
+        if sev == SEVERITY_BLOCKING:
+            self.add_class("-blocking")
+        elif sev == SEVERITY_WARNING:
+            self.add_class("-warning")
 
 
 class StatusColumn(Vertical):
@@ -270,7 +390,7 @@ class StatusColumn(Vertical):
         padding: 0 1;
     }
     StatusColumn > .column-header {
-        height: 2;
+        height: 3;
         content-align: left middle;
     }
     StatusColumn > ScrollableContainer {
@@ -288,20 +408,43 @@ class StatusColumn(Vertical):
         yield self._header
         yield self._body
 
-    def update_column(self, runs: tuple[RunSnapshot, ...], *, compact: bool) -> None:
-        loud = any(is_loud(r) for r in runs)
-        marker = " !" if loud else ""
+    def update_column(
+        self,
+        runs: tuple[RunSnapshot, ...],
+        *,
+        compact: bool,
+        workbench_root: str | None,
+        show_paths: bool,
+    ) -> None:
+        worst = SEVERITY_WARNING if any(severity(r) == SEVERITY_WARNING for r in runs) else ""
+        if any(severity(r) == SEVERITY_BLOCKING for r in runs):
+            worst = SEVERITY_BLOCKING
+        marker = ""
+        marker_style = "dim"
+        if worst == SEVERITY_BLOCKING:
+            marker = " ✕"
+            marker_style = "red"
+        elif worst == SEVERITY_WARNING:
+            marker = " ⚠"
+            marker_style = "yellow"
         header = Text()
         header.append(self.status, style="bold")
-        header.append(f"  ({len(runs)}){marker}", style="dim")
+        header.append(f"  ({len(runs)})", style="dim")
+        if marker:
+            header.append(marker, style=marker_style)
+        sub = COLUMN_SUBTITLES.get(self.status)
+        if sub:
+            header.append(f"\n{sub}", style="dim italic")
         self._header.update(header)
 
-        # Replace body children. Textual's remove() is async-friendly via
-        # `await` but for a re-render we want a clean swap; use the sync
-        # mount-by-rebuild pattern.
         self._body.remove_children()
         for r in runs:
-            self._body.mount(RunCard(r, compact=compact))
+            self._body.mount(RunCard(
+                r,
+                compact=compact,
+                workbench_root=workbench_root,
+                show_paths=show_paths,
+            ))
 
 
 # ---------- Watchdog -> Textual bridge ----------
@@ -336,6 +479,7 @@ class BoardOptions:
     show_all: bool = False
     only_status: str | None = None
     compact: bool = False
+    show_paths: bool = False
 
 
 class AgentBoardApp(App):
@@ -365,6 +509,7 @@ class AgentBoardApp(App):
         self._opts = opts
         self._observer: Observer | None = None
         self._columns: dict[str, StatusColumn] = {}
+        self._workbench_root = str(cfg.root)
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -407,9 +552,6 @@ class AgentBoardApp(App):
             only_status=self._opts.only_status,
         )
 
-        # Visible set: when filtering by status, only that one column shows;
-        # otherwise show every canonical column whose count > 0, plus any
-        # column the user asked about.
         visible_statuses = {c.status for c in snap.visible_columns()}
         if self._opts.only_status:
             visible_statuses = {self._opts.only_status}
@@ -417,7 +559,12 @@ class AgentBoardApp(App):
         for status, col in self._columns.items():
             column = next((c for c in snap.columns if c.status == status), None)
             runs = column.runs if column else ()
-            col.update_column(runs, compact=self._opts.compact)
+            col.update_column(
+                runs,
+                compact=self._opts.compact,
+                workbench_root=self._workbench_root,
+                show_paths=self._opts.show_paths,
+            )
             col.display = (status in visible_statuses) or bool(runs)
 
         # Update the header subtitle with timestamp + total runs.

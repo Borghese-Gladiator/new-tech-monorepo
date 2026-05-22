@@ -183,8 +183,10 @@ class TestStaleHumanReviewStatic(BoardCase):
 
         self.assertIn("r-fresh", r.stdout)
         self.assertIn("r-stale", r.stdout)
-        self.assertIn("! r-stale", r.stdout)
-        self.assertNotIn("! r-fresh", r.stdout)
+        # stale_human_review is a blocking-severity flag → ✕ marker.
+        self.assertIn("✕ r-stale", r.stdout)
+        self.assertNotIn("✕ r-fresh", r.stdout)
+        self.assertNotIn("⚠ r-fresh", r.stdout)
 
         self.assertIn("Stale human_review:", r.stdout)
         footer_start = r.stdout.find("Stale human_review:")
@@ -276,8 +278,8 @@ class TestStaticCardStack(unittest.TestCase):
 
     def test_human_review_includes_followups_category_breakdown(self):
         """Regression: the dogfood run (2026-05-22-s2-attrs) showed that
-        the static renderer's `human_review` branch wrote `follow-ups: 3`
-        but skipped the per-category breakdown lines. The Textual
+        the static renderer's `human_review` branch wrote the follow-up
+        count but skipped the per-category breakdown lines. The Textual
         renderer was already correct via the shared helper; the static
         path drifted. Lock the fix in so it can't silently regress."""
         from lib.cli.cmd_board import _static_card_stack
@@ -293,7 +295,7 @@ class TestStaticCardStack(unittest.TestCase):
         )
         lines = _static_card_stack(run)
         body = "\n".join(lines)
-        self.assertIn("follow-ups: 3", body)
+        self.assertIn("3 follow-ups", body)
         self.assertIn("1 scope_extension", body)
         self.assertIn("1 bug_risk", body)
         self.assertIn("1 docs", body)
@@ -310,7 +312,7 @@ class TestStaticCardStack(unittest.TestCase):
             followups_categories=(("tech_debt", 2),),
         )
         body = "\n".join(_static_card_stack(run))
-        self.assertIn("follow-ups: 2", body)
+        self.assertIn("2 follow-ups", body)
         self.assertIn("2 tech_debt", body)
 
     def test_human_review_without_followups_omits_lines(self):
@@ -319,7 +321,238 @@ class TestStaticCardStack(unittest.TestCase):
 
         run = _make_snapshot(status="human_review")
         body = "\n".join(_static_card_stack(run))
-        self.assertNotIn("follow-ups:", body)
+        self.assertNotIn("follow-ups", body)
+
+
+class TestSeverityClassification(unittest.TestCase):
+    """Lock in the warning vs blocking split — TODO §1 graded loudness."""
+
+    def test_failing_tests_is_blocking(self):
+        from lib.board.source import severity, severity_reason, SEVERITY_BLOCKING
+
+        run = _make_snapshot(status="validating", failing_tests=True)
+        self.assertEqual(severity(run), SEVERITY_BLOCKING)
+        self.assertEqual(severity_reason(run), "tests failing")
+
+    def test_builder_gave_up_is_blocking_with_iteration_count(self):
+        from lib.board.source import severity, severity_reason, SEVERITY_BLOCKING
+
+        run = _make_snapshot(
+            status="building",
+            builder_gave_up=True,
+            build_iterations=5,
+            build_max_iterations=5,
+        )
+        self.assertEqual(severity(run), SEVERITY_BLOCKING)
+        self.assertEqual(severity_reason(run), "builder gave up 5/5")
+
+    def test_stale_human_review_is_blocking(self):
+        from lib.board.source import severity, severity_reason, SEVERITY_BLOCKING
+
+        run = _make_snapshot(status="human_review", is_stale_human_review=True)
+        self.assertEqual(severity(run), SEVERITY_BLOCKING)
+        self.assertEqual(severity_reason(run), "stale human_review")
+
+    def test_known_issues_is_warning_only(self):
+        from lib.board.source import severity, severity_reason, SEVERITY_WARNING
+
+        run = _make_snapshot(
+            status="validating",
+            has_known_issues=True,
+            known_issues_count=2,
+        )
+        self.assertEqual(severity(run), SEVERITY_WARNING)
+        self.assertEqual(severity_reason(run), "2 known issues")
+
+    def test_recent_error_is_warning(self):
+        from lib.board.source import severity, SEVERITY_WARNING
+
+        run = _make_snapshot(status="building", has_recent_error=True)
+        self.assertEqual(severity(run), SEVERITY_WARNING)
+
+    def test_worktree_missing_is_warning(self):
+        from lib.board.source import severity, SEVERITY_WARNING
+
+        run = _make_snapshot(status="building", worktree_missing=True)
+        self.assertEqual(severity(run), SEVERITY_WARNING)
+
+    def test_failing_tests_wins_over_known_issues(self):
+        """When both flags are on, severity is the strictest level."""
+        from lib.board.source import severity, SEVERITY_BLOCKING
+
+        run = _make_snapshot(
+            status="validating",
+            failing_tests=True,
+            has_known_issues=True,
+            known_issues_count=4,
+        )
+        self.assertEqual(severity(run), SEVERITY_BLOCKING)
+
+    def test_quiet_run_has_no_severity(self):
+        from lib.board.source import severity, severity_reason, SEVERITY_NONE
+
+        run = _make_snapshot(status="building")
+        self.assertEqual(severity(run), SEVERITY_NONE)
+        self.assertIsNone(severity_reason(run))
+
+
+class TestPathAbbreviation(unittest.TestCase):
+    def test_workbench_root_replaced_with_ellipsis(self):
+        from lib.board.source import abbreviate_path
+
+        result = abbreviate_path(
+            "/Users/dev/wb/runs/2026-05-22-shogi",
+            workbench_root="/Users/dev/wb",
+            home="/Users/dev",
+        )
+        self.assertEqual(result, "…/runs/2026-05-22-shogi")
+
+    def test_workbench_root_wins_over_home(self):
+        """The workbench is more relevant context than $HOME."""
+        from lib.board.source import abbreviate_path
+
+        result = abbreviate_path(
+            "/Users/dev/wb/runs/x",
+            workbench_root="/Users/dev/wb",
+            home="/Users/dev",
+        )
+        self.assertTrue(result.startswith("…/"))
+
+    def test_home_replaced_when_no_workbench_match(self):
+        from lib.board.source import abbreviate_path
+
+        result = abbreviate_path(
+            "/Users/dev/elsewhere/repo",
+            workbench_root="/Users/dev/wb",
+            home="/Users/dev",
+        )
+        self.assertEqual(result, "~/elsewhere/repo")
+
+    def test_empty_input_returns_empty(self):
+        from lib.board.source import abbreviate_path
+
+        self.assertEqual(abbreviate_path(""), "")
+
+
+class TestStaticCardBands(unittest.TestCase):
+    """Per-band content selection for the static renderer."""
+
+    def test_blocking_severity_marker_in_title(self):
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(status="validating", failing_tests=True, tests_passed=False)
+        lines = _static_card_stack(run)
+        self.assertTrue(lines[0].startswith("✕ "), lines[0])
+
+    def test_warning_severity_marker_in_title(self):
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(status="building", has_recent_error=True)
+        lines = _static_card_stack(run)
+        self.assertTrue(lines[0].startswith("⚠ "), lines[0])
+
+    def test_quiet_card_has_no_severity_marker(self):
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(status="building")
+        # First line is the title; no severity prefix.
+        self.assertNotIn("✕", _static_card_stack(run)[0])
+        self.assertNotIn("⚠", _static_card_stack(run)[0])
+
+    def test_severity_reason_appears_in_body(self):
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(status="validating", failing_tests=True, tests_passed=False)
+        body = "\n".join(_static_card_stack(run))
+        self.assertIn("✕ tests failing", body)
+
+    def test_meta_band_includes_repo_and_branch(self):
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(
+            status="building", repo_name="alpha", branch_name="agent/x",
+            age_seconds=600.0,
+        )
+        body = "\n".join(_static_card_stack(run))
+        self.assertIn("alpha", body)
+        self.assertIn("agent/x", body)
+
+    def test_files_band_off_by_default(self):
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(
+            status="building",
+            run_dir="/Users/dev/wb/runs/r-x",
+            worktree_path="/Users/dev/wb/worktrees/r/x",
+        )
+        body = "\n".join(_static_card_stack(run))
+        # Without show_paths, the labels are not rendered.
+        self.assertNotIn("  run  ", body)
+        self.assertNotIn("  wt   ", body)
+
+    def test_files_band_renders_when_show_paths(self):
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(
+            status="building",
+            run_dir="/Users/dev/wb/runs/r-x",
+            worktree_path="/Users/dev/wb/worktrees/r/x",
+        )
+        body = "\n".join(_static_card_stack(
+            run, workbench_root="/Users/dev/wb", show_paths=True,
+        ))
+        self.assertIn("  run  …/runs/r-x", body)
+        self.assertIn("  wt   …/worktrees/r/x", body)
+
+    def test_events_band_uses_column_aligned_mmss_timestamps(self):
+        """[mm:ss ago] timestamps render in a fixed-width column."""
+        from lib.board.source import EventSummary
+        from lib.cli.cmd_board import _static_card_stack
+
+        events = (
+            EventSummary(at="", age_seconds=12.0, type="ArtifactWritten", detail="build.md"),
+            EventSummary(at="", age_seconds=185.0, type="TransitionApplied", detail="ready -> building"),
+        )
+        run = _make_snapshot(status="building", recent_events=events)
+        body = "\n".join(_static_card_stack(run))
+        self.assertIn("[00:12 ago] ArtifactWritten build.md", body)
+        self.assertIn("[03:05 ago] TransitionApplied ready -> building", body)
+
+    def test_followup_count_uses_n_follow_ups_phrasing(self):
+        """The body band's 'one question per band' rule prefers the
+        natural-reading 'N follow-ups' over the labelled 'follow-ups: N'.
+        Lock in this phrasing so the renderer + the TODO bullet stay in
+        sync."""
+        from lib.cli.cmd_board import _static_card_stack
+
+        run = _make_snapshot(status="followups", followups_entry_count=5)
+        body = "\n".join(_static_card_stack(run))
+        self.assertIn("5 follow-ups", body)
+
+
+class TestStaticHeaderSubtitle(BoardCase):
+    def test_column_subtitle_present(self):
+        write_run(self.tmp, "r-build", status="building", repo_name="alpha")
+        r = cli(self.tmp, "board", "--static")
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        # Subtitle text comes from COLUMN_SUBTITLES["building"].
+        self.assertIn("agent inside the worktree", r.stdout)
+
+
+class TestStaticVerbosePaths(BoardCase):
+    def test_default_hides_paths_band_in_static(self):
+        write_run(self.tmp, "r-build", status="building", repo_name="alpha")
+        r = cli(self.tmp, "board", "--static")
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertNotIn("  run  ", r.stdout)
+        self.assertNotIn("  wt   ", r.stdout)
+
+    def test_verbose_shows_paths_band(self):
+        write_run(self.tmp, "r-build", status="building", repo_name="alpha")
+        r = cli(self.tmp, "board", "--static", "--verbose")
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("  run  ", r.stdout)
+        self.assertIn("  wt   ", r.stdout)
 
 
 if __name__ == "__main__":

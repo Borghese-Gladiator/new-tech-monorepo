@@ -48,6 +48,28 @@ COLUMN_ORDER: tuple[str, ...] = (
 TERMINAL_STATES: tuple[str, ...] = ("done", "abandoned")
 
 
+# One-line subtitle per lifecycle column. Lets a new reader figure out
+# what a column means without a glossary.
+COLUMN_SUBTITLES: dict[str, str] = {
+    "draft": "raw ideas, ready to shape",
+    "shaping": "brief in flight",
+    "planning": "writing plan + assumptions",
+    "ready": "awaiting human green light",
+    "building": "agent inside the worktree",
+    "validating": "self-review + QA",
+    "followups": "brainstorm next bites",
+    "human_review": "review + QA in flight",
+    "done": "accepted, closed",
+    "abandoned": "stopped intentionally",
+}
+
+
+# Two loudness tiers.
+SEVERITY_NONE = ""
+SEVERITY_WARNING = "warning"
+SEVERITY_BLOCKING = "blocking"
+
+
 @dataclasses.dataclass(frozen=True)
 class EventSummary:
     """One line of recent activity rendered on a card."""
@@ -616,10 +638,66 @@ def stale_threshold_seconds(cfg: Config) -> int:
 
 def is_loud(run: RunSnapshot) -> bool:
     """Cards that should get a red bar / loud column marker."""
-    return (
-        run.is_stale_human_review
-        or run.builder_gave_up
-        or run.failing_tests
-        or run.has_known_issues
-        or run.has_recent_error
-    )
+    return severity(run) != SEVERITY_NONE
+
+
+def severity(run: RunSnapshot) -> str:
+    """Return SEVERITY_BLOCKING, SEVERITY_WARNING, or SEVERITY_NONE.
+
+    Blocking = a human must act before this run can move (failing tests,
+    builder gave up, stale-stuck human_review). Warning = the run is
+    moving but something deserves a look (known issues, recent error,
+    worktree gone missing).
+    """
+    if run.failing_tests:
+        return SEVERITY_BLOCKING
+    if run.builder_gave_up:
+        return SEVERITY_BLOCKING
+    if run.is_stale_human_review:
+        return SEVERITY_BLOCKING
+    if run.has_known_issues:
+        return SEVERITY_WARNING
+    if run.has_recent_error:
+        return SEVERITY_WARNING
+    if run.worktree_missing:
+        return SEVERITY_WARNING
+    return SEVERITY_NONE
+
+
+def severity_reason(run: RunSnapshot) -> str | None:
+    """One-line human-readable reason for the current severity. None if quiet."""
+    if run.failing_tests:
+        return "tests failing"
+    if run.builder_gave_up:
+        mx = run.build_max_iterations or "?"
+        cur = run.build_iterations if run.build_iterations is not None else mx
+        return f"builder gave up {cur}/{mx}"
+    if run.is_stale_human_review:
+        return "stale human_review"
+    if run.has_known_issues:
+        n = run.known_issues_count
+        return f"{n} known issue{'s' if n != 1 else ''}"
+    if run.has_recent_error:
+        return "recent error recorded"
+    if run.worktree_missing:
+        return "worktree missing"
+    return None
+
+
+def abbreviate_path(path: str, *, workbench_root: str | None = None, home: str | None = None) -> str:
+    """Compress a path for card display.
+
+    Replaces the workbench root with ``…`` and the user's home with ``~``.
+    Workbench substitution wins when the workbench is nested inside home,
+    because the user is more often inside the workbench than at $HOME.
+    """
+    if not path:
+        return ""
+    import os
+    s = path
+    home = home if home is not None else os.path.expanduser("~")
+    if workbench_root and s.startswith(workbench_root.rstrip("/")):
+        s = "…" + s[len(workbench_root.rstrip("/")):]
+    elif home and s.startswith(home.rstrip("/")):
+        s = "~" + s[len(home.rstrip("/")):]
+    return s
