@@ -64,5 +64,5 @@ The only reason to skip is if the change genuinely doesn't touch infrastructure 
 
 ## Related conventions
 
-- `~/.claude/CLAUDE.md` (user global): write a `plan.md` at the repo root before any non-trivial change. That's a session-local scratch file — separate from this LOG/TODO contract. Both apply.
 - `agent-workbench-live/AGENTS.md`: governs in-run behavior (the lifecycle rules, only-`draft`-asks-questions, only-`transitions.transition`-writes-status). That file is what you read if you're inside a `/shape` / `/plan` / `/validate` invocation.
+- The global `~/.claude/CLAUDE.md` instruction to write a root-level `plan.md` before non-trivial changes does **not** apply to runs. Runs hold their full plan inside `runs/<run_id>/plan.md` (written by `/plan`); that is the authoritative plan, and no second `plan.md` belongs at the repo root.
