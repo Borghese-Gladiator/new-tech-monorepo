@@ -9,7 +9,7 @@ Next round of work after V1. Each section captures one idea — what it is, why 
 - ✅ Numbered stage directories (originally §1 after this renumbering; `stages/1_draft/`, `2_shaping/`, …). Same dogfood pass cleared four follow-ups: scope_check path-prefix matching, `extract_run_date` unit tests, `show` rendering the `build:` block, multi-line ASM/DR body parsing.
 - ⚠️ Task board v0 (originally §1, commit `0fe9214`) — shipped a simple `agent-workbench board` / `/board` that prints a static text Kanban grouped by lifecycle state. This is a placeholder; the real implementation is §1 below (live Textual TUI directly on top of `runs/`). Keep the v0 binary working until §1 lands so `/board` doesn't break.
 
-Order reflects priority: live task board, E2E, context graph, followup spawn.
+Order reflects priority: live task board, card attributes, board UX polish, E2E, context graph, followup spawn.
 
 ---
 
@@ -180,7 +180,64 @@ Layout properties:
 - [x] Smoke test plan: start `agent-workbench board` in one pane; drive a fresh run through `new-run` → `shape --init` → … in another pane; visually confirm cards move columns and "last events" updates in real time without the user pressing anything. — verified in-process with `app.run_test()` pilot: dropped a run on disk while the app was mounted; watchdog fired; the building column rendered the new card without input.
 - [x] Drop the `tests/test_cmd_board.py` rendering-format assertions that no longer apply; keep the format-age + grouping tests by retargeting them at `lib/board/snapshot.py`. — `format_age` + grouping live in `tests/test_board_snapshot.py`; `tests/test_cmd_board.py` now exercises the `--static` fallback path.
 
-## 2. Automatic E2E testing
+## 2. Live board — attributes missing from cards
+
+The §1 board ships with an anemic card body: title, age, repo, branch, status-aware progress lines, last-3 events, and audit paths. Dogfooding the Shogi run (2026-05-22) made it obvious that several pieces of information already in `metadata.yaml` and `events.jsonl` would change a reviewer's decisions if surfaced on the card. Everything below is derivable from data we already read — the snapshot dataclass + card renderer just don't expose it yet.
+
+Highest leverage first; pick top-down. Land them as additive fields on `RunSnapshot` so the renderer (and the `--static` fallback) can opt in to showing them.
+
+- [ ] **Lifecycle state badge on the card itself.** Today the state is implied by column position only. Render `[<status>]` in the top-right of the title band so a single-card screenshot is self-describing. Pulled from `meta.status` (already on the snapshot).
+- [ ] **Scope kind.** `meta.scope.kind` (`implementation` / `bootstrap` / `bugfix` / etc.) shapes how the card should read. Render as a small tag near the badge.
+- [ ] **Idle vs working signal.** Show a `● live` indicator when any event fired within the last ~60s (`ArtifactWritten`, `CommandRun`, `TransitionApplied`). Distinguishes "this run is being driven right now" from "this run is parked, waiting on a human". Already derivable from the existing `recent_events` tail; promote into a boolean flag on the snapshot.
+- [ ] **Acceptance-criteria coverage on `validating`.** Parse the `## Acceptance criteria coverage` table from `stages/4_building/build.md`; render `5/5 ACs covered` (or `3/5` with the missing-row count flagged loud). If the section is absent, show `AC table missing` as a soft flag.
+- [ ] **Diff size on `building` / `validating`.** `git diff --shortstat <base_ref>...HEAD` against the worktree → `+940/-3 across 11 files`. Computed lazily, cached on `(run_id, updated_at)` so we don't re-shell each refresh. The cache key requirement is already noted in §1's architecture section ("No subprocess shells from inside the render loop").
+- [ ] **Iteration time on `building`.** Beyond `2/5`, surface `avg 14m/iter` derived from the gap between successive `TransitionApplied`-into-building events (post-bounce) or `CommandRun` clusters. Lights up a slow loop before it becomes a stuck loop.
+- [ ] **Bounce origin on `building`.** If the most recent `TransitionApplied` is `human_review -> building`, render `↩ bounced from human_review · 12m ago` so it's clear this isn't a fresh build. We already track `bounce_count` + `recent_bounce_reason`; this is the visual surfacing.
+- [ ] **Followups categories on `followups` / `human_review`.** The `FollowupsRecorded` payload already carries `categories`; today we only show `entry_count`. Render `5 follow-ups · 2 scope_extension · 1 bug_risk · 2 tech_debt` so a reviewer can prioritise without opening the file.
+- [ ] **Repo path's last segment alongside repo name.** Two repos can share a basename (monorepo + fork). Render `repo_name · …/grandparent/repo_dir`.
+- [ ] **`completed_at` / `accepted_by` on terminal cards under `--all`.** Today a `done` card is indistinguishable from any other. Render `accepted_by tim · 14:32` (or `abandoned: <reason>`) on terminal cards so the audit trail is visible inline.
+- [ ] **Worktree existence flag.** If `target.worktree.created == false` while the card is in `building` or later, surface `! worktree missing` as a soft warning. Cheap consistency check; never shown today.
+- [ ] **Tests per `validating` card need an outcome timestamp.** Currently we show `tests ✓`; show `tests ✓ · 2m ago` so the reviewer can tell whether the green came from this iteration or a stale cached run.
+
+Implementation discipline:
+
+- [ ] Each new field lands as a frozen attribute on `RunSnapshot` with a unit test under `tests/test_board_snapshot.py` that seeds the relevant metadata + events and asserts the derived value.
+- [ ] The renderer changes (status-aware bodies in `lib/board/app.py` + the `--static` path in `cmd_board.py`) are separate from the data work — easier to review.
+
+## 3. Live board — UX polish on the card layout
+
+The Shogi dogfood made the second class of problems clear too: the card is a wall of dim grey text with no visual hierarchy. A UX engineer would not let this through review. The data is there; the rendering needs structure. Pair this section with §2 — §2 surfaces *what* to show, §3 fixes *how*.
+
+- [ ] **Card bands, separated by horizontal rules.** Today the card is a single Rich `Text` blob using `dim` for everything below the title. Restructure into four bands joined by `─` rules:
+  1. **Title band** — slug + state badge.
+  2. **Meta band** — age in stage · total age · repo · branch.
+  3. **Body band** — status-specific progress (build bar, tests/rev/qa marks, follow-up counts, etc.).
+  4. **Events band** — last 3 events with column-aligned timestamps.
+  5. **Files band** — labelled, abbreviated paths (see the path-formatting bullet below).
+
+  Each band answers exactly one question. The eye stops looking once it has the answer.
+- [ ] **Trim the title.** Run IDs are `YYYY-MM-DD-<slug>`. Six identical date characters lead every card. Render the slug bright + the date dim, or move the date into the meta band entirely so the title is just the slug.
+- [ ] **Column-aligned event timestamps.** Today each event line reads `ArtifactWritten · 4s ago`. Change to `[mm:ss ago] EventType detail` with the timestamp left-aligned in a fixed-width column. Gives the eye an anchor and makes ordering legible at a glance.
+- [ ] **Graded loudness.** Today any of {stale-review, max-iter, failing-tests, known-issues, recent-error} flips the same red border + same `!` marker. Split into two levels:
+  - **Warning** (yellow border, `⚠` marker): `known_issues > 0`, recent error, stale-but-not-blocking.
+  - **Blocking** (red border, `✕` marker): failing tests, builder gave up (`exit_reason == max_iterations`), stale-stuck `human_review`.
+  Surface the *reason* in one body line (`⚠ tests failing` / `✕ builder gave up 5/5`) so loudness is self-explaining.
+- [ ] **Column subtitle.** Under `followups (1)` add a one-line "brainstorm next bites"; under `validating` add "review + QA in flight"; etc. Helps a new reader without a glossary. Pull strings from a per-state constant in `lib/board/source.py`.
+- [ ] **Audit paths: label, abbreviate, separate.** Currently the run-dir + worktree paths render as two long dim-italic strings at the end of the card with no labels — on a 40-char card, a 130-char absolute path wraps into four indistinguishable lines. Fix:
+  - Label each path (`run` / `wt`).
+  - Replace `$HOME` with `~`; replace the workbench root with `…`. Reduces a typical line from ~140 chars to ~45.
+  - Place them in their own band separated by a horizontal rule.
+  - Layout target:
+    ```
+    ─── files ──────────────────────────────
+     run  ~/…/runs/2026-05-22-shogi-core
+     wt   ~/…/worktrees/repo/20260522__shogi-core
+    ```
+- [ ] **`--verbose` / `--no-paths` knob.** Most board sessions don't need absolute paths visible — the reviewer is watching state, not `cd`-ing around. Default the files band to *off* and add `--verbose` to opt in. (Alternative if simpler: drop the files band entirely from the default card and keep it in the `agent-workbench show <id>` text output where it already lives.)
+- [ ] **Don't let `dim` carry semantic weight.** Today the only contrast on the card body is "title bold / everything else dim". Use the default body style for primary content (events, body band) and reserve `dim` for actually-secondary text (meta band, files band). One axis of contrast doing one job.
+- [ ] Snapshot tests for the layout don't make sense (visual), but the renderer should have small unit tests that assert per-band content selection: e.g. given a snapshot with `followups_entry_count=5`, the body band string contains `5 follow-ups` and the events band starts with the youngest event's age.
+
+## 4. Automatic E2E testing
 
 V1 has unit tests + integration tests that drive the CLI through the happy path / bounce / abandon. What's missing is a true end-to-end smoke that exercises the full LLM-bearing flow (`/shape`, `/plan`, `/validate`, `/followups`) against a real throwaway repo without a human in the loop.
 
@@ -193,42 +250,9 @@ V1 has unit tests + integration tests that drive the CLI through the happy path 
 - [ ] Add a second E2E that exercises the **bounce loop** (validate → followups → bounce → validate → followups → complete) and a third for **abandon** at a random non-terminal state.
 - [ ] Document how to add a new E2E scenario in `agent-workbench-live/tests/README.md`.
 
-## 3. Context graph
+## 5. Context Graph
 
-A library of small, focused "context files" that the workbench's `AGENTS.md` (or per-stage prompts) link to with `@path/to/file.md`. Claude Code resolves `@`-imports lazily — the file's content only enters the model's context when it's actually relevant to the current task. Today the workbench has no such library, so every run re-derives basics like "use poetry, not pip" or "create a worktree before editing" from scratch (or worse, gets them wrong).
-
-Goal: ship a `agent-workbench-live/context/` directory of opinionated, one-page-each guides, wired into `AGENTS.md` via `@context/<name>.md` references so the implementing agent loads them on demand.
-
-- [ ] Create `agent-workbench-live/context/` and an index `context/README.md` that lists every file with a one-line description (so `AGENTS.md` can reference the index, not every file individually).
-- [ ] Decide reference style. Default: `AGENTS.md` contains a "Context library" section that lists `@context/<name>.md` lines grouped by topic. Claude Code's import resolver will pull only the ones it deems relevant. Alternative: per-stage `.claude/commands/*.md` bodies embed the imports they need (`/plan` imports language guides, `/validate` imports the testing guide, etc.). Probably do both — global index in `AGENTS.md`, targeted imports in slash commands.
-- [ ] Language guides — one file each, ~1 page, opinionated:
-  - [ ] `context/python.md` — use **poetry** (not pip/uv/conda), `pyproject.toml` layout, `poetry add` / `poetry run`, virtualenv location, `poetry.lock` commits, `bin/pytest` if a repo has one, type hints + `ruff` defaults.
-  - [ ] `context/javascript.md` — use **pnpm** (not npm/yarn/bun), `pnpm-workspace.yaml` for monorepos, `pnpm-lock.yaml` commits, `pnpm add` / `pnpm run`, `package.json` scripts as source of truth, no global installs, TypeScript over plain JS for new files.
-  - [ ] `context/golang.md` — `go mod tidy` after dep changes, `go test ./...`, table-driven tests, `gofmt` / `goimports`, error wrapping (`fmt.Errorf("...: %w", err)`).
-  - [ ] `context/ruby.md` — `bundle install` / `bundle exec`, `Gemfile.lock` commits, rspec layout, `rubocop` defaults.
-- [ ] Workflow guides — same one-page format:
-  - [ ] `context/git-commit.md` — commit message style (subject + body, imperative mood), one logical change per commit, never `--amend` published commits, never `--no-verify` without explicit user approval, HEREDOC for multi-line messages.
-  - [ ] `context/git-worktrees.md` — when to use a worktree, `git worktree add` recipe, **always `pwd` + `git branch --show-current` before any git op in a worktree**, cleanup with `git worktree remove`, the `LOCAL_worktrees/` convention this repo uses.
-  - [ ] `context/git-rebase.md` — when to rebase vs. merge, never rebase shared branches, conflict resolution, `git rebase --abort` as the escape hatch.
-- [ ] Other common things worth a one-pager (suggested):
-  - [ ] `context/pull-requests.md` — gh CLI recipe, title under 70 chars, body template (Summary / Test plan), draft vs. ready, never force-push to main.
-  - [ ] `context/testing.md` — write the failing test first, smallest scope possible, parametrize for variation, no mocks at boundaries we don't own.
-  - [ ] `context/secrets.md` — never commit `.env` / credentials, redact tokens in logs, use the repo's existing secret manager pattern.
-  - [ ] `context/sql-migrations.md` — backwards-compatible migrations, expand-then-contract, NOT NULL with backfill, never drop columns in the same release that stops writing them.
-  - [ ] `context/docker.md` — multi-stage builds, `.dockerignore` hygiene, pinned base images, no `latest` tags.
-  - [ ] `context/shell.md` — `set -euo pipefail` in scripts, quote variables, `mktemp` for temp files, never `rm -rf $VAR` without a guard.
-  - [ ] `context/dependency-bumps.md` — read the changelog, run the test suite, separate PR per ecosystem (don't mix pnpm + poetry in one PR).
-  - [ ] `context/code-review.md` — what to flag (correctness, security, perf), what not to flag (style nits the formatter handles), how to phrase suggestions.
-- [ ] Authoring rules for every context file:
-  - [ ] One screen max (~50 lines). If it grows, split it.
-  - [ ] Opinionated — prescribe one way, not three.
-  - [ ] Include a 3-line "when this applies" header so the model can decide whether to load it.
-  - [ ] Examples > prose. Show a command or snippet, not a paragraph.
-- [ ] Test that imports actually fire: run a `/plan` for a Python repo, confirm the model references poetry-specific guidance without it being in the user prompt.
-- [ ] Document the library in `AGENTS.md`: how to add a new context file, naming convention, when to inline vs. reference.
-- [ ] (Stretch) `agent-workbench context list` — print the index. `agent-workbench context show <name>` — print a single file. Useful when debugging "why did the agent do X" — you can see exactly what guidance it had access to.
-
-## 4. Followup spawn (TODO §1f stretch, deferred)
+## 6. Followup spawn (TODO §1f stretch, deferred)
 
 The pass-3 Renovate work landed the `followups` stage but **deliberately did not implement** the `agent-workbench followup spawn` command. That command — create a new `draft` run pre-populated from a chosen mini-brief in a prior run's `follow-ups.md` — is the natural next step now that follow-ups are first-class.
 
