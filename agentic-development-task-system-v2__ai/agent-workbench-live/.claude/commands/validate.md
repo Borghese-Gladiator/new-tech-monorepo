@@ -4,6 +4,8 @@ description: Run an Agent Workbench validation pass. Self-review + QA + audit + 
 
 # /validate
 
+Context: `@context/meta/repo-discovery.md`, `@context/git/draft-pr.md`, `@context/infra/ci.md`.
+
 LLM-bearing. Self-reviews the worktree, runs QA, renders the audit, writes the handoff, then advances `building -> validating -> human_review`.
 
 ## Step 1 — stage templates and start validating

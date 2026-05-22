@@ -4,6 +4,8 @@ description: Approve an Agent Workbench run in the ready state and create the br
 
 # /start
 
+Context: `@context/git/worktrees.md`.
+
 Thin wrapper around `agent-workbench start`. Transitions `ready -> building`.
 
 ## Preconditions

@@ -4,6 +4,8 @@ description: Run an Agent Workbench planning pass against the target repo. Write
 
 # /plan
 
+Context: `@context/meta/repo-discovery.md`, `@context/meta/risk-and-approval.md`.
+
 LLM-bearing. Reads `brief.md` and the target repo, writes the four planning artifacts, then advances `planning -> ready`.
 
 ## Step 1 — stage templates and verify state
