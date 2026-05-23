@@ -39,18 +39,29 @@ def _now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
 
 
-def _project_slug_for_run(meta: dict) -> str:
-    """Pick the project slug for the run.
+def _project_slugs_for_run(meta: dict) -> list[str]:
+    """All candidate project slugs to search for transcripts.
 
-    Prefer the worktree path (where /build runs); fall back to the repo path
-    (where /shape /plan run).
+    Returns both the worktree-path slug (where /build runs) and the repo-path
+    slug (where /shape /plan and /complete may run, possibly in a different
+    Claude Code session). Order matters: worktree first, then repo.
     """
+    seen: set[str] = set()
+    out: list[str] = []
     wt = (meta.get("target") or {}).get("worktree") or {}
     wt_path = wt.get("path")
     if wt_path:
-        return transcript_mod.slugify_project_path(wt_path)
+        s = transcript_mod.slugify_project_path(wt_path)
+        if s not in seen:
+            out.append(s)
+            seen.add(s)
     repo = (meta.get("target") or {}).get("repo") or {}
-    return transcript_mod.slugify_project_path(repo.get("path") or "")
+    if repo.get("path"):
+        s = transcript_mod.slugify_project_path(repo["path"])
+        if s not in seen:
+            out.append(s)
+            seen.add(s)
+    return out
 
 
 def _run_cwd_candidates(meta: dict) -> list[str]:
@@ -139,15 +150,17 @@ def record_run_metrics(cfg, run_id: str) -> pathlib.Path:
         "prices_loaded": bool(price_table),
     })
 
-    # Locate transcripts.
-    slug = _project_slug_for_run(meta)
-    transcripts = transcript_mod.find_transcripts(slug) if slug else []
+    # Locate transcripts across all candidate slugs (worktree + repo paths).
+    slugs = _project_slugs_for_run(meta)
+    transcripts: list = []
+    for s in slugs:
+        transcripts.extend(transcript_mod.find_transcripts(s))
     if not transcripts:
         rows.append({
             "schema_version": SCHEMA_VERSION,
             "kind": "notice",
             "at": _now_iso(),
-            "message": f"no transcripts found for project slug {slug!r}",
+            "message": f"no transcripts found for project slugs {slugs!r}",
         })
 
     # Correlate turns.
