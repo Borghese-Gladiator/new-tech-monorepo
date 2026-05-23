@@ -61,9 +61,36 @@ class TestMetricsCLI(unittest.TestCase):
     def test_single_run_plain(self):
         r = _run_cli(self.tmp, "metrics", self.run_id)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
-        self.assertIn("total_tokens", r.stdout)
-        self.assertIn("context buckets", r.stdout)
-        self.assertIn("tool_results", r.stdout)
+        # Section headings.
+        self.assertIn("Token spend", r.stdout)
+        self.assertIn("Build progress", r.stdout)
+        self.assertIn("Acceptance", r.stdout)
+        self.assertIn("Context buckets", r.stdout)
+        # Units present.
+        self.assertIn("tokens", r.stdout)
+        # Cache-read row labeled.
+        self.assertIn("cache_read", r.stdout)
+        # Bucket bullet present.
+        self.assertIn("- tool_results", r.stdout)
+
+    def test_single_run_plain_pre_acceptance_warning(self):
+        """When status != done, the report must lead with an acceptance-pending note."""
+        r = _run_cli(self.tmp, "metrics", self.run_id)
+        # The fixture has status=done so no NOTE is rendered. Create another
+        # run with status=building and verify the NOTE shows up there.
+        from tests.test_metrics_summary import _write_metadata
+        building_id = "2026-05-22-r-building"
+        rd = self.tmp / "runs" / building_id
+        _write_metadata(rd, building_id, status="building")
+        (rd / "metrics.jsonl").write_text(
+            json.dumps({"schema_version": 1, "kind": "turn", "at": "x",
+                        "stage": "building", "command": "/build", "model": "m",
+                        "usage": {"input": 1, "output": 0, "cache_read": 0, "cache_creation": 0},
+                        "bucket_attribution": {}, "cost_usd": 0.0}, sort_keys=True) + "\n"
+        )
+        r2 = _run_cli(self.tmp, "metrics", building_id)
+        self.assertEqual(r2.returncode, 0, msg=r2.stderr)
+        self.assertIn("acceptance pending", r2.stdout)
 
     def test_single_run_json(self):
         r = _run_cli(self.tmp, "metrics", self.run_id, "--json")

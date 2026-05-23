@@ -51,28 +51,43 @@ def _render_summary_plain(s) -> str:
     lines.append(f"status:            {s.status}")
     lines.append(f"scope_kind:        {s.scope_kind or '(none)'}")
     lines.append("")
-    lines.append(f"total_tokens:      {_fmt_int(s.total_tokens)} (input {_fmt_int(s.total_input)} · output {_fmt_int(s.total_output)} · cache_read {_fmt_int(s.total_cache_read)} · cache_create {_fmt_int(s.total_cache_creation)})")
+    if s.status != "done":
+        lines.append(
+            "NOTE: acceptance pending — `accepted_*` and `repair_tokens` only "
+            "become load-bearing once the run reaches `done` and the branch merges."
+        )
+        lines.append("")
+    lines.append("Token spend:")
+    lines.append(f"  total                       {_fmt_int(s.total_tokens):>10} tokens")
+    lines.append(f"  input (fresh this turn)     {_fmt_int(s.total_input):>10} tokens")
+    lines.append(f"  output (model-generated)    {_fmt_int(s.total_output):>10} tokens")
+    lines.append(f"  cache_read (re-read prefix) {_fmt_int(s.total_cache_read):>10} tokens")
+    lines.append(f"  cache_creation (first-write){_fmt_int(s.total_cache_creation):>10} tokens")
+    lines.append("")
+    lines.append("Build progress (agent-side, not human acceptance):")
     if s.tokens_per_passing_build is not None:
-        lines.append(f"tokens/pass build: {_fmt_int(int(s.tokens_per_passing_build))} ({s.approves} approves / {s.validate_attempts} validates)")
+        lines.append(
+            f"  agent-approved validates    {s.approves}/{s.validate_attempts} "
+            f"(tokens / agent-approved validate: {_fmt_int(int(s.tokens_per_passing_build))})"
+        )
     else:
-        lines.append(f"tokens/pass build: n/a (0 approves / {s.validate_attempts} validates)")
-    lines.append(f"attempts/success:  {s.attempts_per_success}")
-    lines.append(f"repair_tokens:     {_fmt_int(s.repair_tokens)}")
+        lines.append(f"  agent-approved validates    0/{s.validate_attempts}")
+    lines.append(f"  build->validate cycles      {s.attempts_per_success}")
+    lines.append(f"  repair tokens               {_fmt_int(s.repair_tokens)} tokens")
     lines.append("")
-    lines.append("context buckets (input tokens):")
-    for k, v in sorted(s.bucket_totals.items(), key=lambda kv: -kv[1]):
-        lines.append(f"  {k:<28}  {_fmt_int(v)}")
-    lines.append("")
-    lines.append("lines:")
-    lines.append(f"  generated_lines:    {s.generated_lines}")
+    lines.append("Acceptance (gated on human + merge):")
     if s.merge_commit:
-        lines.append(f"  accepted_lines:     {s.accepted_lines}  (merge {s.merge_commit[:8]})")
+        lines.append(f"  accepted lines              {s.accepted_lines}  (merged at {s.merge_commit[:8]})")
+        lines.append(f"  accepted cost               {_fmt_cost(s.cost_accepted_usd)}")
     else:
-        lines.append(f"  accepted_lines:     {s.accepted_lines}  (pending merge)")
+        lines.append(f"  accepted lines              0  (pending merge)")
+        lines.append(f"  accepted cost               $0.0000  (pending merge)")
+    lines.append(f"  generated lines (all drafts){s.generated_lines:>4}")
+    lines.append(f"  generated cost              {_fmt_cost(s.cost_generated_usd)}")
     lines.append("")
-    lines.append("cost:")
-    lines.append(f"  generated:          {_fmt_cost(s.cost_generated_usd)}")
-    lines.append(f"  accepted:           {_fmt_cost(s.cost_accepted_usd)}" + (" (pending merge)" if not s.merge_commit else ""))
+    lines.append("Context buckets (input tokens only; cache_read not bucketed):")
+    for k, v in sorted(s.bucket_totals.items(), key=lambda kv: -kv[1]):
+        lines.append(f"  - {k}: {_fmt_int(v)} tokens")
     lines.append("")
     if s.tokens_by_stage:
         lines.append("by stage:")
