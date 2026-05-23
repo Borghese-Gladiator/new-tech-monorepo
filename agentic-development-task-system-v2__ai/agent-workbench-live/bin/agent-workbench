@@ -38,6 +38,7 @@ SUBCOMMANDS = [
     "events",
     "doctor",
     "board",
+    "metrics",
 ]
 
 SUBCOMMAND_CLI_NAMES = {

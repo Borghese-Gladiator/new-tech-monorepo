@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from lib import metadata, events, transitions, locks, lifecycle, stub_llm, followups as followups_mod
 from lib.cli._common import actor_from_env, fail, load_config
+from lib.metrics import summary as metrics_summary
+from lib.metrics import writer as metrics_writer
 
 
 HELP = "Author follow-ups.md (--init stages template; default validates + transitions to human_review)."
@@ -124,6 +126,15 @@ def run(args) -> int:
     # sections in transitions.transition() below.
     handoff_path = rd / "HUMAN_REVIEW.md"
 
+    # Token-efficiency: refresh metrics.jsonl, then inject a "## Token efficiency"
+    # block into HUMAN_REVIEW.md. Best-effort: any failure is swallowed so the
+    # handoff still proceeds.
+    try:
+        metrics_writer.record_run_metrics(cfg, run_id)
+        _inject_metrics_block(cfg, run_id, handoff_path)
+    except Exception:
+        pass
+
     # Emit HumanHandoffCreated. Mirrors validate's flat-layout path; the
     # transition gate (engine-side) will reject if HUMAN_REVIEW.md is missing
     # or lacks the required headings.
@@ -178,3 +189,76 @@ def _stage_template(cfg, rd) -> None:
         return
     src = cfg.root / "templates" / "follow-ups.md"
     dest.write_text(src.read_text() if src.exists() else "# Follow-ups\n")
+
+
+METRICS_BLOCK_START = "<!-- metrics:start -->"
+METRICS_BLOCK_END = "<!-- metrics:end -->"
+
+
+def _inject_metrics_block(cfg, run_id: str, handoff_path) -> None:
+    """Append (or replace) a ``## Token efficiency`` block in HUMAN_REVIEW.md.
+
+    Idempotent: the block is delimited by HTML comment markers so a re-run
+    replaces the old block in place rather than appending a duplicate.
+    """
+    if not handoff_path.exists():
+        return
+    metrics_path = handoff_path.parent / "metrics.jsonl"
+    if not metrics_path.exists():
+        return
+    try:
+        s = metrics_summary.summarize(cfg, run_id)
+    except Exception:
+        return
+
+    block_lines = [
+        METRICS_BLOCK_START,
+        "",
+        "## Token efficiency",
+        "",
+        f"- total tokens: {s.total_tokens:,} (input {s.total_input:,} · output {s.total_output:,} · cache_read {s.total_cache_read:,} · cache_create {s.total_cache_creation:,})",
+    ]
+    if s.tokens_per_passing_build is not None:
+        block_lines.append(
+            f"- tokens / passing build: {int(s.tokens_per_passing_build):,} "
+            f"({s.approves}/{s.validate_attempts} validates approved)"
+        )
+    else:
+        block_lines.append(
+            f"- tokens / passing build: n/a (0/{s.validate_attempts} validates approved)"
+        )
+    block_lines.append(f"- attempts per success: {s.attempts_per_success}")
+    block_lines.append(f"- repair tokens: {s.repair_tokens:,}")
+    block_lines.append(
+        f"- lines: generated {s.generated_lines} · accepted {s.accepted_lines}"
+        + ("" if s.merge_commit else " (pending merge)")
+    )
+    accepted_suffix = "" if s.merge_commit else " pending merge"
+    block_lines.append(
+        f"- cost: generated ${s.cost_generated_usd:.4f} · "
+        f"accepted ${s.cost_accepted_usd:.4f}{accepted_suffix}"
+    )
+    block_lines.append("")
+    if s.bucket_totals:
+        block_lines.append("Context buckets:")
+        block_lines.append("")
+        for k, v in sorted(s.bucket_totals.items(), key=lambda kv: -kv[1]):
+            block_lines.append(f"  - {k}: {v:,}")
+        block_lines.append("")
+    block_lines.append(METRICS_BLOCK_END)
+    block = "\n".join(block_lines) + "\n"
+
+    text = handoff_path.read_text()
+    if METRICS_BLOCK_START in text and METRICS_BLOCK_END in text:
+        # Replace the existing block.
+        start = text.index(METRICS_BLOCK_START)
+        end = text.index(METRICS_BLOCK_END) + len(METRICS_BLOCK_END)
+        # Eat the trailing newline if present.
+        if end < len(text) and text[end] == "\n":
+            end += 1
+        new_text = text[:start] + block + text[end:]
+    else:
+        if not text.endswith("\n"):
+            text += "\n"
+        new_text = text + "\n" + block
+    handoff_path.write_text(new_text)

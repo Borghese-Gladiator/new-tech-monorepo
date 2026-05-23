@@ -149,6 +149,12 @@ class RunSnapshot:
     # Live-tail recent events (newest first).
     recent_events: tuple[EventSummary, ...]
 
+    # Token-efficiency telemetry (None when metrics.jsonl is absent).
+    metrics_total_tokens: int | None
+    metrics_approves: int | None
+    metrics_validate_attempts: int | None
+    metrics_cost_usd: float | None
+
 
 def _parse_iso(ts: str) -> dt.datetime | None:
     try:
@@ -564,6 +570,32 @@ def load_run_snapshot(
     tests_age = _last_qa_completed_age(events, now)
     fu_categories = _followups_categories(events)
 
+    # Token-efficiency telemetry. Read the cached summary if present and
+    # fresh; otherwise quickly inspect metrics.jsonl row-counts for a
+    # cheap approximate signal. Never recompute the full summary here —
+    # the board loop must stay fast.
+    m_total = m_appr = m_val = None
+    m_cost: float | None = None
+    metrics_path = rd / "metrics.jsonl"
+    summary_path = rd / "metrics-summary.json"
+    if metrics_path.exists():
+        try:
+            if (
+                summary_path.exists()
+                and summary_path.stat().st_mtime >= metrics_path.stat().st_mtime
+            ):
+                import json as _json
+                d = _json.loads(summary_path.read_text())
+                m_total = int(d.get("total_tokens") or 0)
+                m_appr = int(d.get("approves") or 0)
+                m_val = int(d.get("validate_attempts") or 0)
+                m_cost = float(d.get("cost_generated_usd") or 0.0)
+            else:
+                m_total, m_appr, m_val, m_cost = _quick_metrics_from_jsonl(metrics_path)
+        except Exception:
+            m_total = m_appr = m_val = None
+            m_cost = None
+
     return RunSnapshot(
         run_id=run_id,
         status=status,
@@ -613,7 +645,47 @@ def load_run_snapshot(
         accepted_by=_maybe_str(completion.get("accepted_by")),
         abandoned_reason=_maybe_str(completion.get("abandoned_reason")),
         recent_events=tuple(recent),
+        metrics_total_tokens=m_total,
+        metrics_approves=m_appr,
+        metrics_validate_attempts=m_val,
+        metrics_cost_usd=m_cost,
     )
+
+
+def _quick_metrics_from_jsonl(path: pathlib.Path) -> tuple[int, int, int, float]:
+    """Cheap pass over metrics.jsonl for the board card.
+
+    Returns ``(total_tokens, approves, validate_attempts, cost_usd)``.
+    Avoids the full summary recomputation so the board stays snappy.
+    """
+    import json as _json
+    total = 0
+    appr = 0
+    val = 0
+    cost = 0.0
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = _json.loads(line)
+            except _json.JSONDecodeError:
+                continue
+            if row.get("kind") == "turn":
+                u = row.get("usage") or {}
+                total += int(
+                    (u.get("input") or 0)
+                    + (u.get("output") or 0)
+                    + (u.get("cache_read") or 0)
+                    + (u.get("cache_creation") or 0)
+                )
+                cost += float(row.get("cost_usd") or 0)
+            elif row.get("kind") == "build_outcome":
+                val += 1
+                if row.get("validate_result") == "approve":
+                    appr += 1
+    return total, appr, val, cost
 
 
 def _maybe_int(v: Any) -> int | None:

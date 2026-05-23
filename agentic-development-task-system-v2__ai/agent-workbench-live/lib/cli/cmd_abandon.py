@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from lib import metadata, transitions, locks
 from lib.cli._common import actor_from_env, fail, load_config
+from lib.metrics import writer as metrics_writer
 
 
 HELP = "Abandon a run. Wildcard from any non-terminal state."
@@ -44,6 +45,12 @@ def run(args) -> int:
     def _m(d):
         d["completion"]["abandoned_reason"] = args.reason
     metadata.update(cfg, run_id, _m)
+
+    # Token-efficiency tracking: refresh metrics.jsonl at terminal boundary.
+    try:
+        metrics_writer.record_run_metrics(cfg, run_id)
+    except Exception:
+        pass
 
     print(f"{run_id}: -> abandoned")
     print(f"reason: {args.reason}")

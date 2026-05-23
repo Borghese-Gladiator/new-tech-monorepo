@@ -19,6 +19,7 @@ import subprocess
 
 from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims, scope_check, stub_llm
 from lib.cli._common import actor_from_env, fail, load_config
+from lib.metrics import writer as metrics_writer
 
 
 HELP = "Run review + QA + render audit, then transition to human_review."
@@ -389,6 +390,12 @@ def run(args) -> int:
                 )
         except transitions.TransitionError as e:
             return fail(str(e), 4)
+        # Token-efficiency tracking: write metrics.jsonl now so it's available
+        # to the followups stage's HUMAN_REVIEW rendering.
+        try:
+            metrics_writer.record_run_metrics(cfg, run_id)
+        except Exception:
+            pass
         print(f"{run_id}: validating -> followups")
         followups_rel = lifecycle.stage_dir(cfg, run_id, "followups").relative_to(rd)
         print(f"  next: author {followups_rel}/follow-ups.md, then run "
@@ -427,6 +434,12 @@ def run(args) -> int:
             )
     except transitions.TransitionError as e:
         return fail(str(e), 4)
+
+    # Token-efficiency tracking (flat layout path).
+    try:
+        metrics_writer.record_run_metrics(cfg, run_id)
+    except Exception:
+        pass
 
     print(f"{run_id}: validating -> human_review")
     print(f"branch:   {meta['target']['worktree']['branch_name']}")
