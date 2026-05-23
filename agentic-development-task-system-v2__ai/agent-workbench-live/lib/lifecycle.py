@@ -51,7 +51,9 @@ LAYOUT_STAGED = "staged"
 
 
 REQUIRED_HUMAN_REVIEW_HEADINGS = (
-    "## Suggested first checks",
+    "## Files",
+    "## Summary of changes",
+    "## Testing",
     "## Run timeline",
 )
 

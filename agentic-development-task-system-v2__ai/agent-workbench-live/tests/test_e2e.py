@@ -182,6 +182,9 @@ class TestE2EHappyPath(E2ECase):
         r = cli(self.tmp, "followups", run_id, stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("followups -> human_review", r.stdout)
+        # TODO §2 AC2: the absolute path to HUMAN_REVIEW.md must appear in
+        # stdout so the reviewer can click it from the terminal.
+        self.assertIn(str(run_dir / "HUMAN_REVIEW.md"), r.stdout)
 
         # complete.
         r = cli(self.tmp, "complete", run_id, "--accepted-by", "e2e-tester")
@@ -259,7 +262,10 @@ class TestE2EBounceLoop(E2ECase):
         cli(self.tmp, "validate", run_id, "--init", stub_fixture=fix2)
         cli(self.tmp, "validate", run_id, "--tests-passed", "true",
             "--known-issues", "0", stub_fixture=fix2)
-        cli(self.tmp, "followups", run_id, stub_fixture=fix2)
+        r = cli(self.tmp, "followups", run_id, stub_fixture=fix2)
+        # TODO §2 AC2: stdout from the post-bounce followups call carries
+        # the absolute HUMAN_REVIEW.md path too.
+        self.assertIn(str(run_dir / "HUMAN_REVIEW.md"), r.stdout)
 
         # human_review -> done.
         r = cli(self.tmp, "complete", run_id, "--accepted-by", "tester")

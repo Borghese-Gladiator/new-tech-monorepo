@@ -234,18 +234,24 @@ class TestHumanReviewValidation(unittest.TestCase):
     def test_missing_headings_reported(self):
         (self.rd / "HUMAN_REVIEW.md").write_text("# bare file\n")
         errs = lifecycle.validate_human_review_sections(self.cfg, self.run_id)
-        # Both required headings are missing.
-        self.assertEqual(len(errs), 2)
+        # All four required headings are missing.
+        self.assertEqual(len(errs), 4)
 
     def test_partial_headings_reported(self):
-        (self.rd / "HUMAN_REVIEW.md").write_text("# H\n\n## Suggested first checks\n\nok\n")
+        (self.rd / "HUMAN_REVIEW.md").write_text(
+            "# H\n\n## Files\n\nok\n\n## Summary of changes\n\nok\n"
+        )
         errs = lifecycle.validate_human_review_sections(self.cfg, self.run_id)
-        self.assertEqual(len(errs), 1)
-        self.assertIn("Run timeline", errs[0])
+        # Two of four headings missing.
+        self.assertEqual(len(errs), 2)
+        joined = " ".join(errs)
+        self.assertIn("Testing", joined)
+        self.assertIn("Run timeline", joined)
 
     def test_both_headings_present_ok(self):
         (self.rd / "HUMAN_REVIEW.md").write_text(
-            "# H\n\n## Suggested first checks\n\nstep\n\n## Run timeline\n\nx\n"
+            "# H\n\n## Files\n\nrow\n\n## Summary of changes\n\nbullet\n\n"
+            "## Testing\n\noutcome\n\n## Run timeline\n\nrow\n"
         )
         errs = lifecycle.validate_human_review_sections(self.cfg, self.run_id)
         self.assertEqual(errs, [])

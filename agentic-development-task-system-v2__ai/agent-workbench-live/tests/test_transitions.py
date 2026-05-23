@@ -305,8 +305,10 @@ class TestStagedLayoutTransitions(unittest.TestCase):
             )
         self.assertIn("HUMAN_REVIEW.md", str(ctx.exception))
 
-        # Add HUMAN_REVIEW.md with only one of the two required headings.
-        (rd / "HUMAN_REVIEW.md").write_text("# H\n\n## Suggested first checks\nx\n")
+        # Add HUMAN_REVIEW.md with only some of the required headings.
+        (rd / "HUMAN_REVIEW.md").write_text(
+            "# H\n\n## Files\nrow\n\n## Summary of changes\nbullet\n"
+        )
         with self.assertRaises(transitions.TransitionError):
             transitions.transition(
                 self.cfg, rid, "human_review",
@@ -319,7 +321,8 @@ class TestStagedLayoutTransitions(unittest.TestCase):
 
         # Fix it; transition now succeeds.
         (rd / "HUMAN_REVIEW.md").write_text(
-            "# H\n\n## Suggested first checks\nx\n\n## Run timeline\nx\n"
+            "# H\n\n## Files\nrow\n\n## Summary of changes\nbullet\n\n"
+            "## Testing\noutcome\n\n## Run timeline\nrow\n"
         )
         transitions.transition(
             self.cfg, rid, "human_review",
