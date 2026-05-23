@@ -91,7 +91,7 @@ Budgets, limits, or warnings; per-turn live metering (we batch at transition tim
 
 ---
 
-## 4. Token efficiency — pass 2: stop bleeding `cache_read`
+## 3. Token efficiency — pass 2: stop bleeding `cache_read`
 
 ### Why this is here
 
@@ -208,7 +208,7 @@ What §4 still doesn't solve and would need future runs:
 
 ---
 
-## 5. Fix generated_lines for base_ref="HEAD" runs
+## 4. Fix generated_lines for base_ref="HEAD" runs
 
 `lib/metrics/lines.py:count_generated()` runs `git log --numstat <base_ref>..HEAD` to sum `+` lines across the worktree's commit history. The workbench config defaults `base_ref: HEAD` (`agent-workbench.yaml:14`), and `metadata.target.repo.base_ref` is stored as that literal string. The dotted range `HEAD..HEAD` resolves to "no commits" — so `generated_lines` reports 0 for every run that uses the default, regardless of how many commits the builder landed.
 
