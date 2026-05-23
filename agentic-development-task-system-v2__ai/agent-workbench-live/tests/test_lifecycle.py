@@ -245,13 +245,13 @@ class TestHumanReviewValidation(unittest.TestCase):
         # Two of four headings missing.
         self.assertEqual(len(errs), 2)
         joined = " ".join(errs)
-        self.assertIn("Manual testing performed", joined)
+        self.assertIn("Testing", joined)
         self.assertIn("Run timeline", joined)
 
     def test_both_headings_present_ok(self):
         (self.rd / "HUMAN_REVIEW.md").write_text(
             "# H\n\n## Files\n\nrow\n\n## Summary of changes\n\nbullet\n\n"
-            "## Manual testing performed\n\noutcome\n\n## Run timeline\n\nrow\n"
+            "## Testing\n\noutcome\n\n## Run timeline\n\nrow\n"
         )
         errs = lifecycle.validate_human_review_sections(self.cfg, self.run_id)
         self.assertEqual(errs, [])

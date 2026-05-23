@@ -322,7 +322,7 @@ class TestStagedLayoutTransitions(unittest.TestCase):
         # Fix it; transition now succeeds.
         (rd / "HUMAN_REVIEW.md").write_text(
             "# H\n\n## Files\nrow\n\n## Summary of changes\nbullet\n\n"
-            "## Manual testing performed\noutcome\n\n## Run timeline\nrow\n"
+            "## Testing\noutcome\n\n## Run timeline\nrow\n"
         )
         transitions.transition(
             self.cfg, rid, "human_review",

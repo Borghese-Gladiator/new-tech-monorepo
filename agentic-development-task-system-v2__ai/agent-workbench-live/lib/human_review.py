@@ -203,13 +203,16 @@ def project_timeline(events: Iterable[dict]) -> list[TimelineRow]:
 
 # ---------- build.md extraction ----------
 
-def _extract_build_summary(build_path: pathlib.Path) -> list[str]:
-    """Return up to ~5 bullets describing what the build delivered.
+SUMMARY_NESTED_CAP = 8
 
-    Pulls from:
-      - "## Implementation summary" — one short bullet (the first paragraph).
-      - "## Files changed" — flatten the list into one bullet (or two if long).
-      - "## Acceptance criteria coverage" — one bullet counting covered ACs.
+
+def _extract_build_summary(build_path: pathlib.Path) -> list[str]:
+    r"""Return markdown lines describing what the build delivered.
+
+    Each list-item header is ``- ...`` (top-level bullet). A list of files
+    (e.g. ``## Files changed``, ``## Documentation touched``) renders as a
+    parent bullet with one nested ``  - `<path>` `` line per file (capped at
+    ``SUMMARY_NESTED_CAP``, with a ``  - …and N more`` overflow row).
 
     Falls back to an empty list if the file is missing or has none of the
     expected headers; the caller renders a single "→ Full diff" line in that
@@ -218,23 +221,21 @@ def _extract_build_summary(build_path: pathlib.Path) -> list[str]:
     if not build_path.exists():
         return []
     text = build_path.read_text()
-    bullets: list[str] = []
+    lines: list[str] = []
 
     impl = _section(text, "Implementation summary")
     if impl:
         # First paragraph only, single line.
         first_para = impl.strip().split("\n\n", 1)[0].strip().replace("\n", " ")
         if first_para:
-            bullets.append(_short(first_para, limit=240))
+            lines.append(f"- {_short(first_para, limit=240)}")
 
     files = _section(text, "Files changed")
     if files:
         items = _bullet_items(files)
         if items:
-            n = len(items)
-            shown = ", ".join(f"`{i}`" for i in items[:4])
-            extra = f" (+{n - 4} more)" if n > 4 else ""
-            bullets.append(f"{n} file(s) touched: {shown}{extra}")
+            lines.append(f"- {len(items)} file(s) touched:")
+            lines.extend(_nested_path_list(items))
 
     coverage = _section(text, "Acceptance criteria coverage")
     if coverage:
@@ -251,18 +252,28 @@ def _extract_build_summary(build_path: pathlib.Path) -> list[str]:
             if "covered" in ln.lower():
                 covered += 1
         if total:
-            bullets.append(f"AC coverage: {covered}/{total} covered")
+            lines.append(f"- AC coverage: {covered}/{total} covered")
 
     docs = _section(text, "Documentation touched")
     if docs:
         items = _bullet_items(docs)
         if items and not all(i.strip().lower().startswith("(none") for i in items):
-            n = len(items)
-            shown = ", ".join(f"`{i}`" for i in items[:3])
-            extra = f" (+{n - 3} more)" if n > 3 else ""
-            bullets.append(f"docs touched: {shown}{extra}")
+            lines.append(f"- {len(items)} doc(s) touched:")
+            lines.extend(_nested_path_list(items))
 
-    return bullets
+    return lines
+
+
+def _nested_path_list(items: list[str]) -> list[str]:
+    r"""Render a list of paths as nested ``  - `<path>` `` markdown rows,
+    capped at SUMMARY_NESTED_CAP with a ``  - …and N more`` overflow line."""
+    out: list[str] = []
+    shown = items[:SUMMARY_NESTED_CAP]
+    for it in shown:
+        out.append(f"  - `{it}`")
+    if len(items) > SUMMARY_NESTED_CAP:
+        out.append(f"  - …and {len(items) - SUMMARY_NESTED_CAP} more")
+    return out
 
 
 def _section(text: str, heading: str) -> str:
@@ -309,29 +320,33 @@ def _testing_block(
     qa_path: pathlib.Path,
     commands_path: pathlib.Path,
 ) -> list[str]:
-    """Render the body of the ## Manual testing performed section.
+    """Render the body of the ## Testing section.
 
-    Surface enough evidence inline that the reviewer never has to open
-    another file to answer "does this work?":
+    Two sub-sections, each bolded as **<Name>**:
 
-      1. The command(s) that ran (from `qa/commands.txt` or a default).
-      2. The output / verdict (from `qa/report.md` body or its `## Summary`
-         section if present), inlined as a fenced markdown block.
-      3. A one-line interpretation derived from QACompleted's `tests_passed`
-         + `known_issues_count`.
-      4. A trailing absolute-path pointer to qa/report.md for "I want more."
+      **Unit tests** — command + fenced report excerpt + one-line verdict.
+        The excerpt comes from qa/report.md's `## Summary` or `## Results`
+        section (preferred), falling back to the whole file minus its title.
+
+      **Manual testing** — body of qa/report.md's `## Manual testing`
+        section verbatim. If that section is missing or empty, the body is
+        `_None recorded._` so the reviewer sees explicitly that nothing was
+        driven by hand.
+
+    A review-decision line and a trailing absolute path follow both
+    sub-sections.
     """
     qa_ev = _latest_event(events, "QACompleted")
     review_ev = _latest_event(events, "ReviewCompleted")
 
     lines: list[str] = []
 
-    # 1) Command.
+    # --- Unit tests sub-section ---
+    lines.append("**Unit tests**")
+    lines.append("")
     cmd = _read_command(commands_path) or DEFAULT_QA_COMMAND
     lines.append(f"`{cmd}`")
     lines.append("")
-
-    # 2) Output (inlined report body).
     report_body = _read_report_body(qa_path)
     if report_body:
         lines.append("```")
@@ -341,8 +356,7 @@ def _testing_block(
     else:
         lines.append("_(no qa/report.md recorded)_")
     lines.append("")
-
-    # 3) One-line interpretation.
+    # Verdict line.
     if qa_ev:
         payload = qa_ev.get("payload") or {}
         tests_passed = payload.get("tests_passed")
@@ -359,12 +373,25 @@ def _testing_block(
     else:
         lines.append("_Pending: no QACompleted event recorded yet._")
 
-    # Optional review-decision line (kept terse).
+    lines.append("")
+
+    # --- Manual testing sub-section ---
+    lines.append("**Manual testing**")
+    lines.append("")
+    manual_body = _read_manual_testing(qa_path)
+    if manual_body:
+        # Render the body verbatim. If it already contains fenced blocks or
+        # bullets, those carry through as-is.
+        lines.append(manual_body)
+    else:
+        lines.append("_None recorded._")
+    lines.append("")
+
+    # Decision + deep-dive pointer.
     if review_ev:
         d = ((review_ev.get("payload") or {}).get("review_decision") or "").lower() or "unknown"
         lines.append(f"Review decision: **{d}**.")
 
-    # 4) Absolute path for the deep dive.
     if qa_path.exists():
         lines.append("")
         lines.append("Full QA report:")
@@ -372,6 +399,23 @@ def _testing_block(
         lines.append(f"`{qa_path}`")
 
     return lines
+
+
+def _read_manual_testing(qa_path: pathlib.Path) -> str:
+    """Return the body of qa/report.md's `## Manual testing` section, or empty
+    string if the section is missing or contains only whitespace / a `_None_`
+    placeholder."""
+    if not qa_path.exists():
+        return ""
+    body = _section(qa_path.read_text(), "Manual testing")
+    body = body.strip() if body else ""
+    if not body:
+        return ""
+    # Treat explicit "no manual testing" placeholders as empty.
+    stripped = body.strip().lower()
+    if stripped in ("_none._", "_none recorded._", "none.", "none recorded."):
+        return ""
+    return body
 
 
 def _read_command(commands_path: pathlib.Path) -> str | None:
@@ -444,14 +488,13 @@ def render(cfg: Config, run_id: str) -> pathlib.Path:
         lines.append(f"- **{label}** — `{abspath}`")
     lines.append("")
 
-    # ## Summary of changes.
+    # ## Summary of changes — pre-formatted markdown lines from the extractor.
     lines.append("## Summary of changes")
     lines.append("")
     build_path = rd / "stages" / "4_building" / "build.md"
-    bullets = _extract_build_summary(build_path)
-    if bullets:
-        for b in bullets:
-            lines.append(f"- {b}")
+    summary_lines = _extract_build_summary(build_path)
+    if summary_lines:
+        lines.extend(summary_lines)
     else:
         lines.append("- _Build summary unavailable — see the full diff below._")
     lines.append("")
@@ -461,17 +504,15 @@ def render(cfg: Config, run_id: str) -> pathlib.Path:
         lines.append("→ Full diff: _build.md not produced_")
     lines.append("")
 
-    # ## Manual testing performed — inline command + report body + verdict.
-    lines.append("## Manual testing performed")
+    # ## Testing — Unit tests + Manual testing sub-sections, sourced from
+    # qa/commands.txt and qa/report.md (including its `## Manual testing`
+    # section when present).
+    lines.append("## Testing")
     lines.append("")
     qa_path = rd / "stages" / "5_validating" / "qa" / "report.md"
     commands_path = rd / "stages" / "5_validating" / "qa" / "commands.txt"
     for ln in _testing_block(events_list, qa_path, commands_path):
         lines.append(ln)
-    lines.append("")
-    lines.append("## Needs human verification")
-    lines.append("")
-    lines.append("_None._")
     lines.append("")
 
     # ## Run timeline.

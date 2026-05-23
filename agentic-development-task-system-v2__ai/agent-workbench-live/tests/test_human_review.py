@@ -182,27 +182,31 @@ class TestExtractBuildSummary(unittest.TestCase):
             "| AC-1 | covered | x |\n"
             "| AC-2 | covered | y |\n"
         )
-        bullets = human_review._extract_build_summary(build)
-        # Three bullets: impl, files, AC.
-        self.assertEqual(len(bullets), 3)
-        self.assertIn("goodbye", bullets[0])
-        self.assertIn("2 file(s)", bullets[1])
-        self.assertIn("2/2 covered", bullets[2])
+        out = human_review._extract_build_summary(build)
+        joined = "\n".join(out)
+        # impl bullet, files parent + 2 nested, AC bullet.
+        self.assertIn("goodbye", joined)
+        self.assertIn("- 2 file(s) touched:", joined)
+        self.assertIn("  - `bin/cli`", joined)
+        self.assertIn("  - `tests/test_cli.py`", joined)
+        self.assertIn("- AC coverage: 2/2 covered", joined)
 
     def test_no_headers_returns_empty(self):
         from lib import human_review
         build = self._write_build("# Build\n\nJust prose, no headers.\n")
         self.assertEqual(human_review._extract_build_summary(build), [])
 
-    def test_docs_touched_bullet_added(self):
+    def test_docs_touched_renders_as_nested_list(self):
         from lib import human_review
         build = self._write_build(
             "# Build\n\n"
             "## Implementation summary\nFoo.\n\n"
             "## Documentation touched\n- `README.md`\n- `docs/LOG.md`\n"
         )
-        bullets = human_review._extract_build_summary(build)
-        self.assertTrue(any("docs touched" in b for b in bullets))
+        joined = "\n".join(human_review._extract_build_summary(build))
+        self.assertIn("- 2 doc(s) touched:", joined)
+        self.assertIn("  - `README.md`", joined)
+        self.assertIn("  - `docs/LOG.md`", joined)
 
     def test_docs_touched_none_entry_skipped(self):
         from lib import human_review
@@ -211,8 +215,8 @@ class TestExtractBuildSummary(unittest.TestCase):
             "## Implementation summary\nFoo.\n\n"
             "## Documentation touched\n- (none — tiny addition)\n"
         )
-        bullets = human_review._extract_build_summary(build)
-        self.assertFalse(any("docs touched" in b for b in bullets))
+        joined = "\n".join(human_review._extract_build_summary(build))
+        self.assertNotIn("doc(s) touched", joined)
 
 
 class TestRender(unittest.TestCase):
@@ -296,10 +300,22 @@ class TestRender(unittest.TestCase):
             self.assertEqual(r.count("`"), 2,
                              f"row should have exactly one backticked path: {r!r}")
 
-    def test_manual_testing_inlines_qa_report_as_fenced_block(self):
+    def test_testing_section_has_unit_and_manual_subheadings(self):
         from lib import human_review
         cfg, run_id, rd = self._make_run()
-        # Drop a qa/report.md in the staged location.
+        out = human_review.render(cfg, run_id)
+        text = out.read_text()
+        testing = text.split("## Testing", 1)[1].split("##", 1)[0]
+        # Both sub-headings always render.
+        self.assertIn("**Unit tests**", testing)
+        self.assertIn("**Manual testing**", testing)
+        # Unit tests sub-section comes before Manual testing.
+        self.assertLess(testing.index("**Unit tests**"),
+                        testing.index("**Manual testing**"))
+
+    def test_testing_section_inlines_qa_report_as_fenced_block(self):
+        from lib import human_review
+        cfg, run_id, rd = self._make_run()
         qa_dir = rd / "stages" / "5_validating" / "qa"
         qa_dir.mkdir(parents=True, exist_ok=True)
         (qa_dir / "report.md").write_text(
@@ -308,24 +324,74 @@ class TestRender(unittest.TestCase):
         (qa_dir / "commands.txt").write_text("python -m pytest tests/ -q\n")
         out = human_review.render(cfg, run_id)
         text = out.read_text()
-        # The command is rendered.
         self.assertIn("`python -m pytest tests/ -q`", text)
-        # A fenced code block exists inside the Manual testing section, and the
-        # inlined Summary body is in it.
-        testing = text.split("## Manual testing performed", 1)[1].split("##", 1)[0]
+        testing = text.split("## Testing", 1)[1].split("##", 1)[0]
         self.assertIn("```", testing)
         self.assertIn("123 passed, 0 failed.", testing)
 
-    def test_manual_testing_falls_back_when_qa_missing(self):
+    def test_manual_testing_falls_back_to_none_recorded(self):
         from lib import human_review
         cfg, run_id, _ = self._make_run()
         out = human_review.render(cfg, run_id)
         text = out.read_text()
-        testing = text.split("## Manual testing performed", 1)[1].split("##", 1)[0]
-        # Without qa/report.md, the renderer still emits a command line and a
-        # placeholder; it never leaves the section empty.
-        self.assertIn("`python -m pytest tests/ -q`", testing)
-        self.assertIn("no qa/report.md recorded", testing)
+        testing = text.split("## Testing", 1)[1].split("##", 1)[0]
+        # Manual sub-section body falls back to _None recorded._
+        manual = testing.split("**Manual testing**", 1)[1]
+        self.assertIn("_None recorded._", manual)
+
+    def test_manual_testing_inlines_qa_manual_section_when_present(self):
+        from lib import human_review
+        cfg, run_id, rd = self._make_run()
+        qa_dir = rd / "stages" / "5_validating" / "qa"
+        qa_dir.mkdir(parents=True, exist_ok=True)
+        (qa_dir / "report.md").write_text(
+            "# QA report\n\n## Summary\n\n10 passed.\n\n"
+            "## Manual testing\n\n"
+            "Drove `agent-workbench followups <id>` against a fresh staged run.\n"
+            "Stdout contained `review:   /abs/path/to/HUMAN_REVIEW.md`.\n"
+        )
+        out = human_review.render(cfg, run_id)
+        text = out.read_text()
+        testing = text.split("## Testing", 1)[1].split("##", 1)[0]
+        manual = testing.split("**Manual testing**", 1)[1]
+        self.assertIn("Drove `agent-workbench followups", manual)
+        self.assertIn("`review:   /abs/path/to/HUMAN_REVIEW.md`", manual)
+        # Fallback string must NOT appear when a body is present.
+        self.assertNotIn("_None recorded._", manual)
+
+    def test_files_touched_renders_as_nested_list(self):
+        from lib import human_review
+        # Synthesize a build.md with 4 files and verify the renderer's output.
+        build_path = pathlib.Path(tempfile.mkdtemp(prefix="aw-build-")) / "build.md"
+        build_path.write_text(
+            "# Build\n\n"
+            "## Implementation summary\n\nfoo\n\n"
+            "## Files changed\n\n"
+            "- `a.py`\n- `b.py`\n- `c.py`\n- `d.py`\n"
+        )
+        lines = human_review._extract_build_summary(build_path)
+        # Find the "files touched" parent + nested rows.
+        idx = next(i for i, ln in enumerate(lines) if "file(s) touched" in ln)
+        self.assertEqual(lines[idx], "- 4 file(s) touched:")
+        self.assertEqual(lines[idx + 1], "  - `a.py`")
+        self.assertEqual(lines[idx + 2], "  - `b.py`")
+        self.assertEqual(lines[idx + 3], "  - `c.py`")
+        self.assertEqual(lines[idx + 4], "  - `d.py`")
+
+    def test_files_touched_truncates_above_cap(self):
+        from lib import human_review
+        build_path = pathlib.Path(tempfile.mkdtemp(prefix="aw-build-")) / "build.md"
+        files = "\n".join(f"- `f{i}.py`" for i in range(12))
+        build_path.write_text(
+            f"# Build\n\n## Implementation summary\n\nfoo\n\n"
+            f"## Files changed\n\n{files}\n"
+        )
+        lines = human_review._extract_build_summary(build_path)
+        idx = next(i for i, ln in enumerate(lines) if "file(s) touched" in ln)
+        self.assertEqual(lines[idx], "- 12 file(s) touched:")
+        # 8 nested rows + 1 overflow row.
+        self.assertEqual(lines[idx + 1 + human_review.SUMMARY_NESTED_CAP],
+                         f"  - …and {12 - human_review.SUMMARY_NESTED_CAP} more")
 
     def test_render_is_idempotent(self):
         from lib import human_review

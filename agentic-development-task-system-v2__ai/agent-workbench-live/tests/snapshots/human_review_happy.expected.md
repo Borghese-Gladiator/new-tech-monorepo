@@ -12,12 +12,15 @@
 ## Summary of changes
 
 - Added a `hello` case to `bin/cli` that prints `hello, world`.
-- 1 file(s) touched: `bin/cli`
+- 1 file(s) touched:
+  - `bin/cli`
 - AC coverage: 2/2 covered
 
 → Full diff: `<RUN_ROOT>/stages/4_building/build.md`
 
-## Manual testing performed
+## Testing
+
+**Unit tests**
 
 `python -m pytest tests/ -q`
 
@@ -26,15 +29,16 @@ Ran `bin/cli hello`; exit 0, stdout matched `hello, world`. Tests pass.
 ```
 
 ✓ all green — 0 known issues.
+
+**Manual testing**
+
+_None recorded._
+
 Review decision: **approve**.
 
 Full QA report:
 
 `<RUN_ROOT>/stages/5_validating/qa/report.md`
-
-## Needs human verification
-
-_None._
 
 ## Run timeline
 
