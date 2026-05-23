@@ -258,33 +258,74 @@ class TestRender(unittest.TestCase):
         for h in lifecycle.REQUIRED_HUMAN_REVIEW_HEADINGS:
             self.assertIn(h, text, msg=f"missing heading: {h}")
 
-    def test_files_table_omits_missing_files(self):
+    def test_files_section_omits_missing_files(self):
         from lib import human_review
         cfg, run_id, rd = self._make_run()
-        # Don't create any stage files. The render should still succeed and the
-        # Files table should omit every absent row (only "Human review (this
-        # file)" remains).
+        # No stage files dropped. The Files section should be empty of rows.
         out = human_review.render(cfg, run_id)
         text = out.read_text()
-        # The brief / plan / build / qa / review / follow-ups rows must NOT appear.
-        self.assertNotIn("stages/2_shaping/brief.md", text)
-        self.assertNotIn("stages/4_building/build.md", text)
-        self.assertNotIn("stages/6_followups/follow-ups.md", text)
-        # The self-reference row must always render.
-        self.assertIn("HUMAN_REVIEW.md", text)
+        files_body = text.split("## Files", 1)[1].split("##", 1)[0]
+        # No bullet rows in the Files section.
+        bullet_rows = [ln for ln in files_body.splitlines() if ln.startswith("- ")]
+        self.assertEqual(bullet_rows, [])
+        # The self-reference row was intentionally dropped in pass 2.
+        self.assertNotIn("Human review (this file)", text)
 
-    def test_files_table_includes_existing_files(self):
+    def test_files_section_format_one_line_per_artifact(self):
         from lib import human_review
         cfg, run_id, rd = self._make_run()
-        # Drop a couple of stage files in place.
         (rd / "stages" / "2_shaping").mkdir(parents=True, exist_ok=True)
         (rd / "stages" / "2_shaping" / "brief.md").write_text("# Brief\n")
         (rd / "stages" / "4_building").mkdir(parents=True, exist_ok=True)
         (rd / "stages" / "4_building" / "build.md").write_text("# Build\n")
         out = human_review.render(cfg, run_id)
         text = out.read_text()
-        self.assertIn("stages/2_shaping/brief.md", text)
-        self.assertIn("stages/4_building/build.md", text)
+        # Each existing artifact renders as `- **<Label>** — \`<abs path>\`` on
+        # its own line. Find the Files section body.
+        files_body = text.split("## Files", 1)[1].split("##", 1)[0]
+        rows = [ln for ln in files_body.splitlines() if ln.startswith("- ")]
+        self.assertGreaterEqual(len(rows), 2)  # brief + build at least
+        pat = re.compile(r"^- \*\*[^*]+\*\* — `(?P<abs>[^`]+)`$")
+        for r in rows:
+            m = pat.match(r)
+            self.assertIsNotNone(m, f"row does not match expected shape: {r!r}")
+            # The path must be absolute (starts with `/`).
+            self.assertTrue(m.group("abs").startswith("/"),
+                            f"path is not absolute: {m.group('abs')!r}")
+            # And must contain exactly one backticked path token.
+            self.assertEqual(r.count("`"), 2,
+                             f"row should have exactly one backticked path: {r!r}")
+
+    def test_manual_testing_inlines_qa_report_as_fenced_block(self):
+        from lib import human_review
+        cfg, run_id, rd = self._make_run()
+        # Drop a qa/report.md in the staged location.
+        qa_dir = rd / "stages" / "5_validating" / "qa"
+        qa_dir.mkdir(parents=True, exist_ok=True)
+        (qa_dir / "report.md").write_text(
+            "# QA report\n\n## Summary\n\n123 passed, 0 failed.\n\nDetails inline.\n"
+        )
+        (qa_dir / "commands.txt").write_text("python -m pytest tests/ -q\n")
+        out = human_review.render(cfg, run_id)
+        text = out.read_text()
+        # The command is rendered.
+        self.assertIn("`python -m pytest tests/ -q`", text)
+        # A fenced code block exists inside the Manual testing section, and the
+        # inlined Summary body is in it.
+        testing = text.split("## Manual testing performed", 1)[1].split("##", 1)[0]
+        self.assertIn("```", testing)
+        self.assertIn("123 passed, 0 failed.", testing)
+
+    def test_manual_testing_falls_back_when_qa_missing(self):
+        from lib import human_review
+        cfg, run_id, _ = self._make_run()
+        out = human_review.render(cfg, run_id)
+        text = out.read_text()
+        testing = text.split("## Manual testing performed", 1)[1].split("##", 1)[0]
+        # Without qa/report.md, the renderer still emits a command line and a
+        # placeholder; it never leaves the section empty.
+        self.assertIn("`python -m pytest tests/ -q`", testing)
+        self.assertIn("no qa/report.md recorded", testing)
 
     def test_render_is_idempotent(self):
         from lib import human_review

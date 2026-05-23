@@ -300,52 +300,122 @@ def _latest_event(events: list[dict], event_type: str) -> dict | None:
     return None
 
 
-def _testing_block(events: list[dict], qa_path: pathlib.Path) -> list[str]:
-    """Render the body of the ## Manual testing performed section as a list of
-    markdown lines. Returns at least one line; never raises.
+QA_INLINE_MAX_LINES = 30
+DEFAULT_QA_COMMAND = "python -m pytest tests/ -q"
+
+
+def _testing_block(
+    events: list[dict],
+    qa_path: pathlib.Path,
+    commands_path: pathlib.Path,
+) -> list[str]:
+    """Render the body of the ## Manual testing performed section.
+
+    Surface enough evidence inline that the reviewer never has to open
+    another file to answer "does this work?":
+
+      1. The command(s) that ran (from `qa/commands.txt` or a default).
+      2. The output / verdict (from `qa/report.md` body or its `## Summary`
+         section if present), inlined as a fenced markdown block.
+      3. A one-line interpretation derived from QACompleted's `tests_passed`
+         + `known_issues_count`.
+      4. A trailing absolute-path pointer to qa/report.md for "I want more."
     """
     qa_ev = _latest_event(events, "QACompleted")
     review_ev = _latest_event(events, "ReviewCompleted")
-    doc_ev = _latest_event(events, "DocClaimsVerified")
-    scope_ev = _latest_event(events, "ScopeCreepChecked")
 
     lines: list[str] = []
 
+    # 1) Command.
+    cmd = _read_command(commands_path) or DEFAULT_QA_COMMAND
+    lines.append(f"`{cmd}`")
+    lines.append("")
+
+    # 2) Output (inlined report body).
+    report_body = _read_report_body(qa_path)
+    if report_body:
+        lines.append("```")
+        for ln in _truncate(report_body, QA_INLINE_MAX_LINES):
+            lines.append(ln)
+        lines.append("```")
+    else:
+        lines.append("_(no qa/report.md recorded)_")
+    lines.append("")
+
+    # 3) One-line interpretation.
     if qa_ev:
         payload = qa_ev.get("payload") or {}
         tests_passed = payload.get("tests_passed")
         known = payload.get("known_issues_count") or 0
-        if tests_passed is True:
-            interp = "✓ all green" if known == 0 else f"⚠ {known} known issue(s); see qa report"
-            lines.append(f"- Validation suite → **tests_passed=true** — {interp}")
+        if tests_passed is True and known == 0:
+            interp = "✓ all green — 0 known issues."
+        elif tests_passed is True:
+            interp = f"✓ tests passed — ⚠ {known} known issue(s); see report."
         elif tests_passed is False:
-            lines.append(
-                f"- Validation suite → **tests_passed=false** — ⚠ {known} known issue(s); see qa report"
-            )
+            interp = f"✕ tests failed — {known} known issue(s); see report."
         else:
-            lines.append("- Validation suite → outcome unrecorded")
+            interp = "_Outcome unrecorded._"
+        lines.append(interp)
     else:
-        lines.append("- _Pending: no QACompleted event recorded yet._")
+        lines.append("_Pending: no QACompleted event recorded yet._")
 
+    # Optional review-decision line (kept terse).
     if review_ev:
         d = ((review_ev.get("payload") or {}).get("review_decision") or "").lower() or "unknown"
-        lines.append(f"- Review decision → **{d}**")
+        lines.append(f"Review decision: **{d}**.")
 
-    if doc_ev:
-        unverified = (doc_ev.get("payload") or {}).get("unverified") or []
-        verdict = "0 unverified" if not unverified else f"{len(unverified)} unverified"
-        lines.append(f"- Documentation claims → {verdict}")
-
-    if scope_ev:
-        creep = (scope_ev.get("payload") or {}).get("creep") or []
-        verdict = "0 unexpected files" if not creep else f"{len(creep)} unexpected file(s)"
-        lines.append(f"- Scope check → {verdict}")
-
+    # 4) Absolute path for the deep dive.
     if qa_path.exists():
-        lines.append(f"")
-        lines.append(f"Report: `{qa_path}`")
+        lines.append("")
+        lines.append("Full QA report:")
+        lines.append("")
+        lines.append(f"`{qa_path}`")
 
     return lines
+
+
+def _read_command(commands_path: pathlib.Path) -> str | None:
+    if not commands_path.exists():
+        return None
+    text = commands_path.read_text().strip()
+    if not text:
+        return None
+    # If multiple commands were logged, pick the first non-comment line.
+    for ln in text.splitlines():
+        s = ln.strip()
+        if s and not s.startswith("#"):
+            return s
+    return None
+
+
+def _read_report_body(qa_path: pathlib.Path) -> str:
+    """Return the inline-able content of qa/report.md.
+
+    If the report has a `## Summary` or `## Results` heading, prefer its body
+    (skipping any boilerplate above). Otherwise return the whole file minus
+    its leading `# Title` line.
+    """
+    if not qa_path.exists():
+        return ""
+    text = qa_path.read_text().strip()
+    if not text:
+        return ""
+    for heading in ("Summary", "Results"):
+        body = _section(text, heading)
+        if body and body.strip():
+            return body.strip()
+    # Strip a leading `# Title` line; keep the rest as-is.
+    lines = text.splitlines()
+    if lines and lines[0].lstrip().startswith("# "):
+        lines = lines[1:]
+    return "\n".join(lines).strip()
+
+
+def _truncate(text: str, max_lines: int) -> list[str]:
+    lines = text.splitlines()
+    if len(lines) <= max_lines:
+        return lines
+    return lines[: max_lines - 1] + ["…"]
 
 
 # ---------- main render ----------
@@ -362,18 +432,16 @@ def render(cfg: Config, run_id: str) -> pathlib.Path:
     title_summary = (meta.get("scope") or {}).get("summary") or run_id
     lines: list[str] = [f"# Human review — {run_id}", ""]
 
-    # ## Files table.
+    # ## Files — one-line-per-artifact list. The absolute path is the only
+    # path; relative paths aren't useful to a reader who only has this file
+    # open. The self-reference row is omitted (the reader already has it).
     lines.append("## Files")
     lines.append("")
-    lines.append("| Artifact | Relative | Absolute (click) |")
-    lines.append("| --- | --- | --- |")
     for label, relpath in FILE_TABLE_CANDIDATES:
         abspath = rd / relpath
         if not abspath.exists():
             continue
-        lines.append(f"| {label} | `{relpath}` | `{abspath}` |")
-    # HUMAN_REVIEW.md itself always renders (it's about to be written).
-    lines.append(f"| Human review (this file) | `HUMAN_REVIEW.md` | `{out_path}` |")
+        lines.append(f"- **{label}** — `{abspath}`")
     lines.append("")
 
     # ## Summary of changes.
@@ -393,11 +461,12 @@ def render(cfg: Config, run_id: str) -> pathlib.Path:
         lines.append("→ Full diff: _build.md not produced_")
     lines.append("")
 
-    # ## Manual testing performed.
+    # ## Manual testing performed — inline command + report body + verdict.
     lines.append("## Manual testing performed")
     lines.append("")
     qa_path = rd / "stages" / "5_validating" / "qa" / "report.md"
-    for ln in _testing_block(events_list, qa_path):
+    commands_path = rd / "stages" / "5_validating" / "qa" / "commands.txt"
+    for ln in _testing_block(events_list, qa_path, commands_path):
         lines.append(ln)
     lines.append("")
     lines.append("## Needs human verification")

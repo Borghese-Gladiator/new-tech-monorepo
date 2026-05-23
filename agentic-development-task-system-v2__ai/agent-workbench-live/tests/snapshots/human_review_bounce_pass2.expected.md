@@ -2,15 +2,12 @@
 
 ## Files
 
-| Artifact | Relative | Absolute (click) |
-| --- | --- | --- |
-| Brief | `stages/2_shaping/brief.md` | `<RUN_ROOT>/stages/2_shaping/brief.md` |
-| Plan | `stages/3_planning/plan.md` | `<RUN_ROOT>/stages/3_planning/plan.md` |
-| Build (diffs + AC coverage) | `stages/4_building/build.md` | `<RUN_ROOT>/stages/4_building/build.md` |
-| QA report | `stages/5_validating/qa/report.md` | `<RUN_ROOT>/stages/5_validating/qa/report.md` |
-| Review decision | `stages/5_validating/review.md` | `<RUN_ROOT>/stages/5_validating/review.md` |
-| Audit | `audit.md` | `<RUN_ROOT>/audit.md` |
-| Human review (this file) | `HUMAN_REVIEW.md` | `<RUN_ROOT>/HUMAN_REVIEW.md` |
+- **Brief** — `<RUN_ROOT>/stages/2_shaping/brief.md`
+- **Plan** — `<RUN_ROOT>/stages/3_planning/plan.md`
+- **Build (diffs + AC coverage)** — `<RUN_ROOT>/stages/4_building/build.md`
+- **QA report** — `<RUN_ROOT>/stages/5_validating/qa/report.md`
+- **Review decision** — `<RUN_ROOT>/stages/5_validating/review.md`
+- **Audit** — `<RUN_ROOT>/audit.md`
 
 ## Summary of changes
 
@@ -22,11 +19,18 @@
 
 ## Manual testing performed
 
-- Validation suite → **tests_passed=true** — ✓ all green
-- Review decision → **approve**
-- Scope check → 0 unexpected files
+`python -m pytest tests/ -q`
 
-Report: `<RUN_ROOT>/stages/5_validating/qa/report.md`
+```
+Subcommand prints `goodbye, world` and exits 0. AC-1 passes.
+```
+
+✓ all green — 0 known issues.
+Review decision: **approve**.
+
+Full QA report:
+
+`<RUN_ROOT>/stages/5_validating/qa/report.md`
 
 ## Needs human verification
 
