@@ -263,6 +263,10 @@ def _make_snapshot(**overrides):
         accepted_by=None,
         abandoned_reason=None,
         recent_events=(),
+        metrics_total_tokens=None,
+        metrics_approves=None,
+        metrics_validate_attempts=None,
+        metrics_cost_usd=None,
     )
     defaults.update(overrides)
     return RunSnapshot(**defaults)

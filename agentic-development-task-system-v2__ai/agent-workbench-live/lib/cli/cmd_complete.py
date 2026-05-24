@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from lib import metadata, transitions, locks
 from lib.cli._common import actor_from_env, fail, load_config
+from lib.metrics import writer as metrics_writer
 
 
 HELP = "Accept a run in human_review; transition to done."
@@ -56,6 +57,13 @@ def run(args) -> int:
         d["completion"]["completion_ref"] = completion_ref
         d["completion"]["completed_at"] = metadata.now_iso()
     metadata.update(cfg, run_id, _m)
+
+    # Token-efficiency tracking: refresh metrics.jsonl at terminal boundary.
+    # Best-effort — never raises into the caller.
+    try:
+        metrics_writer.record_run_metrics(cfg, run_id)
+    except Exception:
+        pass
 
     print(f"{run_id}: human_review -> done")
     print(f"completion_ref: {completion_ref}")

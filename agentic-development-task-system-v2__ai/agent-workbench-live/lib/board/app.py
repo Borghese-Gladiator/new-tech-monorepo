@@ -85,6 +85,25 @@ def _trim_title_date(run_id: str) -> tuple[str, str]:
     return "", run_id
 
 
+def _format_metrics_line(run: RunSnapshot) -> str:
+    """One-line `tokens · build · $` band content. Read-only telemetry."""
+    tok = run.metrics_total_tokens or 0
+    if tok >= 1_000_000:
+        tok_str = f"{tok/1_000_000:.1f}M"
+    elif tok >= 1_000:
+        tok_str = f"{tok/1_000:.1f}k"
+    else:
+        tok_str = str(tok)
+    appr = run.metrics_approves
+    val = run.metrics_validate_attempts
+    build_str = "—"
+    if val is not None and val > 0:
+        build_str = f"{appr or 0}/{val}"
+    cost = run.metrics_cost_usd or 0.0
+    cost_str = f"${cost:.2f}" if cost >= 0.01 else f"${cost:.4f}"
+    return f"tokens {tok_str} · build {build_str} · {cost_str}"
+
+
 def _format_event_ts(seconds: float) -> str:
     """Compact ``[mm:ss ago]`` for the events column.
 
@@ -175,6 +194,15 @@ def _card_text(
             ts = _format_event_ts(ev.age_seconds)
             detail = f" {ev.detail}" if ev.detail else ""
             text.append(f"{ts:<{_EVENT_TS_WIDTH}} {ev.type}{detail}\n")
+        text.rstrip()
+
+    # --- Metrics band (read-only telemetry, no severity styling) ---
+    if run.metrics_total_tokens is not None:
+        text.append("\n")
+        text.append_text(_band_rule())
+        text.append("\n")
+        text.append(_format_metrics_line(run), style="dim")
+        text.append("\n")
         text.rstrip()
 
     # --- Files band (gated) ---
