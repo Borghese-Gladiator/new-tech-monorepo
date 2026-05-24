@@ -1,3 +1,0 @@
-# Session-local scratch — plans, working notes, sample inputs that don't
-# belong in a commit. The convention is: anything under `tmp/` is throwaway.
-tmp/
