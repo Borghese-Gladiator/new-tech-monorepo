@@ -97,6 +97,14 @@ When you fan out work via Claude Code's Agent tool:
 - Pick the narrowest agent type. `Explore` for read-only search. `Plan` for planning. `general-purpose` only when edits or tool use are needed.
 - Subagents are session-internal. They never write `metadata.yaml` or `events.jsonl`.
 
+## Context library
+
+Conventions, safety defaults, and per-language quartets live under `context/`. Agents lazy-import individual files via `@context/path/to/file.md` on demand — pull in the leaf you need at the moment you need it.
+
+Start at `@context/README.md` — it indexes every file with one-line descriptions and import paths. Do not enumerate the library here; the index is the single source of truth and stays in sync as files are added or removed.
+
+Adding or editing a leaf? Read `@context/AUTHORING.md` first.
+
 ## Where to read more
 
 - `../architecture.md` — why it's shaped this way.

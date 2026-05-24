@@ -1,13 +1,11 @@
 # Follow-ups
 
----
-title: Wire context imports into the remaining slash commands
-motivation: ASM-002 in plan.md flagged that this run wired five commands as a starting set, leaving abandon / board / bounce / complete / handoff / run-show / runs unwired. As the library grows, an agent invoking those commands will lack the targeted convention loadout the wired commands already get.
-suggested_scope: Add a single `Context:` line near the top of each of the seven un-wired commands. Decide per command which 1–3 context files actually apply (e.g. `/abandon` → `@context/meta/risk-and-approval.md`; `/bounce` → `@context/meta/risk-and-approval.md` + `@context/git/commit.md`; `/board` likely takes no imports). No new context files. No body rewrites. Optional: add a lint-style test asserting every command has a `Context:` line or an explicit `Context: none — <reason>` opt-out.
-category: scope_extension
----
-
-The library exists; this is the harvest pass. Keeps the wiring surface uniform so a future agent doesn't wonder why some commands carry imports and others don't.
+<!--
+Note: an earlier "Wire context imports into the remaining slash commands"
+entry was removed when the per-command `Context:` lines were reverted
+in this run. If drift later argues for explicit imports, the path is
+documented in build.md § Deviations from plan.
+-->
 
 ---
 title: Project-specific overlay for the workbench-itself stdlib-unittest convention

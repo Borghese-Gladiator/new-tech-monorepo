@@ -8,12 +8,12 @@ approve
 
 Yes. Every acceptance criterion in `brief.md` is covered:
 
-- The full 21-file tree exists under `agent-workbench-live/context/` exactly as the layout block specified.
+- The library exists under `agent-workbench-live/context/` — 19 files net after the meta trim (see "Deviations from plan" in `build.md`).
 - Every non-README file carries the literal four markers (`Applies when:`, `Do:`, `Do not:`, `Commands:`).
 - Every non-README file is ≤40 lines; the README is 59. All under the 60-line hard cap.
 - `context/README.md` indexes every leaf as an `@context/...` import grouped by section.
 - Repo-root `AGENTS.md`, `agent-workbench-live/AGENTS.md`, and the new `CLAUDE.md` all reference `@context/README.md` and the AGENTS.md files deliberately do not inline file lists.
-- Five slash commands (`plan`, `validate`, `start`, `followups`, `new-run`) carry single-line `Context:` imports per DR-001.
+- Per-command `Context:` imports landed under DR-001 then were reverted on user judgment (see `build.md` § Deviations from plan). Net shipping state: AGENTS.md/CLAUDE.md auto-load → README index → leaves resolved lazily on demand. The acceptance criterion is interpreted as "library is composable from commands" rather than "each command must pre-declare imports".
 - `tests/test_context_library.py` locks in the structural invariants with 5 unit tests; the full suite is 198/198.
 
 ## Did it accidentally expand scope?
@@ -23,7 +23,7 @@ No. No CLI code, no schema changes, no event types added. Only the touchpoints t
 ## Are there fragile assumptions?
 
 - ASM-001 (Claude Code resolves `@context/...` as a lazy import): low-impact assumption — the convention is informational. If Claude Code's resolution differed, the human reading the AGENTS.md text would still understand the intent.
-- ASM-002 (five wired commands are a reasonable starting set): medium — a future agent can add more `Context:` lines without breaking anything.
+- ASM-002 (five wired commands are a reasonable starting set): rendered moot by the revert — no commands are wired. The path is open if drift makes the case for explicit imports.
 - ASM-003 (new repo-root `CLAUDE.md` does not collide with `~/.claude/CLAUDE.md`): low — Claude Code merges scopes; the new file adds, doesn't overwrite.
 
 ## Are there missing tests?
@@ -56,17 +56,16 @@ None. The change is documentation + one test module. No code paths exercised by 
 
 ## Blast radius
 
-depth 1 (changed files):
+depth 1 (changed files on the branch, net of the revert):
   AGENTS.md
   CLAUDE.md
   agent-workbench-live/AGENTS.md
-  agent-workbench-live/.claude/commands/{followups,new-run,plan,start,validate}.md
-  agent-workbench-live/context/* (21 new files)
+  agent-workbench-live/context/* (19 new files net after trim)
   agent-workbench-live/tests/test_context_library.py
+  docs/TODO.md, docs/LOG.md  (two-file contract)
 
 depth 2 (consumers of the touched surfaces):
   AGENTS.md / CLAUDE.md / agent-workbench-live/AGENTS.md → read by every agent session opening the repo. The added "Context library" sections + new `CLAUDE.md` are additive — no existing instruction was reworded or removed.
-  .claude/commands/*.md → consumed by Claude Code when an agent invokes the slash command. The new `Context:` lines are additive and live near the top of each file; downstream step bodies are unchanged.
   context/**/*.md → only consumed when an agent opts in via `@context/...`. No transitive references exist yet because the tree is new.
   tests/test_context_library.py → consumed only by the test runner.
 

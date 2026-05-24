@@ -62,7 +62,14 @@ You might not be. Two failure modes I've seen:
 
 The only reason to skip is if the change genuinely doesn't touch infrastructure (see the "does NOT trigger" list above). Otherwise: update both, every time.
 
+## Context library
+
+Conventions, safety defaults, and per-language quartets live under `agent-workbench-live/context/`. Agents lazy-import individual files via `@context/path/to/file.md` on demand — pull in the leaf you need at the moment you need it.
+
+Start at `@context/README.md` — it indexes every file with one-line descriptions and import paths. This AGENTS.md deliberately does not enumerate the library; the README is the single source of truth and stays in sync as files are added or removed.
+
 ## Related conventions
 
+- `CLAUDE.md` (repo root): wires the `@context/...` library.
 - `agent-workbench-live/AGENTS.md`: governs in-run behavior (the lifecycle rules, only-`draft`-asks-questions, only-`transitions.transition`-writes-status). That file is what you read if you're inside a `/shape` / `/plan` / `/validate` invocation.
 - The global `~/.claude/CLAUDE.md` instruction to write a root-level `plan.md` before non-trivial changes does **not** apply to runs. Runs hold their full plan inside `runs/<run_id>/plan.md` (written by `/plan`); that is the authoritative plan, and no second `plan.md` belongs at the repo root.
