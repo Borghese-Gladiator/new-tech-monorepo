@@ -558,28 +558,36 @@ abandon  -> abandoned  (stopped; requires abandoned_reason)
 **What `cmd_complete` does**
 
 1. Verifies the run is in `human_review` and that `audit.md` exists.
-2. Inside a per-run lock, calls `transitions.transition(..., "done", ...)`. The engine appends `TransitionApplied` and the secondary `RunCompleted` event.
+2. Inside a per-run lock:
+   a. Refuses if the worktree at `metadata.target.worktree.path` has uncommitted changes.
+   b. Resolves `metadata.target.repo.base_ref` to a concrete parent branch (for `base_ref: HEAD`, reads the target repo's current `HEAD`).
+   c. Refuses if the target repo's working tree is dirty.
+   d. Checks out the parent branch in the target repo and runs `git merge --no-ff <worktree_branch>` with a descriptive merge message.
+   e. On success: captures the new merge SHA via `git rev-parse HEAD`, restores the target repo's original branch via `git checkout -`, then calls `transitions.transition(..., "done", ...)` with `completion_ref="merge:<sha>"`. The engine appends `TransitionApplied` and the secondary `RunCompleted` event. `cmd_complete` then appends a `WorktreeMerged` event with `{worktree_branch, parent_branch, merge_sha, merge_strategy: "no-ff", repo_path}`.
+   f. On conflict: runs `git merge --abort`, appends a `MergeConflict` event with `{worktree_branch, parent_branch, conflicted_files, repo_path, stderr}`, leaves status at `human_review`, and returns a non-zero exit code. The parent branch is left checked out so the human is dropped where they need to resolve.
 3. Updates `metadata.completion` with `accepted_by`, `completion_ref`, and `completed_at`.
-4. Prints the new status and the `completion_ref`.
+4. Prints the new status, the `completion_ref` (formatted `merge:<sha>`), and a `merged <branch> into <parent_branch> (<sha-short>)` confirmation line.
+
+`done` means **both** "human signed off" AND "code integrated into the parent branch." There is no separate `merged` state.
 
 **What `cmd_complete` does NOT do**
 
-The current implementation does **not** merge the worktree branch into the parent branch, does not push, and does not clean up the worktree. It only records that a human accepted the deliverable on its worktree branch. `completion_ref` defaults to the label `local-branch:<branch_name>` — a *label*, not a merge SHA.
+- Push to a remote. Merging is local-only; the human pushes themselves if they want.
+- Resolve conflicts in-line. On conflict it aborts and bounces the human back to manual resolution.
+- Clean up the worktree. Worktrees stay on disk after `done`; removal (`git worktree remove`) is a manual / future-task concern.
+- Support rebase or squash strategies. The strategy is pinned to `--no-ff` for now.
 
-This is the known gap tracked as TODO §1 in `docs/TODO.md`: "Lifecycle gap: `human_review → done` does not merge the worktree branch." The chosen direction is **Option A** — extend `cmd_complete` to auto-merge the worktree branch into the parent branch and record the merge SHA as `completion_ref: merge:<sha>`. Until that lands, integrating completed work into the parent branch is implicit and the workbench cannot tell merged from unmerged-but-accepted runs.
+**Escape hatches**
 
-`completion_ref` examples (today):
+- `--no-merge` — skip the merge step and record `completion_ref: local-branch:<branch_name>`. The board surfaces such runs with a `⚠ unmerged` badge. Use when target-repo state makes auto-merging unsafe.
+- `--completion-ref <value>` — explicit override (skips the merge). Used to backfill runs that were merged outside the lifecycle.
 
-```text
-local-branch:agent/add-login-form
-accepted-local-worktree:/path/to/agent-workbench/worktrees/app/add-login-form
-closed-without-merge:prototype accepted
-```
-
-After Option A lands, the expected shape is:
+`completion_ref` examples:
 
 ```text
-merge:<sha>
+merge:c635745ab2f1...                 # the post-Option-A default
+local-branch:agent/add-login-form      # legacy or --no-merge run; flagged on the board
+accepted-local-worktree:/path/...      # explicit --completion-ref override
 ```
 
 ---

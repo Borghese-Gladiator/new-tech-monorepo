@@ -329,6 +329,11 @@ def _status_body(run: RunSnapshot) -> Iterable[str]:
             who = run.accepted_by or "?"
             when = _hhmm(run.completed_at) if run.completed_at else "?"
             yield f"accepted_by {who} · {when}"
+        # `local-branch:` completion_refs predate auto-merge; the run reached
+        # `done` without ever being integrated into the parent branch. Flag it
+        # until the human merges by hand (or backfills the ref).
+        if run.completion_ref and run.completion_ref.startswith("local-branch:"):
+            yield "⚠ unmerged (completion_ref is a label, not a merge SHA)"
         return
     if run.status == "abandoned":
         if run.abandoned_reason:

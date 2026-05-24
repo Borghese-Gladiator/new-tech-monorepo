@@ -145,6 +145,7 @@ class RunSnapshot:
     completed_at: str | None
     accepted_by: str | None
     abandoned_reason: str | None
+    completion_ref: str | None            # `merge:<sha>` after Option A; legacy `local-branch:<branch>` flags as unmerged
 
     # Live-tail recent events (newest first).
     recent_events: tuple[EventSummary, ...]
@@ -644,6 +645,7 @@ def load_run_snapshot(
         completed_at=_maybe_str(completion.get("completed_at")),
         accepted_by=_maybe_str(completion.get("accepted_by")),
         abandoned_reason=_maybe_str(completion.get("abandoned_reason")),
+        completion_ref=_maybe_str(completion.get("completion_ref")),
         recent_events=tuple(recent),
         metrics_total_tokens=m_total,
         metrics_approves=m_appr,

@@ -91,6 +91,17 @@ def transitions_seen(events_: list[dict]) -> list[tuple[str, str]]:
     return out
 
 
+def _meta(run_dir: pathlib.Path) -> dict:
+    """Parse runs/<id>/metadata.yaml. Cheap-and-cheerful for test asserts."""
+    import sys as _sys
+    # Workbench root is two levels up from this file (tests/ -> agent-workbench-live/).
+    aw_root = pathlib.Path(__file__).resolve().parent.parent
+    if str(aw_root) not in _sys.path:
+        _sys.path.insert(0, str(aw_root))
+    from lib import yaml_io
+    return yaml_io.loads((run_dir / "metadata.yaml").read_text())
+
+
 class E2ECase(unittest.TestCase):
     """Base class: spins up a workbench root + a throwaway repo per test."""
 
@@ -186,10 +197,42 @@ class TestE2EHappyPath(E2ECase):
         # stdout so the reviewer can click it from the terminal.
         self.assertIn(str(run_dir / "HUMAN_REVIEW.md"), r.stdout)
 
-        # complete.
+        # Make a real commit on the worktree branch so the merge has something
+        # to integrate. The fixture-driven happy path doesn't otherwise touch
+        # the worktree's checkout, so the branch would point at the same
+        # commit as main and `git merge --no-ff` would still create a merge
+        # commit — but a real change makes the assertion meaningful.
+        wt_path = pathlib.Path(_meta(run_dir)["target"]["worktree"]["path"])
+        (wt_path / "feature.txt").write_text("hello from feature\n")
+        subprocess.run(["git", "-C", str(wt_path), "add", "feature.txt"], check=True)
+        subprocess.run(
+            ["git", "-C", str(wt_path),
+             "-c", "user.email=feat@x", "-c", "user.name=feat",
+             "commit", "-q", "-m", "add feature.txt"],
+            check=True,
+        )
+
+        # complete — now also performs the merge.
         r = cli(self.tmp, "complete", run_id, "--accepted-by", "e2e-tester")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("human_review -> done", r.stdout)
+        # Auto-merge: completion_ref is now a real SHA, not a label.
+        import re
+        m = re.search(r"completion_ref:\s+merge:([0-9a-f]{40})", r.stdout)
+        self.assertIsNotNone(m, msg=f"expected merge:<sha> in stdout: {r.stdout}")
+        merge_sha = m.group(1)
+        # The merge SHA lives on main now.
+        log_merges = subprocess.run(
+            ["git", "-C", str(repo), "log", "--merges", "--pretty=%H", "main"],
+            capture_output=True, text=True, check=True,
+        ).stdout.split()
+        self.assertIn(merge_sha, log_merges)
+        # feature.txt is reachable from main.
+        in_main = subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "-e", f"main:feature.txt"],
+            capture_output=True,
+        )
+        self.assertEqual(in_main.returncode, 0)
 
         # Final state: every stage-promoted artifact is in place.
         self.assertTrue((run_dir / "stages" / "2_shaping" / "brief.md").exists())
@@ -215,12 +258,17 @@ class TestE2EHappyPath(E2ECase):
                 ("human_review", "done"),
             ],
         )
-        # Key non-transition events all show up.
+        # Key non-transition events all show up — including WorktreeMerged.
         types = event_types(evs)
         for required in ("RunCreated", "PreflightCompleted", "ReviewCompleted",
                          "QACompleted", "AuditRendered", "FollowupsRecorded",
-                         "HumanHandoffCreated"):
+                         "HumanHandoffCreated", "WorktreeMerged"):
             self.assertIn(required, types, msg=f"missing event: {required}")
+        # The WorktreeMerged payload carries the merge SHA.
+        merged_evs = [e for e in evs if e["type"] == "WorktreeMerged"]
+        self.assertEqual(len(merged_evs), 1)
+        self.assertEqual(merged_evs[0]["payload"]["merge_sha"], merge_sha)
+        self.assertEqual(merged_evs[0]["payload"]["merge_strategy"], "no-ff")
 
 
 class TestE2EBounceLoop(E2ECase):
@@ -342,6 +390,114 @@ class TestE2EAbandon(E2ECase):
         evs = read_events(run_dir)
         ts = transitions_seen(evs)
         self.assertIn(("draft", "abandoned"), ts)
+
+
+class TestE2ECompleteMerge(E2ECase):
+    """`complete` auto-merges; verify the failure modes (dirty / conflict)."""
+
+    def _drive_to_human_review(self, slug: str) -> tuple[str, pathlib.Path, pathlib.Path]:
+        fixture = FIXTURES / "happy"
+        run_id, run_dir, repo = self._new_run(fixture, slug=slug)
+        cli(self.tmp, "shape", run_id, "--init", stub_fixture=fixture)
+        cli(self.tmp, "shape", run_id, stub_fixture=fixture)
+        cli(self.tmp, "plan", run_id, "--init", stub_fixture=fixture)
+        cli(self.tmp, "plan", run_id, stub_fixture=fixture)
+        cli(self.tmp, "start", run_id, "--approved-by", "e2e-tester")
+        cli(self.tmp, "validate", run_id, "--init", stub_fixture=fixture)
+        cli(
+            self.tmp, "validate", run_id,
+            "--tests-passed", "true", "--known-issues", "0",
+            stub_fixture=fixture,
+        )
+        cli(self.tmp, "followups", run_id, stub_fixture=fixture)
+        return run_id, run_dir, repo
+
+    def test_dirty_worktree_refuses(self) -> None:
+        """`complete` with uncommitted changes in the worktree stays in human_review."""
+        run_id, run_dir, _repo = self._drive_to_human_review("dirty-wt")
+        wt_path = pathlib.Path(_meta(run_dir)["target"]["worktree"]["path"])
+        # Leave an unstaged file in the worktree.
+        (wt_path / "uncommitted.txt").write_text("oops\n")
+
+        r = cli(self.tmp, "complete", run_id, "--accepted-by", "e2e-tester")
+        self.assertNotEqual(r.returncode, 0, msg=r.stdout + r.stderr)
+        self.assertIn("uncommitted", (r.stderr + r.stdout).lower())
+        # Status still human_review.
+        self.assertEqual(_meta(run_dir)["status"], "human_review")
+        # No `human_review -> done` transition got recorded.
+        evs = read_events(run_dir)
+        self.assertNotIn(("human_review", "done"), transitions_seen(evs))
+
+    def test_merge_conflict_aborts_and_stays_in_human_review(self) -> None:
+        """A conflicting commit on main forces `git merge --abort` + MergeConflict."""
+        run_id, run_dir, repo = self._drive_to_human_review("conflict")
+
+        # Commit on the worktree branch FIRST so the merge has content.
+        wt_path = pathlib.Path(_meta(run_dir)["target"]["worktree"]["path"])
+        (wt_path / "shared.txt").write_text("worktree side\n")
+        subprocess.run(["git", "-C", str(wt_path), "add", "shared.txt"], check=True)
+        subprocess.run(
+            ["git", "-C", str(wt_path),
+             "-c", "user.email=w@x", "-c", "user.name=w",
+             "commit", "-q", "-m", "worktree commit"],
+            check=True,
+        )
+
+        # Now make a conflicting commit on main in the target repo.
+        (repo / "shared.txt").write_text("main side\n")
+        subprocess.run(["git", "-C", str(repo), "add", "shared.txt"], check=True)
+        subprocess.run(
+            ["git", "-C", str(repo),
+             "-c", "user.email=m@x", "-c", "user.name=m",
+             "commit", "-q", "-m", "main commit"],
+            check=True,
+        )
+
+        r = cli(self.tmp, "complete", run_id, "--accepted-by", "e2e-tester")
+        self.assertNotEqual(r.returncode, 0, msg=r.stdout + r.stderr)
+        self.assertIn("conflict", (r.stderr + r.stdout).lower())
+
+        # Status stays at human_review.
+        self.assertEqual(_meta(run_dir)["status"], "human_review")
+
+        evs = read_events(run_dir)
+        # No completion transition.
+        self.assertNotIn(("human_review", "done"), transitions_seen(evs))
+        # But a MergeConflict event was emitted.
+        conflicts = [e for e in evs if e["type"] == "MergeConflict"]
+        self.assertEqual(len(conflicts), 1, msg=event_types(evs))
+        self.assertIn("shared.txt", conflicts[0]["payload"]["conflicted_files"])
+        self.assertEqual(conflicts[0]["payload"]["worktree_branch"], _meta(run_dir)["target"]["worktree"]["branch_name"])
+
+        # `git merge --abort` ran: working tree is clean.
+        st = subprocess.run(
+            ["git", "-C", str(repo), "status", "--porcelain"],
+            capture_output=True, text=True, check=True,
+        )
+        self.assertEqual(st.stdout.strip(), "")
+
+    def test_no_merge_flag_records_local_branch_label(self) -> None:
+        """`--no-merge` keeps the old behavior so legacy/edge paths stay open."""
+        run_id, run_dir, repo = self._drive_to_human_review("no-merge")
+
+        r = cli(
+            self.tmp, "complete", run_id,
+            "--accepted-by", "e2e-tester",
+            "--no-merge",
+        )
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        self.assertIn("human_review -> done", r.stdout)
+        self.assertIn("completion_ref: local-branch:", r.stdout)
+        # Status flipped to done, but no merge commit on main.
+        self.assertEqual(_meta(run_dir)["status"], "done")
+        merges = subprocess.run(
+            ["git", "-C", str(repo), "log", "--merges", "--pretty=%H", "main"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        self.assertEqual(merges, "")
+        evs = read_events(run_dir)
+        # No WorktreeMerged event when --no-merge was used.
+        self.assertNotIn("WorktreeMerged", event_types(evs))
 
 
 if __name__ == "__main__":

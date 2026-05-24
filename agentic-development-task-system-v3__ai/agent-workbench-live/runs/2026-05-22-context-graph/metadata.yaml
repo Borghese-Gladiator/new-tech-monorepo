@@ -45,7 +45,7 @@ validation:
   known_issues_count: 0
 completion:
   accepted_by: timothy.shee
-  completion_ref: local-branch:agent/context-graph
+  completion_ref: merge:c6357454fb79562e504071ef59503f768af1283c
   completed_at: "2026-05-22T19:25:51-04:00"
   abandoned_reason: null
 build:

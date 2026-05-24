@@ -43,6 +43,7 @@ def seed_run(
     accepted_by: str | None = None,
     completed_at: dt.datetime | None = None,
     abandoned_reason: str | None = None,
+    completion_ref: str | None = None,
 ) -> pathlib.Path:
     """Write metadata.yaml for a fake run. Returns the run dir."""
     rd = root / "runs" / run_id
@@ -59,6 +60,7 @@ def seed_run(
     accepted = "null" if accepted_by is None else f'"{accepted_by}"'
     completed_iso = "null" if completed_at is None else f'"{_iso(completed_at)}"'
     abandoned = "null" if abandoned_reason is None else f'"{abandoned_reason}"'
+    cref = "null" if completion_ref is None else f'"{completion_ref}"'
     repo_path_resolved = repo_path.format(repo_name=repo_name)
 
     body = textwrap.dedent(f"""\
@@ -109,7 +111,7 @@ def seed_run(
           known_issues_count: {known_issues_count}
         completion:
           accepted_by: {accepted}
-          completion_ref: null
+          completion_ref: {cref}
           completed_at: {completed_iso}
           abandoned_reason: {abandoned}
         build:
@@ -780,6 +782,77 @@ class TestCompletionPassthrough(BoardSnapshotTestBase):
         snap = snapshot.build(self.cfg, show_all=True)
         r = next(iter(rr for c in snap.columns for rr in c.runs))
         self.assertEqual(r.abandoned_reason, "scope creep")
+
+    def test_completion_ref_passthrough(self):
+        """RunSnapshot.completion_ref carries the raw label from metadata."""
+        from lib.board import snapshot
+
+        when = dt.datetime.now().astimezone() - dt.timedelta(hours=1)
+        seed_run(
+            self.tmp, "r-merged", status="done",
+            accepted_by="tim", completed_at=when,
+            completion_ref="merge:c6357454fb79562e504071ef59503f768af1283c",
+        )
+        snap = snapshot.build(self.cfg, show_all=True)
+        r = next(iter(rr for c in snap.columns for rr in c.runs))
+        self.assertEqual(
+            r.completion_ref,
+            "merge:c6357454fb79562e504071ef59503f768af1283c",
+        )
+
+
+class TestUnmergedBadge(BoardSnapshotTestBase):
+    """`done` runs with `local-branch:` completion_refs get a warning badge."""
+
+    def _render_details(self, run_id: str):
+        from lib.board import app as board_app
+        from lib.board import snapshot
+
+        snap = snapshot.build(self.cfg, show_all=True)
+        run = next(
+            r for c in snap.columns for r in c.runs if r.run_id == run_id
+        )
+        return list(board_app._status_body(run))
+
+    def test_local_branch_completion_ref_renders_warning(self):
+        when = dt.datetime.now().astimezone() - dt.timedelta(hours=2)
+        seed_run(
+            self.tmp, "r-legacy", status="done",
+            accepted_by="tim", completed_at=when,
+            completion_ref="local-branch:agent/legacy-run",
+        )
+        details = self._render_details("r-legacy")
+        # The accepted_by line is still present...
+        self.assertTrue(any("accepted_by tim" in d for d in details), details)
+        # ... and the unmerged warning is appended.
+        self.assertTrue(
+            any("unmerged" in d for d in details),
+            f"expected unmerged warning in {details}",
+        )
+
+    def test_merge_completion_ref_does_not_warn(self):
+        when = dt.datetime.now().astimezone() - dt.timedelta(hours=2)
+        seed_run(
+            self.tmp, "r-merged", status="done",
+            accepted_by="tim", completed_at=when,
+            completion_ref="merge:c6357454fb79562e504071ef59503f768af1283c",
+        )
+        details = self._render_details("r-merged")
+        self.assertFalse(
+            any("unmerged" in d for d in details),
+            f"merge: completion_ref should not warn; got {details}",
+        )
+
+    def test_null_completion_ref_does_not_warn(self):
+        """Legacy fixture without completion_ref should not crash or warn."""
+        when = dt.datetime.now().astimezone() - dt.timedelta(hours=2)
+        seed_run(
+            self.tmp, "r-null", status="done",
+            accepted_by="tim", completed_at=when,
+            completion_ref=None,
+        )
+        details = self._render_details("r-null")
+        self.assertFalse(any("unmerged" in d for d in details), details)
 
 
 class TestFormatAge(unittest.TestCase):

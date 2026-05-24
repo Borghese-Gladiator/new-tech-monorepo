@@ -262,6 +262,7 @@ def _make_snapshot(**overrides):
         completed_at=None,
         accepted_by=None,
         abandoned_reason=None,
+        completion_ref=None,
         recent_events=(),
         metrics_total_tokens=None,
         metrics_approves=None,
