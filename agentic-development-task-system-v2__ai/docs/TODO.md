@@ -30,33 +30,50 @@ It does **not** run `git merge`, `git push`, or touch the worktree. The `complet
 - **The lifecycle should make the merge step impossible to skip silently.** Even if we don't auto-merge, the system should refuse to mark `done` without an explicit merge ref, or surface unmerged-but-done runs loudly on the board.
 - **Honest under-attribution over confident mis-attribution** (same principle as token-efficiency tracking): a `completion_ref: local-branch:<branch>` that doesn't claim to be a merge is fine; a `done` state that quietly implies integration is not.
 
-### Options (pick one during implementation)
+### Chosen direction — Option A: auto-merge in `cmd_complete`
 
-- **Option A — Auto-merge in `cmd_complete`.** Extend `cmd_complete` to: (a) verify the worktree is clean, (b) check out the parent branch, (c) `git merge --no-ff <worktree_branch>`, (d) record the merge SHA as `completion_ref: merge:<sha>`. Pros: closes the gap completely. Cons: lifecycle now mutates the parent branch — surprising; conflicts during merge would need a recovery story (probably bounce back to a new `merging` state).
-- **Option B — Add a `merged` state after `done`.** New `done → merged` transition driven by a new `cmd_merge` subcommand that does the git work. Keep `done` meaning "accepted." Update `agent-workbench list` / board to surface `done` (not `merged`) runs as a "needs integration" bucket. Pros: explicit, conservative. Cons: yet another state for the user to track.
-- **Option C — Refuse `done` without a merge ref.** Require `--completion-ref merge:<sha>` (no `local-branch:` default) and have the human run `git merge` first, then call `complete`. The system enforces the order but doesn't do the merge itself. Pros: smallest code change, no new state. Cons: still relies on the human remembering to merge; the friction is just earlier.
+Extend `cmd_complete` so that accepting a run also integrates it. After this lands, `human_review → done` means **both** "human signed off" and "code integrated into the parent branch." There is no separate `merged` state to track, and the lifecycle stops being able to record a `done` run whose deliverables live only on a per-run worktree branch.
 
-Recommend **Option B** — it's the cleanest separation of "human signed off" from "code integrated," and it gives the board something to surface ("3 done runs awaiting merge"). Option A is too magical for what should be a deliberate act.
+Step-by-step:
+
+1. Verify the worktree at `metadata.target.worktree.path` is clean (`git status --porcelain` is empty). Refuse with a clear error otherwise — the human needs to commit or stash before completing.
+2. Resolve the parent branch from `metadata.target.repo.base_ref` (the symbolic ref the run was started against). Refuse if it isn't a real branch in the target repo.
+3. Check out the parent branch in the *target repo* (not the worktree). Fail loudly if checkout isn't safe (dirty index in the parent repo, detached HEAD elsewhere).
+4. Run `git merge --no-ff <worktree_branch>` to create an explicit merge commit. `--no-ff` keeps the run's history visible in the parent branch's log.
+5. On success, capture the new merge commit's SHA via `git rev-parse HEAD` and record it as `completion_ref: merge:<sha>` (overriding the prior `local-branch:` default).
+6. On merge conflict: do **not** attempt in-line resolution. Abort the merge (`git merge --abort`), leave the run in `human_review`, and surface a structured error pointing at the conflicted files. The human resolves manually, then re-runs `complete`.
+
+Cons we are accepting:
+
+- The lifecycle now mutates the parent branch on `complete`. That is surprising the first time you see it; the slash command (`/complete`) and CLI help text must call it out explicitly.
+- A conflict during merge needs a recovery story. The cheapest one is "abort and stay in `human_review`" (above) — no new state, no new transition.
 
 ### Tasks
 
-- [ ] **Pick an option.** Document the choice in `docs/LOG.md` and reflect it in `docs/lifecycle.md` (which currently ends at `done` and would need a new state row for B, or a clarified `done` row for A/C).
-- [ ] **Schema change (if Option B).** Add a `merged` status to `schemas/run-metadata.yaml` and the lifecycle state machine in `lib/lifecycle.py` / `lib/transitions.py`. Add a `RunMerged` event type.
-- [ ] **Implement `cmd_merge` or extend `cmd_complete`.** Per the chosen option.
-- [ ] **Update the board.** `lib/board/snapshot.py` should surface `done`-but-unmerged runs as a distinct card state (Option B) or warn if any `completion_ref` is `local-branch:` rather than `merge:` (Options A/C).
-- [ ] **Backfill the three orphan runs.** The 2026-05-24 orphan-merge cleanup landed the work but left `metadata.completion.completion_ref` as `local-branch:<branch>`. Update each to `merge:<sha>` (and `status: merged` under Option B) using the merge SHAs `c635745` / `a02dd16` / `271ab58`. A one-shot script reading `git log --merges` is sufficient.
-- [ ] **Tests.** State-machine test for the new transition; CLI smoke test that calling `complete` (Option C) or `merge` (Option B) without the prerequisites fails with a clear error; board test that the new state renders.
+- [ ] **Reflect Option A in `docs/lifecycle.md`'s `done` row.** `done` means accepted *and* merged; `completion_ref` is a merge SHA. (`docs/lifecycle.md`'s `done` section already names Option A as the chosen direction — keep that pointer accurate once the code lands.)
+- [ ] **Extend `cmd_complete`.** Implement the six steps above in `lib/cli/cmd_complete.py`. The merge runs *inside* the per-run lock so a concurrent `bounce` or `abandon` can't race the integration.
+- [ ] **New event type: `WorktreeMerged`.** Emitted as a secondary event on the `human_review → done` transition, with payload `{worktree_branch, parent_branch, merge_sha, merge_strategy: "no-ff"}`. Add it to `schemas/events.jsonl`.
+- [ ] **Conflict path.** When `git merge` exits non-zero, run `git merge --abort` and emit a new `MergeConflict` event with `{worktree_branch, parent_branch, conflicted_files: [...]}`. Return a non-zero exit code from `cmd_complete` and leave `metadata.status` at `human_review`. No state change is recorded.
+- [ ] **Update the board.** `lib/board/snapshot.py` should warn (per-card badge) if any `done` run's `completion_ref` is still `local-branch:` rather than `merge:`. This makes the legacy orphan runs visible until the backfill runs.
+- [ ] **Backfill the three orphan runs.** The 2026-05-24 orphan-merge cleanup landed the work but left `metadata.completion.completion_ref` as `local-branch:<branch>`. Rewrite each to `merge:<sha>` using the merge SHAs `c635745` / `a02dd16` / `271ab58`. A one-shot script reading `git log --merges` is sufficient; do not retroactively emit `WorktreeMerged` events for those runs (the merge happened outside the lifecycle and the event would be misleading).
+- [ ] **Update `/complete` slash-command help.** The slash command must call out that `complete` now merges. Add a one-line pre-flight ("This will run `git merge --no-ff` on `<parent_branch>`. Make sure the worktree is committed.") so the human can't be surprised.
+- [ ] **Tests.**
+  - State-machine test: `complete` against a clean worktree merges and records `completion_ref: merge:<sha>`.
+  - State-machine test: `complete` against a dirty worktree fails with a clear error and leaves status at `human_review`.
+  - State-machine test: `complete` with a merge conflict aborts the merge, emits `MergeConflict`, and leaves status at `human_review`.
+  - Board test: legacy `local-branch:` `completion_ref` renders the warning badge.
 
 ### Acceptance
 
-- After a run reaches its terminal state, `metadata.completion.completion_ref` is either a merge SHA or the lifecycle refused the transition.
-- `agent-workbench list` or the board makes it impossible to miss a run whose work has been accepted but not merged.
+- A run reaching `done` always has `metadata.completion.completion_ref = "merge:<sha>"`, and the SHA resolves to a real merge commit on the parent branch.
+- Calling `complete` on a dirty worktree or a conflicted merge refuses cleanly; the run stays in `human_review` and the audit explains what happened.
 - The three orphan runs (`2026-05-22-context-graph`, `2026-05-22-audit-unit-tests-for-duplication`, `2026-05-22-token-efficiency-tracking`) carry a merge SHA in their metadata after backfill.
-- `docs/lifecycle.md` describes the integration step explicitly.
+- The board surfaces any remaining `done` runs with a non-merge `completion_ref` (after backfill, this is zero).
+- `docs/lifecycle.md`'s `done` section describes the integration step explicitly.
 
 ### Non-goals
 
-Auto-push to remote (out of scope; merging is local-only); rewriting `cmd_complete` to handle merge conflicts inline (too risky — if Option A is picked, conflicts bounce to a new state rather than being resolved in-line); changing the meaning of `abandoned` (still a clean terminal that never integrated).
+Auto-push to remote (out of scope; merging is local-only); in-line conflict resolution (we abort and bounce the human back to manual resolution); changing the meaning of `abandoned` (still a clean terminal that never integrated); rebase / squash-merge strategies (Option A pins `--no-ff` for now — a future task can make this configurable).
 
 ### Origin
 
