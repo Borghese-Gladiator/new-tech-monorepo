@@ -6,7 +6,95 @@
 
 ---
 
-## 2. Token Efficiency tracking
+## 1. Merge "done" worktree branches whose work is missing from `202605_agent_workbench_v2`
+
+Discovered 2026-05-23 while auditing worktrees. Three runs are marked `status: done` in their `metadata.yaml` but their worktree branches were never merged into the parent `202605_agent_workbench_v2`, so the deliverables don't exist in the tree. (See §2 for the lifecycle gap that allowed this.)
+
+For each branch below, the run was human-accepted at the `human_review → done` transition but `cmd_complete` only records a `completion_ref` label — it does not run `git merge`. The only branch from this cohort that did land (`agent/human-review-polish`, commit `cd3e5ae`) was merged by hand.
+
+**Branches to merge (priority order — earliest dependency first):**
+
+- [ ] **`agent/context-graph`** → 5 commits ahead. Adds `agent-workbench-live/context/` (21 files: AUTHORING.md, README.md, diagnostics/, git/, infra/, languages/{go,javascript-typescript,python}/), `CLAUDE.md` at the project root, `tests/test_context_library.py`, plus modifications to `agent-workbench-live/AGENTS.md`, `agent-workbench-live/lib/cli/cmd_followups.py`, `agent-workbench-live/lib/lifecycle.py`, `agent-workbench-live/templates/HUMAN_REVIEW.md`. This is the context-library deliverable from the original (pre-renumber) TODO §1. Expected friction: the `cmd_followups.py` change drops a `human_review` import that v2 needs (because human-review-polish merged after this branch diverged) — resolve by keeping v2's `human_review` import on top of context-graph's other edits.
+- [ ] **`agent/audit-unit-tests-for-duplication`** → 2 commits ahead. Consolidates duplicated tests across `tests/test_lifecycle.py`, `tests/test_e2e.py`, `tests/test_followups.py`, and 13 other test files into parametrized forms (e.g. `test_validation_cases` replaces `test_missing_file_reported` + `test_missing_headings_reported` + `test_partial_headings_reported`). Expected friction: tests are written against pre-polish heading names (`## Suggested first checks` vs. v2's `## Files` / `## Summary of changes` / `## Testing` / `## Run timeline`) — rebase onto v2 first, then update the heading expectations to match the polished `REQUIRED_HUMAN_REVIEW_HEADINGS` set.
+- [ ] **`agent/token-efficiency-tracking`** → 3 commits ahead. The entire §3 implementation: `lib/metrics/{__init__,buckets,lines,prices,rollup,summary,transcript,writer}.py`, `lib/cli/cmd_metrics.py`, and 7 metrics test files. Once this lands, the §3 task list becomes "verify and tune" rather than "build."
+- [ ] **`agent/poker`** — out of scope for this section (side project under `python-poker-first/`, dirty `web/package-lock.json` untracked). Decide separately whether to merge or archive.
+
+**Per-branch merge procedure**
+
+1. `git checkout 202605_agent_workbench_v2` and confirm clean tree.
+2. `git merge <branch>` and resolve conflicts. Conflicts in TODO.md / docs/LOG.md are expected — accept v2's numbering and reconcile content.
+3. Run `python -m unittest discover -s agent-workbench-live/tests -t agent-workbench-live` and fix any breaks from API drift (most likely in heading-name expectations for audit-unit-tests-for-duplication).
+4. Update `docs/LOG.md` with a one-line entry: which run, which branch, which commit, what landed.
+5. Once a branch is merged, its worktree at `agent-workbench-live/worktrees/agentic-development-task-system-v2-ai/20260522__<name>/` is safe to remove with `git worktree remove <path>` followed by `git branch -d <branch>`.
+
+**Acceptance**
+
+- `agent-workbench-live/context/` exists in v2 with 21 files; `test_context_library.py` passes.
+- `agent-workbench-live/lib/metrics/` exists in v2 with all 8 modules; `cmd_metrics.py` is wired into the CLI; metrics tests pass.
+- Test suite passes with the consolidated parametrized tests from `agent/audit-unit-tests-for-duplication`.
+- `git worktree list` shows only `master`, `202605_agent_workbench`, `202605_agent_workbench_v2`, and `agent/poker` (the four non-merged ones plus the project's own checkout). Or `agent/poker` is also resolved per a separate decision.
+
+**Non-goals**
+
+Resolving the underlying lifecycle gap (see §2); merging `agent/poker` (out of scope here); rewriting any of the branches' commit messages or squashing.
+
+---
+
+## 2. Lifecycle gap: `human_review → done` does not merge the worktree branch
+
+Discovered 2026-05-23. Three runs (`2026-05-22-context-graph`, `2026-05-22-audit-unit-tests-for-duplication`, `2026-05-22-token-efficiency-tracking`) reached `status: done` in their `metadata.yaml`, but the work never landed on the parent branch `202605_agent_workbench_v2`. Their deliverables live only on the per-run worktree branches (`agent/context-graph`, etc.) and would have been lost if those worktrees had been deleted on the assumption that "done = merged."
+
+### Root cause
+
+`lib/cli/cmd_complete.py` is the entire implementation of `human_review → done`. It:
+
+1. Writes a `TransitionApplied` event,
+2. Records `completion_ref = local-branch:<branch_name>` as a *label* in `metadata.completion`,
+3. Prints "done".
+
+It does **not** run `git merge`, `git push`, or touch the worktree. The `completion_ref` is a string, not a merge SHA. So in the current system, "done" means "the human accepted the deliverable on the worktree branch" — the integration back into the parent branch is implicit, unstated, and easy to forget. (The one branch that did land — `agent/human-review-polish` via commit `cd3e5ae` — was merged by hand, not by the lifecycle.)
+
+### Design principles
+
+- **The `done` state must be unambiguous about whether the work is integrated.** Either rename the current "done" to something like `accepted` (with `done` reserved for "accepted AND merged"), or extend `cmd_complete` to perform the merge.
+- **The lifecycle should make the merge step impossible to skip silently.** Even if we don't auto-merge, the system should refuse to mark `done` without an explicit merge ref, or surface unmerged-but-done runs loudly on the board.
+- **Honest under-attribution over confident mis-attribution** (same principle as §3): a `completion_ref: local-branch:<branch>` that doesn't claim to be a merge is fine; a `done` state that quietly implies integration is not.
+
+### Options (pick one during implementation)
+
+- **Option A — Auto-merge in `cmd_complete`.** Extend `cmd_complete` to: (a) verify the worktree is clean, (b) check out the parent branch, (c) `git merge --no-ff <worktree_branch>`, (d) record the merge SHA as `completion_ref: merge:<sha>`. Pros: closes the gap completely. Cons: lifecycle now mutates the parent branch — surprising; conflicts during merge would need a recovery story (probably bounce back to a new `merging` state).
+- **Option B — Add a `merged` state after `done`.** New `done → merged` transition driven by a new `cmd_merge` subcommand that does the git work. Keep `done` meaning "accepted." Update `agent-workbench list` / board to surface `done` (not `merged`) runs as a "needs integration" bucket. Pros: explicit, conservative. Cons: yet another state for the user to track.
+- **Option C — Refuse `done` without a merge ref.** Require `--completion-ref merge:<sha>` (no `local-branch:` default) and have the human run `git merge` first, then call `complete`. The system enforces the order but doesn't do the merge itself. Pros: smallest code change, no new state. Cons: still relies on the human remembering to merge; the friction is just earlier.
+
+Recommend **Option B** — it's the cleanest separation of "human signed off" from "code integrated," and it gives the board something to surface ("3 done runs awaiting merge"). Option A is too magical for what should be a deliberate act.
+
+### Tasks
+
+- [ ] **Pick an option.** Document the choice in `docs/LOG.md` and reflect it in `docs/lifecycle.md` (which currently ends at `done` and would need a new state row for B, or a clarified `done` row for A/C).
+- [ ] **Schema change (if Option B).** Add a `merged` status to `schemas/run-metadata.yaml` and the lifecycle state machine in `lib/lifecycle.py` / `lib/transitions.py`. Add a `RunMerged` event type.
+- [ ] **Implement `cmd_merge` or extend `cmd_complete`.** Per the chosen option.
+- [ ] **Update the board.** `lib/board/snapshot.py` should surface `done`-but-unmerged runs as a distinct card state (Option B) or warn if any `completion_ref` is `local-branch:` rather than `merge:` (Options A/C).
+- [ ] **Backfill the three orphan runs.** After §1 merges them by hand, update their `metadata.completion.completion_ref` from `local-branch:<branch>` to `merge:<sha>` (and `status: merged` under Option B). A one-shot script reading `git log --merges` is sufficient.
+- [ ] **Tests.** State-machine test for the new transition; CLI smoke test that calling `complete` (Option C) or `merge` (Option B) without the prerequisites fails with a clear error; board test that the new state renders.
+
+### Acceptance
+
+- After a run reaches its terminal state, `metadata.completion.completion_ref` is either a merge SHA or the lifecycle refused the transition.
+- `agent-workbench list` or the board makes it impossible to miss a run whose work has been accepted but not merged.
+- The three orphan runs from §1 carry a merge SHA in their metadata after backfill.
+- `docs/lifecycle.md` describes the integration step explicitly.
+
+### Non-goals
+
+Auto-push to remote (out of scope; merging is local-only); rewriting `cmd_complete` to handle merge conflicts inline (too risky — if Option A is picked, conflicts bounce to a new state rather than being resolved in-line); changing the meaning of `abandoned` (still a clean terminal that never integrated).
+
+### Origin
+
+Discovered 2026-05-23 during a worktree audit. The user noticed that three runs marked `done` were missing their deliverables from the parent branch; verified by reading `cmd_complete.py` and confirming no git-merge call exists in the lifecycle.
+
+---
+
+## 3. Token Efficiency tracking
 
 Today we have no idea how expensive a run is. We don't know which stage burns the most tokens, whether bouncing through validation is a 2× or 10× tax, or which scope kinds (`implementation` vs `repair` vs `audit`) deliver the most accepted code per dollar. This work adds per-run token + cost + acceptance tracking — measurement only, no limits or budgets.
 
@@ -59,7 +147,7 @@ agent-workbench-live/
 
 - [ ] **Transcript locator + correlator** — given a `run_id`, find the Claude Code transcript JSONL(s) that overlap the run's `created_at`..`updated_at` window for this project, and identify which turns belong to which slash command. Correlation strategy: match on the slash-command tool-use payload at turn start (`/shape`, `/plan`, `/build`, `/validate`, `/followups`) plus the run's working directory. Output a list of `(turn, stage, command)` tuples. Pure function over transcript bytes — no I/O in the unit tests; feed it fixture transcripts. Write at `lib/metrics/transcript.py`.
 - [ ] **Bucket attribution** — for each turn in the correlated list, attribute input tokens to one of the buckets enumerated above. Pull bucket boundaries from the transcript message structure (system prompt, tool defs in `tools`, user/assistant role markers, `@context/...` import expansions, tool-result blocks). Unattributable bytes fall into `other`. Write at `lib/metrics/buckets.py` with a fixture-driven test that covers every named bucket plus `other`.
-- [ ] **Price table** — author `agent-workbench-live/metrics/prices.yaml` with current Anthropic per-model rates (Opus 4.6 / 4.7, Sonnet 4.5 / 4.6, Haiku 4.5) split into `input_per_mtok`, `output_per_mtok`, `cache_read_per_mtok`, `cache_creation_per_mtok`. Loader at `lib/metrics/prices.py` validates the file shape and returns a `dict[model_id, Rates]`. Cost computation = sum of `(tokens * rate) / 1_000_000` per kind. Unknown model = warn and skip (no synthetic price).
+- [ ] **Price table** — author `agent-workbench-live/metrics/prices.yaml` with current Anthropic per-model rates (Opus 4.6 / 4.7, Sonnet 4.5 / 4.6, Haiku 4.5) split into `input_per_mtok`, `output_per_mtok`, `cache_read_per_mtok`, `cache_creation_per_mtok`. Loader at `lib/metrics/prices.py` validates the file shape and returns a `dict[model_id, Rates]`. Cost computation = sum of `(tokens * rate) / 1_000_000` per kind. Unknown model = warn and skip (no synthetic price). *Note: `prices.yaml` scaffolding already landed (commit `4722899`); only the Python loader + validator remain.*
 - [ ] **`metrics.jsonl` writer** — `lib/metrics/writer.py` with a single public `record_run_metrics(run_id) -> None` entry point. Walks the transcript via the correlator, attributes via the bucketer, prices via the table, and emits `metrics.jsonl` rows for every turn plus `build_outcome` rows (one per `/validate` result, read from `events.jsonl`). Idempotent: re-running on the same run replaces the file rather than appending duplicates.
 - [ ] **Line-count capture** — `lib/metrics/lines.py`. `generated_lines` is computed at run-completion time by walking `events.jsonl` for `ArtifactWritten` rows + git history of the worktree (`git log --numstat <branch>`). `accepted_lines` is computed at the merge boundary: when a run transitions to `done` and the worktree is torn down, capture `git diff --numstat <base_ref>...<merge_commit>` and write a `line_count` row. If the worktree is torn down without a merge commit (rare; record the case), `accepted_lines = 0`.
 - [ ] **Wire into the lifecycle** — call `record_run_metrics(run_id)` (a) after every `/validate` transition (so partial metrics exist for in-flight runs) and (b) at the terminal `done` / `abandoned` transition (so the file is final). Hook in via the existing transition machinery; do **not** ask slash commands to self-report.
@@ -91,7 +179,7 @@ Budgets, limits, or warnings; per-turn live metering (we batch at transition tim
 
 ---
 
-## 3. Token efficiency — pass 2: stop bleeding `cache_read`
+## 4. Token efficiency — pass 2: stop bleeding `cache_read`
 
 ### Why this is here
 
@@ -208,7 +296,7 @@ What §4 still doesn't solve and would need future runs:
 
 ---
 
-## 4. Fix generated_lines for base_ref="HEAD" runs
+## 5. Fix generated_lines for base_ref="HEAD" runs
 
 `lib/metrics/lines.py:count_generated()` runs `git log --numstat <base_ref>..HEAD` to sum `+` lines across the worktree's commit history. The workbench config defaults `base_ref: HEAD` (`agent-workbench.yaml:14`), and `metadata.target.repo.base_ref` is stored as that literal string. The dotted range `HEAD..HEAD` resolves to "no commits" — so `generated_lines` reports 0 for every run that uses the default, regardless of how many commits the builder landed.
 
@@ -242,3 +330,4 @@ Changing the default `base_ref`; making the metrics writer infer the base from `
 **Origin**
 
 Discovered during the §3 dogfood run (`runs/2026-05-22-token-efficiency-tracking/stages/6_followups/follow-ups.md` § "Fix generated_lines for base_ref=\"HEAD\" runs"). Promoted from per-run follow-up to workbench-level TODO so it's actioned outside the original run.
+
