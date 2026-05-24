@@ -35,13 +35,14 @@ class TestMetadata(unittest.TestCase):
         self.assertEqual(loaded["run_id"], "2026-05-18-test")
         self.assertEqual(loaded["target"]["repo"]["path"], "/tmp/x")
 
-    def test_create_refuses_duplicate(self):
+    def test_metadata_error_cases(self):
+        """create() refuses a second call for the same run_id; load()
+        rejects a run_id that doesn't exist. Different call shapes but the
+        same MetadataError contract, folded into one test."""
         self._create_run()
-        with self.assertRaises(metadata.MetadataError):
+        with self.assertRaises(metadata.MetadataError, msg="duplicate create"):
             self._create_run()
-
-    def test_load_missing_run(self):
-        with self.assertRaises(metadata.MetadataError):
+        with self.assertRaises(metadata.MetadataError, msg="load missing run"):
             metadata.load(self.cfg, "no-such-run")
 
     def test_set_status_valid(self):

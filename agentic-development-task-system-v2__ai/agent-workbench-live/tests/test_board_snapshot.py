@@ -485,43 +485,35 @@ class TestScopeAndIdentity(BoardSnapshotTestBase):
 
 
 class TestLiveSignal(BoardSnapshotTestBase):
-    def test_is_live_when_recent_event(self):
+    def test_live_signal_cases(self):
+        """Three is_live branches share the same seed-then-assert shape;
+        each case differs only in event age (or absence). Folded into one
+        test so a single fixture pass exercises all three."""
         from lib.board import snapshot
 
-        rd = seed_run(self.tmp, "r-live", status="building")
         now = dt.datetime.now().astimezone()
-        append_event(rd, base_event(
-            1, "r-live", "ArtifactWritten",
-            status="building",
-            at=now - dt.timedelta(seconds=5),
-            payload={"artifact_key": "build", "path": "/tmp/x/build.md"},
-        ))
+        # Each case: (run_id, event_age_or_None, expected_is_live).
+        cases = [
+            ("r-live", dt.timedelta(seconds=5), True),
+            ("r-quiet", dt.timedelta(minutes=10), False),
+            ("r-empty", None, False),
+        ]
+        for run_id, event_age, _expected in cases:
+            rd = seed_run(self.tmp, run_id, status="building")
+            if event_age is not None:
+                append_event(rd, base_event(
+                    1, run_id, "ArtifactWritten",
+                    status="building",
+                    at=now - event_age,
+                    payload={"artifact_key": "build", "path": "/tmp/x/build.md"},
+                ))
+
         snap = snapshot.build(self.cfg, now=now)
-        r = next(iter(rr for c in snap.columns for rr in c.runs))
-        self.assertTrue(r.is_live)
-
-    def test_not_live_when_event_old(self):
-        from lib.board import snapshot
-
-        rd = seed_run(self.tmp, "r-quiet", status="building")
-        now = dt.datetime.now().astimezone()
-        append_event(rd, base_event(
-            1, "r-quiet", "ArtifactWritten",
-            status="building",
-            at=now - dt.timedelta(minutes=10),
-            payload={"artifact_key": "build", "path": "/tmp/x/build.md"},
-        ))
-        snap = snapshot.build(self.cfg, now=now)
-        r = next(iter(rr for c in snap.columns for rr in c.runs))
-        self.assertFalse(r.is_live)
-
-    def test_not_live_when_no_events(self):
-        from lib.board import snapshot
-
-        seed_run(self.tmp, "r-empty", status="building")
-        snap = snapshot.build(self.cfg)
-        r = next(iter(rr for c in snap.columns for rr in c.runs))
-        self.assertFalse(r.is_live)
+        runs_by_id = {r.run_id: r for c in snap.columns for r in c.runs}
+        for run_id, _event_age, expected in cases:
+            self.assertEqual(
+                runs_by_id[run_id].is_live, expected, msg=run_id
+            )
 
 
 class TestAcceptanceCoverage(BoardSnapshotTestBase):
@@ -537,39 +529,32 @@ class TestAcceptanceCoverage(BoardSnapshotTestBase):
         "## Deviations from plan\nnone\n"
     )
 
-    def test_ac_coverage_parsed(self):
+    def test_ac_coverage_cases(self):
+        """Three AC-table branches in one fixture pass: full table, missing
+        table with build.md present, and no build.md at all."""
         from lib.board import snapshot
 
-        seed_run(
-            self.tmp, "r-ac", status="validating",
-            build_md=True, build_md_body=self.AC_BODY,
-        )
-        snap = snapshot.build(self.cfg)
-        r = next(iter(rr for c in snap.columns for rr in c.runs))
-        self.assertEqual(r.ac_total, 3)
-        self.assertEqual(r.ac_covered, 2)
-        self.assertFalse(r.ac_table_missing)
-
-    def test_ac_table_missing_flag(self):
-        from lib.board import snapshot
-
-        seed_run(
-            self.tmp, "r-noac", status="validating",
-            build_md=True, build_md_body="# build\n\nno table here\n",
-        )
-        snap = snapshot.build(self.cfg)
-        r = next(iter(rr for c in snap.columns for rr in c.runs))
-        self.assertTrue(r.ac_table_missing)
-        self.assertIsNone(r.ac_total)
-
-    def test_no_build_md_means_no_signal(self):
-        from lib.board import snapshot
-
+        seed_run(self.tmp, "r-ac", status="validating",
+                 build_md=True, build_md_body=self.AC_BODY)
+        seed_run(self.tmp, "r-noac", status="validating",
+                 build_md=True, build_md_body="# build\n\nno table here\n")
         seed_run(self.tmp, "r-no-build", status="validating", build_md=False)
+
         snap = snapshot.build(self.cfg)
-        r = next(iter(rr for c in snap.columns for rr in c.runs))
-        self.assertFalse(r.ac_table_missing)
-        self.assertIsNone(r.ac_total)
+        by_id = {r.run_id: r for c in snap.columns for r in c.runs}
+
+        # Parsed AC table → ac_total/covered set, ac_table_missing False.
+        self.assertEqual(by_id["r-ac"].ac_total, 3)
+        self.assertEqual(by_id["r-ac"].ac_covered, 2)
+        self.assertFalse(by_id["r-ac"].ac_table_missing)
+
+        # build.md exists but lacks the AC table → flag set, totals None.
+        self.assertTrue(by_id["r-noac"].ac_table_missing)
+        self.assertIsNone(by_id["r-noac"].ac_total)
+
+        # No build.md at all → not "missing" (no signal), totals None.
+        self.assertFalse(by_id["r-no-build"].ac_table_missing)
+        self.assertIsNone(by_id["r-no-build"].ac_total)
 
 
 class TestDiffShortstat(BoardSnapshotTestBase):
@@ -756,22 +741,19 @@ class TestTestsRecordedAge(BoardSnapshotTestBase):
 
 
 class TestWorktreeMissingFlag(BoardSnapshotTestBase):
-    def test_worktree_missing_in_building(self):
+    def test_worktree_missing_by_status(self):
+        """Flag fires for `building` runs without a worktree; stays off for
+        pre-`building` runs (which haven't created one yet)."""
         from lib.board import snapshot
 
         seed_run(self.tmp, "r-wt", status="building", worktree_created=False)
-        snap = snapshot.build(self.cfg)
-        r = next(iter(rr for c in snap.columns for rr in c.runs))
-        self.assertTrue(r.worktree_missing)
-
-    def test_worktree_missing_not_set_early(self):
-        from lib.board import snapshot
-
         seed_run(self.tmp, "r-draft", status="draft", worktree_created=False)
+
         snap = snapshot.build(self.cfg)
-        r = next(iter(rr for c in snap.columns for rr in c.runs))
-        # Pre-`building` runs commonly haven't created a worktree yet.
-        self.assertFalse(r.worktree_missing)
+        by_id = {r.run_id: r for c in snap.columns for r in c.runs}
+
+        self.assertTrue(by_id["r-wt"].worktree_missing)
+        self.assertFalse(by_id["r-draft"].worktree_missing)
 
 
 class TestCompletionPassthrough(BoardSnapshotTestBase):

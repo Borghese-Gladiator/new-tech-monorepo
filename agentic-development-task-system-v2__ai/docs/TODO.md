@@ -330,4 +330,3 @@ Changing the default `base_ref`; making the metrics writer infer the base from `
 **Origin**
 
 Discovered during the §3 dogfood run (`runs/2026-05-22-token-efficiency-tracking/stages/6_followups/follow-ups.md` § "Fix generated_lines for base_ref=\"HEAD\" runs"). Promoted from per-run follow-up to workbench-level TODO so it's actioned outside the original run.
-
