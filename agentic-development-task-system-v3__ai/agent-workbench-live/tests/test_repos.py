@@ -1,0 +1,199 @@
+"""Unit tests for lib/repos helpers added to support cmd_complete's auto-merge.
+
+Covers `worktree_dirty_files`, `worktree_is_clean`, `current_branch`,
+`resolve_parent_branch`, and `merge_no_ff` against throwaway git repos.
+"""
+from __future__ import annotations
+
+import pathlib
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+import sys
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from lib import repos  # noqa: E402
+
+
+def _run(cwd: pathlib.Path, *args: str) -> str:
+    out = subprocess.run(
+        ["git", "-C", str(cwd), *args],
+        check=True, capture_output=True, text=True,
+    )
+    return out.stdout
+
+
+def _git_init(path: pathlib.Path) -> None:
+    _run(path, "init", "-q", "-b", "main")
+    _run(path, "config", "user.email", "test@x")
+    _run(path, "config", "user.name", "test")
+
+
+def _commit(path: pathlib.Path, file_rel: str, body: str, message: str) -> str:
+    (path / file_rel).write_text(body)
+    _run(path, "add", file_rel)
+    _run(path, "commit", "-q", "-m", message)
+    return _run(path, "rev-parse", "HEAD").strip()
+
+
+class _RepoTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="aw-repos-test-"))
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+
+class TestWorktreeDirtyHelpers(_RepoTestCase):
+    """worktree_dirty_files + worktree_is_clean."""
+
+    def test_clean_after_init_with_commits(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        self.assertEqual(repos.worktree_dirty_files(self.tmp), [])
+        self.assertTrue(repos.worktree_is_clean(self.tmp))
+
+    def test_dirty_with_unstaged_change(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        (self.tmp / "a.txt").write_text("dirty\n")
+        dirty = repos.worktree_dirty_files(self.tmp)
+        self.assertIn("a.txt", dirty)
+        self.assertFalse(repos.worktree_is_clean(self.tmp))
+
+    def test_dirty_with_untracked_file(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        (self.tmp / "new.txt").write_text("x")
+        dirty = repos.worktree_dirty_files(self.tmp)
+        self.assertIn("new.txt", dirty)
+
+    def test_dirty_with_staged_change(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        (self.tmp / "b.txt").write_text("staged")
+        _run(self.tmp, "add", "b.txt")
+        dirty = repos.worktree_dirty_files(self.tmp)
+        self.assertIn("b.txt", dirty)
+
+
+class TestResolveParentBranch(_RepoTestCase):
+    def test_head_resolves_to_current_branch(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        self.assertEqual(repos.resolve_parent_branch(self.tmp, "HEAD"), "main")
+
+    def test_explicit_branch_returns_as_is(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        _run(self.tmp, "checkout", "-b", "feature")
+        # main still exists; ask for it explicitly
+        self.assertEqual(repos.resolve_parent_branch(self.tmp, "main"), "main")
+
+    def test_missing_branch_raises(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        with self.assertRaises(repos.RepoError):
+            repos.resolve_parent_branch(self.tmp, "no-such-branch")
+
+
+class TestCurrentBranch(_RepoTestCase):
+    def test_returns_branch_name(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        self.assertEqual(repos.current_branch(self.tmp), "main")
+
+    def test_detached_head_returns_none(self) -> None:
+        _git_init(self.tmp)
+        sha = _commit(self.tmp, "a.txt", "hello\n", "init")
+        _run(self.tmp, "checkout", sha)  # detached HEAD
+        self.assertIsNone(repos.current_branch(self.tmp))
+
+
+class TestMergeNoFf(_RepoTestCase):
+    def _setup_two_branch_repo(self) -> tuple[str, str]:
+        """Init repo with `main` + a feature branch. Returns (main_sha, feat_sha)."""
+        _git_init(self.tmp)
+        main_sha = _commit(self.tmp, "a.txt", "hello\n", "init main")
+        _run(self.tmp, "checkout", "-b", "feature")
+        feat_sha = _commit(self.tmp, "b.txt", "feature change\n", "add b")
+        _run(self.tmp, "checkout", "main")
+        return main_sha, feat_sha
+
+    def test_happy_merge_records_no_ff(self) -> None:
+        _main_sha, feat_sha = self._setup_two_branch_repo()
+        merge_sha = repos.merge_no_ff(
+            self.tmp, parent_branch="main", worktree_branch="feature",
+            message="merge feat",
+        )
+        # Returned SHA is the parent branch's new HEAD.
+        self.assertEqual(merge_sha, _run(self.tmp, "rev-parse", "main").strip())
+        # It's a merge commit (has 2 parents).
+        parents = _run(self.tmp, "rev-list", "--parents", "-n", "1", merge_sha).split()
+        self.assertEqual(len(parents), 3)  # commit + 2 parents
+        # The feature commit is reachable from the merge commit.
+        ancestors = _run(self.tmp, "rev-list", merge_sha).split()
+        self.assertIn(feat_sha, ancestors)
+
+    def test_happy_merge_restores_original_branch(self) -> None:
+        """When we start on a different branch, success restores it via `checkout -`."""
+        self._setup_two_branch_repo()
+        # Make a third branch and start on it.
+        _run(self.tmp, "checkout", "-b", "side")
+        repos.merge_no_ff(
+            self.tmp, parent_branch="main", worktree_branch="feature",
+        )
+        # After the merge, we should be back on `side`.
+        self.assertEqual(repos.current_branch(self.tmp), "side")
+
+    def test_dirty_repo_refuses(self) -> None:
+        self._setup_two_branch_repo()
+        (self.tmp / "dirty.txt").write_text("uncommitted")
+        with self.assertRaises(repos.RepoError):
+            repos.merge_no_ff(
+                self.tmp, parent_branch="main", worktree_branch="feature",
+            )
+
+    def test_missing_parent_branch_refuses(self) -> None:
+        self._setup_two_branch_repo()
+        with self.assertRaises(repos.RepoError):
+            repos.merge_no_ff(
+                self.tmp, parent_branch="nope", worktree_branch="feature",
+            )
+
+    def test_missing_worktree_branch_refuses(self) -> None:
+        self._setup_two_branch_repo()
+        with self.assertRaises(repos.RepoError):
+            repos.merge_no_ff(
+                self.tmp, parent_branch="main", worktree_branch="nope",
+            )
+
+    def test_conflict_aborts_and_raises(self) -> None:
+        """A conflicting merge runs `git merge --abort` and raises with file list."""
+        _git_init(self.tmp)
+        _commit(self.tmp, "f.txt", "main line 1\n", "init main")
+        _run(self.tmp, "checkout", "-b", "feature")
+        _commit(self.tmp, "f.txt", "feature change\n", "feat change")
+        _run(self.tmp, "checkout", "main")
+        # Conflicting commit on main.
+        _commit(self.tmp, "f.txt", "main change\n", "main change")
+
+        with self.assertRaises(repos.MergeConflictError) as ctx:
+            repos.merge_no_ff(
+                self.tmp, parent_branch="main", worktree_branch="feature",
+            )
+        self.assertIn("f.txt", ctx.exception.conflicted_files)
+
+        # After --abort, working tree is clean.
+        self.assertTrue(repos.worktree_is_clean(self.tmp))
+        # And we're still on main (where the abort left us).
+        self.assertEqual(repos.current_branch(self.tmp), "main")
+
+
+if __name__ == "__main__":
+    unittest.main()

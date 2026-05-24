@@ -45,7 +45,7 @@ validation:
   known_issues_count: 0
 completion:
   accepted_by: timothy.shee
-  completion_ref: local-branch:agent/token-efficiency-tracking
+  completion_ref: merge:271ab584632decc2121153004cc2442f28b32b01
   completed_at: "2026-05-22T22:43:29-04:00"
   abandoned_reason: null
 build:

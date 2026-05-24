@@ -45,7 +45,7 @@ validation:
   known_issues_count: 0
 completion:
   accepted_by: timothy.shee
-  completion_ref: local-branch:agent/audit-unit-tests-for-duplication
+  completion_ref: merge:a02dd167c684aa2cc749dd42a7291466454c515d
   completed_at: "2026-05-22T19:12:27-04:00"
   abandoned_reason: null
 build:
