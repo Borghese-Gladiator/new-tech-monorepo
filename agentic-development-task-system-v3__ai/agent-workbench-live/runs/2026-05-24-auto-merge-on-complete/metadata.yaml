@@ -45,7 +45,7 @@ validation:
   known_issues_count: 0
 completion:
   accepted_by: timothy.shee
-  completion_ref: local-branch:agent/auto-merge-on-complete
+  completion_ref: merge:0069070afb24ff7df6b340cdc4335b52732d4a58
   completed_at: "2026-05-24T19:31:11-04:00"
   abandoned_reason: null
 build:

@@ -7,81 +7,11 @@
 - ✅ **Audit unit tests for duplication** (2026-05-22, merge commit `a02dd16`). Folded near-duplicate methods across 10 test modules into `for label, … in cases:` loops (the user's CLAUDE.md "App Testing Rules" pattern), shrinking 193 → 134 tests (−30.6%) with no production code change. Biggest reductions: `test_scope_check.py` 16→2, `test_cmd_board.py` 35→22, `test_doc_claims.py` 10→2. Authored on `agent/audit-unit-tests-for-duplication` (commit `a609d32`) during run `2026-05-22-audit-unit-tests-for-duplication`; landed today as part of TODO §1's orphan-merge cleanup with heading-name fixtures rebased onto v2's polished four-heading set.
 - ✅ **Token Efficiency tracking — pass 1** (2026-05-22, merge commit `271ab58`; covered the original TODO §3). Per-run token + cost + acceptance tracking, measurement-only. Shipped 8 metrics modules under `lib/metrics/` (`transcript`/`buckets`/`prices`/`writer`/`lines`/`summary`/`rollup`/`__init__`), `cmd_metrics` CLI with three forms (`<id>`, `--all`, `--rebuild`), hooks at every validate/complete/abandon/followups transition, `metrics/prices.yaml` per-model rate table, board-card metrics band, HUMAN_REVIEW.md `## Token efficiency` block, and 51 tests. Caveat: only `input_tokens` get bucketed — `cache_read` (98.7% of cost on the dogfood run) and `cache_creation` land in `other`, and the slash-command correlator drops every turn into `stage=other` on long sessions. Both are §2 (formerly §4) "pass 2" gaps, not bugs in the pass-1 deliverable. Authored on `agent/token-efficiency-tracking` (commits `9a5a50a`+`d57869e`+`b6178c0`) during run `2026-05-22-token-efficiency-tracking`.
 - ✅ **Merge orphan worktree branches** (2026-05-24, merge commits `c635745`+`a02dd16`+`271ab58`; was TODO §1). Closed out the three `status: done` runs whose worktree branches had never been integrated into `202605_agent_workbench_v2` because `cmd_complete` only records a `completion_ref` label, not a merge SHA. Three branches merged in dependency order; the underlying lifecycle gap that allowed this is now TODO §1 (was §2). `agent/poker` deferred — separate-project decision.
+- ✅ **Lifecycle gap: `human_review → done` does not merge the worktree branch** (2026-05-24, merge commit `0069070`; was TODO §1, Option A from the choices). `agent-workbench complete` now performs `git merge --no-ff` of the worktree branch into the parent branch as part of the transition; success records `completion_ref: merge:<full-sha>` and emits a new `WorktreeMerged` event; conflict aborts cleanly, emits `MergeConflict`, and leaves the run in `human_review`. Dirty worktree refuses; bad `base_ref` refuses. Backfilled all four pre-existing `local-branch:` runs (the original three orphans plus this run itself, which ran its own first `complete` on the legacy code path because the new code wasn't live yet — full SHAs in `tools/backfill_completion_refs.py`). The board surfaces `⚠ unmerged` on any `done` run whose `completion_ref` still starts with `local-branch:`. Shipped on `agent/auto-merge-on-complete` (commit `5adca50`) during run `2026-05-24-auto-merge-on-complete`; +15 new repos unit tests, +3 new merge E2E tests (dirty-worktree refusal, conflict abort + `MergeConflict` event, `--no-merge` escape hatch), +3 new badge tests; full suite 233/235 (the 2 failures are pre-existing date-baked snapshot drift on master).
 
 ---
 
-## 1. Lifecycle gap: `human_review → done` does not merge the worktree branch
-
-Discovered 2026-05-23. Three runs (`2026-05-22-context-graph`, `2026-05-22-audit-unit-tests-for-duplication`, `2026-05-22-token-efficiency-tracking`) reached `status: done` in their `metadata.yaml`, but the work never landed on the parent branch `202605_agent_workbench_v2`. Their deliverables live only on the per-run worktree branches (`agent/context-graph`, etc.) and would have been lost if those worktrees had been deleted on the assumption that "done = merged."
-
-### Root cause
-
-`lib/cli/cmd_complete.py` is the entire implementation of `human_review → done`. It:
-
-1. Writes a `TransitionApplied` event,
-2. Records `completion_ref = local-branch:<branch_name>` as a *label* in `metadata.completion`,
-3. Prints "done".
-
-It does **not** run `git merge`, `git push`, or touch the worktree. The `completion_ref` is a string, not a merge SHA. So in the current system, "done" means "the human accepted the deliverable on the worktree branch" — the integration back into the parent branch is implicit, unstated, and easy to forget. (The one branch that did land — `agent/human-review-polish` via commit `cd3e5ae` — was merged by hand, not by the lifecycle.)
-
-### Design principles
-
-- **The `done` state must be unambiguous about whether the work is integrated.** Either rename the current "done" to something like `accepted` (with `done` reserved for "accepted AND merged"), or extend `cmd_complete` to perform the merge.
-- **The lifecycle should make the merge step impossible to skip silently.** Even if we don't auto-merge, the system should refuse to mark `done` without an explicit merge ref, or surface unmerged-but-done runs loudly on the board.
-- **Honest under-attribution over confident mis-attribution** (same principle as token-efficiency tracking): a `completion_ref: local-branch:<branch>` that doesn't claim to be a merge is fine; a `done` state that quietly implies integration is not.
-
-### Chosen direction — Option A: auto-merge in `cmd_complete`
-
-Extend `cmd_complete` so that accepting a run also integrates it. After this lands, `human_review → done` means **both** "human signed off" and "code integrated into the parent branch." There is no separate `merged` state to track, and the lifecycle stops being able to record a `done` run whose deliverables live only on a per-run worktree branch.
-
-Step-by-step:
-
-1. Verify the worktree at `metadata.target.worktree.path` is clean (`git status --porcelain` is empty). Refuse with a clear error otherwise — the human needs to commit or stash before completing.
-2. Resolve the parent branch from `metadata.target.repo.base_ref` (the symbolic ref the run was started against). Refuse if it isn't a real branch in the target repo.
-3. Check out the parent branch in the *target repo* (not the worktree). Fail loudly if checkout isn't safe (dirty index in the parent repo, detached HEAD elsewhere).
-4. Run `git merge --no-ff <worktree_branch>` to create an explicit merge commit. `--no-ff` keeps the run's history visible in the parent branch's log.
-5. On success, capture the new merge commit's SHA via `git rev-parse HEAD` and record it as `completion_ref: merge:<sha>` (overriding the prior `local-branch:` default).
-6. On merge conflict: do **not** attempt in-line resolution. Abort the merge (`git merge --abort`), leave the run in `human_review`, and surface a structured error pointing at the conflicted files. The human resolves manually, then re-runs `complete`.
-
-Cons we are accepting:
-
-- The lifecycle now mutates the parent branch on `complete`. That is surprising the first time you see it; the slash command (`/complete`) and CLI help text must call it out explicitly.
-- A conflict during merge needs a recovery story. The cheapest one is "abort and stay in `human_review`" (above) — no new state, no new transition.
-
-### Tasks
-
-- [ ] **Reflect Option A in `docs/lifecycle.md`'s `done` row.** `done` means accepted *and* merged; `completion_ref` is a merge SHA. (`docs/lifecycle.md`'s `done` section already names Option A as the chosen direction — keep that pointer accurate once the code lands.)
-- [ ] **Extend `cmd_complete`.** Implement the six steps above in `lib/cli/cmd_complete.py`. The merge runs *inside* the per-run lock so a concurrent `bounce` or `abandon` can't race the integration.
-- [ ] **New event type: `WorktreeMerged`.** Emitted as a secondary event on the `human_review → done` transition, with payload `{worktree_branch, parent_branch, merge_sha, merge_strategy: "no-ff"}`. Add it to `schemas/events.jsonl`.
-- [ ] **Conflict path.** When `git merge` exits non-zero, run `git merge --abort` and emit a new `MergeConflict` event with `{worktree_branch, parent_branch, conflicted_files: [...]}`. Return a non-zero exit code from `cmd_complete` and leave `metadata.status` at `human_review`. No state change is recorded.
-- [ ] **Update the board.** `lib/board/snapshot.py` should warn (per-card badge) if any `done` run's `completion_ref` is still `local-branch:` rather than `merge:`. This makes the legacy orphan runs visible until the backfill runs.
-- [ ] **Backfill the three orphan runs.** The 2026-05-24 orphan-merge cleanup landed the work but left `metadata.completion.completion_ref` as `local-branch:<branch>`. Rewrite each to `merge:<sha>` using the merge SHAs `c635745` / `a02dd16` / `271ab58`. A one-shot script reading `git log --merges` is sufficient; do not retroactively emit `WorktreeMerged` events for those runs (the merge happened outside the lifecycle and the event would be misleading).
-- [ ] **Update `/complete` slash-command help.** The slash command must call out that `complete` now merges. Add a one-line pre-flight ("This will run `git merge --no-ff` on `<parent_branch>`. Make sure the worktree is committed.") so the human can't be surprised.
-- [ ] **Tests.**
-  - State-machine test: `complete` against a clean worktree merges and records `completion_ref: merge:<sha>`.
-  - State-machine test: `complete` against a dirty worktree fails with a clear error and leaves status at `human_review`.
-  - State-machine test: `complete` with a merge conflict aborts the merge, emits `MergeConflict`, and leaves status at `human_review`.
-  - Board test: legacy `local-branch:` `completion_ref` renders the warning badge.
-
-### Acceptance
-
-- A run reaching `done` always has `metadata.completion.completion_ref = "merge:<sha>"`, and the SHA resolves to a real merge commit on the parent branch.
-- Calling `complete` on a dirty worktree or a conflicted merge refuses cleanly; the run stays in `human_review` and the audit explains what happened.
-- The three orphan runs (`2026-05-22-context-graph`, `2026-05-22-audit-unit-tests-for-duplication`, `2026-05-22-token-efficiency-tracking`) carry a merge SHA in their metadata after backfill.
-- The board surfaces any remaining `done` runs with a non-merge `completion_ref` (after backfill, this is zero).
-- `docs/lifecycle.md`'s `done` section describes the integration step explicitly.
-
-### Non-goals
-
-Auto-push to remote (out of scope; merging is local-only); in-line conflict resolution (we abort and bounce the human back to manual resolution); changing the meaning of `abandoned` (still a clean terminal that never integrated); rebase / squash-merge strategies (Option A pins `--no-ff` for now — a future task can make this configurable).
-
-### Origin
-
-Discovered 2026-05-23 during a worktree audit. The user noticed that three runs marked `done` were missing their deliverables from the parent branch; verified by reading `cmd_complete.py` and confirming no git-merge call exists in the lifecycle.
-
----
-
-## 2. Token efficiency — pass 2: stop bleeding `cache_read`
+## 1. Token efficiency — pass 2: stop bleeding `cache_read`
 
 ### Why this is here
 
@@ -198,7 +128,7 @@ What pass 2 still doesn't solve and would need future runs:
 
 ---
 
-## 3. Fix generated_lines for base_ref="HEAD" runs
+## 2. Fix generated_lines for base_ref="HEAD" runs
 
 `lib/metrics/lines.py:count_generated()` runs `git log --numstat <base_ref>..HEAD` to sum `+` lines across the worktree's commit history. The workbench config defaults `base_ref: HEAD` (`agent-workbench.yaml:14`), and `metadata.target.repo.base_ref` is stored as that literal string. The dotted range `HEAD..HEAD` resolves to "no commits" — so `generated_lines` reports 0 for every run that uses the default, regardless of how many commits the builder landed.
 

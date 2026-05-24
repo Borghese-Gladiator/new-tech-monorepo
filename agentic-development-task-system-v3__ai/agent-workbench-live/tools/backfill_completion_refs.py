@@ -25,6 +25,10 @@ BACKFILL = {
     "2026-05-22-context-graph": "c6357454fb79562e504071ef59503f768af1283c",
     "2026-05-22-audit-unit-tests-for-duplication": "a02dd167c684aa2cc749dd42a7291466454c515d",
     "2026-05-22-token-efficiency-tracking": "271ab584632decc2121153004cc2442f28b32b01",
+    # The run that ships the auto-merge code itself. The first `complete` ran
+    # the legacy code path (because the new code wasn't live yet) and recorded
+    # `local-branch:`; we merged by hand and now backfill the merge SHA.
+    "2026-05-24-auto-merge-on-complete": "0069070afb24ff7df6b340cdc4335b52732d4a58",
 }
 
 
