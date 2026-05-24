@@ -5,7 +5,7 @@ cli:
 
 paths:
   runs_dir: runs
-  worktrees_dir: worktrees
+  worktrees_dir: ~/GitHub/LOCAL_worktrees/new-tech-monorepo/agent-workbench-live/worktrees
   schemas_dir: schemas
 
 defaults:

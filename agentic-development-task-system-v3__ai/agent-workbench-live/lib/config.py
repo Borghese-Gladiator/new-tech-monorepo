@@ -84,7 +84,8 @@ class Config:
 
     @property
     def worktrees_path(self) -> pathlib.Path:
-        return self.root / self.paths.worktrees_dir
+        wt = pathlib.Path(self.paths.worktrees_dir).expanduser()
+        return wt if wt.is_absolute() else self.root / wt
 
     @property
     def schemas_path(self) -> pathlib.Path:
