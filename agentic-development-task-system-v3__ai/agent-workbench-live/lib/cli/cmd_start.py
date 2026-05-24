@@ -1,0 +1,98 @@
+"""start subcommand. Transitions ready -> building. Creates the worktree."""
+from __future__ import annotations
+
+import pathlib
+
+from lib import metadata, transitions, locks, repos, run_ids, lifecycle
+from lib.cli._common import actor_from_env, fail, load_config
+
+
+HELP = "Approve the plan and create the worktree."
+
+
+def register(p) -> None:
+    p.add_argument("run_id")
+    p.add_argument("--approved-by", required=True)
+
+
+def run(args) -> int:
+    cfg = load_config(args)
+    actor = actor_from_env("human")
+    actor["name"] = args.approved_by
+    run_id = args.run_id
+
+    try:
+        meta = metadata.load(cfg, run_id)
+    except metadata.MetadataError as e:
+        return fail(str(e), 2)
+
+    if meta["status"] != "ready":
+        return fail(f"start requires status=ready, got {meta['status']!r}", 2)
+
+    rd = metadata.run_dir(cfg, run_id)
+    staged = lifecycle.is_staged_run(cfg, run_id)
+    # Re-verify pre-impl artifacts. Staged runs fold preflight/assumptions/
+    # decisions into plan.md, so only brief.md + plan.md are checked here.
+    if staged:
+        brief_p = lifecycle.stage_dir(cfg, run_id, "shaping") / "brief.md"
+        plan_p = lifecycle.stage_dir(cfg, run_id, "planning") / "plan.md"
+        pre_impl = (
+            (str(brief_p.relative_to(rd)), brief_p),
+            (str(plan_p.relative_to(rd)), plan_p),
+        )
+    else:
+        pre_impl = tuple(
+            (n, rd / n)
+            for n in ("brief.md", "plan.md", "preflight.md", "assumptions.md", "decisions.md")
+        )
+    for _label, p in pre_impl:
+        if not p.exists() or not p.read_text().strip():
+            return fail(f"required pre-impl artifact missing or empty: {p}", 2)
+
+    repo_path = pathlib.Path(meta["target"]["repo"]["path"])
+    repo_name = meta["target"]["repo"]["name"]
+    base_ref = meta["target"]["repo"]["base_ref"]
+    branch_name = meta["target"]["worktree"]["branch_name"]
+    worktree_name = meta["target"]["worktree"]["name"]
+    worktree_path = run_ids.make_worktree_path(cfg, repo_name, worktree_name, run_id)
+
+    # Create the worktree.
+    try:
+        repos.create_worktree(repo_path, branch_name, worktree_path, base_ref)
+    except repos.RepoError as e:
+        return fail(f"failed to create worktree: {e}", 2)
+
+    # Reflect in metadata.
+    def _m(d):
+        d["target"]["worktree"]["path"] = str(worktree_path)
+        d["target"]["worktree"]["created"] = True
+    metadata.update(cfg, run_id, _m)
+
+    # Transition.
+    if staged:
+        preflight_evidence = str(rd / "stages" / "planning" / "plan.md") + "#preflight"
+    else:
+        preflight_evidence = str(rd / "preflight.md")
+    try:
+        with locks.acquire(cfg, run_id):
+            transitions.transition(
+                cfg, run_id, "building",
+                evidence={
+                    "approved_by": args.approved_by,
+                    "repo_path": str(repo_path),
+                    "repo_name": repo_name,
+                    "base_ref": base_ref,
+                    "branch_name": branch_name,
+                    "worktree_name": worktree_name,
+                    "worktree_path": str(worktree_path),
+                    "preflight_path": preflight_evidence,
+                    "repo_mode": meta["target"]["repo"]["mode"],
+                },
+                actor=actor,
+            )
+    except transitions.TransitionError as e:
+        return fail(str(e), 4)
+
+    print(f"{run_id}: ready -> building")
+    print(f"worktree: {worktree_path}")
+    return 0

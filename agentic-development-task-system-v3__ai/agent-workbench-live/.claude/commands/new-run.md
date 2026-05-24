@@ -1,0 +1,96 @@
+---
+description: Create a new Agent Workbench run from a repo path and an idea. Worktree slug is derived automatically. Does NOT create a worktree — that happens later in /start.
+---
+
+# /new-run
+
+Creates a run record in state `draft`. **No worktree is created here.** The `git worktree add` happens later in `/start`, after `/shape` and `/plan`.
+
+## Required input from the user
+
+Exactly two things:
+
+1. **Repo path** — absolute path to an existing git repo (must contain the configured `base_ref`).
+2. **An idea** — either inline text *or* a file path.
+
+That's it. Do not ask the user for anything else.
+
+## What you (the agent) do
+
+### 1. Validate the repo path
+
+- The path must exist and be a git repo.
+- If invalid, stop and tell the user. Do not invoke the CLI.
+
+### 2. Resolve the idea
+
+- If the user gave a **file path** → use it directly as `--idea-file`.
+- If the user gave **inline text** → pipe it to the CLI via stdin (see invocation below).
+- If neither is present → ask **once**: "Paste the idea, or give me a path to the idea file." Then stop until they answer.
+
+### 3. Derive the worktree slug
+
+You **always** derive `--worktree-name`. Never ask the user for it.
+
+- Take the first Markdown heading (`# Title`) from the idea text. If there's no heading, use the first non-empty line.
+- Slugify it: lowercase, ASCII only, non-alphanumeric → single `-`, strip leading/trailing `-`, cap at 40 chars.
+- The CLI re-slugifies via `lib/run_ids.py:slugify`, so your slug just needs to be reasonable.
+- If the idea is empty or yields an empty slug, stop and tell the user.
+
+### 4. Invoke the CLI
+
+**File form** (idea was a path):
+
+```bash
+agent-workbench new-run \
+  --repo-path <repo-path> \
+  --worktree-name <derived-slug> \
+  --idea-file <idea-file>
+```
+
+**Stdin form** (idea was inline text):
+
+```bash
+echo "<idea text>" | agent-workbench new-run \
+  --repo-path <repo-path> \
+  --worktree-name <derived-slug>
+```
+
+Do not pass `--scope-kind`, `--base-ref`, or `--repo-name`. Let CLI defaults apply.
+
+### 5. Report back
+
+- Print the `run_id` the CLI returned.
+- State explicitly: **"No worktree has been created yet. The worktree is created by `/start`."**
+- Suggest the next step: `/shape <run_id>`.
+
+## What you never do
+
+- Never ask the user for `--worktree-name`. Derive it.
+- Never read code in the target repo at this step. `/new-run` is code-blind.
+- Never edit `metadata.yaml` directly.
+- Never chain into `/shape`, `/plan`, or `/start` automatically. Stop after printing the `run_id`.
+
+## Examples
+
+**Inline idea:**
+
+> User: `/new-run /Users/me/code/repo` — idea: Build a multiplayer poker game with WebSocket sync.
+
+Agent derives slug `multiplayer-poker`, runs the stdin form, prints the `run_id`, says "no worktree yet; next: `/shape <run_id>`".
+
+**File-based idea:**
+
+> User: `/new-run /Users/me/code/repo ./poker-idea.md`
+
+Agent reads the heading from `poker-idea.md`, derives slug, runs the file form, prints the `run_id`.
+
+## Next step
+
+`/shape <run_id>`
+
+## Reference
+
+- CLI implementation: `agent-workbench-live/lib/cli/cmd_new_run.py`
+- Slug rules: `agent-workbench-live/lib/run_ids.py`
+- Lifecycle contract: `docs/lifecycle.md` § `draft`
