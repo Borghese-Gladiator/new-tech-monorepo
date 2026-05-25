@@ -1,0 +1,359 @@
+"""First-class `Run` value object + union-of-worktrees enumeration.
+
+A run dir's physical location is determined by `metadata.target.worktree.path`:
+- self-modifying runs (the workbench is inside the target repo) live inside
+  their worktree at `<worktree>/<workbench-rel-path>/runs/<run_id>/`
+- non-self-modifying runs live in the workbench checkout's `cfg.runs_path`
+- archived runs (`done`/`abandoned`) live in `cfg.runs_path` on master after
+  the `complete`/`abandon` merge has delivered them there
+
+This module is the source of truth for resolving "where does run X live right
+now?" — every CLI command writes through `metadata.run_dir(cfg, run_id)` which
+delegates here for runs whose metadata is already on disk.
+
+`find_run` is strict (raises on collision); `iter_all_runs` is permissive
+(prefers worktree, warns on stderr).
+"""
+from __future__ import annotations
+
+import dataclasses
+import pathlib
+import subprocess
+import sys
+from typing import Iterator
+
+from lib import yaml_io
+from lib.config import Config
+
+
+SOURCE_WORKTREE = "worktree"
+SOURCE_MASTER = "master"
+
+
+class RunNotFound(LookupError):
+    """Raised when a run id resolves to no on-disk run dir."""
+
+
+class RunCollision(RuntimeError):
+    """Raised when a run id resolves to multiple on-disk run dirs.
+
+    The message lists every conflicting path so the human can pick one.
+    """
+
+
+@dataclasses.dataclass(frozen=True)
+class Run:
+    """One run's location + status, resolved against the live worktree set."""
+
+    run_id: str
+    run_dir: pathlib.Path
+    worktree_path: pathlib.Path | None
+    status: str
+    source: str  # SOURCE_WORKTREE or SOURCE_MASTER
+    metadata: dict
+
+
+def is_self_modifying(cfg: Config, meta: dict) -> bool:
+    """True iff cfg.root resolves inside the target repo.
+
+    Self-modifying runs (the workbench is inside the target repo) place their
+    run dir inside the worktree. Non-self-modifying runs keep the run dir in
+    `cfg.runs_path`.
+    """
+    repo_path_raw = (meta.get("target") or {}).get("repo", {}).get("path")
+    if not repo_path_raw:
+        return False
+    try:
+        repo_root = pathlib.Path(repo_path_raw).resolve()
+        wb_root = cfg.root.resolve()
+    except (OSError, RuntimeError):
+        return False
+    try:
+        wb_root.relative_to(repo_root)
+    except ValueError:
+        return False
+    return True
+
+
+def workbench_subpath(cfg: Config) -> pathlib.Path | None:
+    """Return cfg.root's path relative to its containing git repo, or None.
+
+    For workbench-self-modifying runs, the workbench checkout is at this
+    subpath inside the target repo. Inside the worktree the same subpath
+    points at the workbench's mirror image.
+    """
+    wb_root = cfg.root.resolve()
+    for parent in [wb_root, *wb_root.parents]:
+        if (parent / ".git").exists():
+            try:
+                return wb_root.relative_to(parent)
+            except ValueError:
+                return None
+    return None
+
+
+def resolve_run_dir_for_meta(cfg: Config, run_id: str, meta: dict) -> pathlib.Path:
+    """Where does this run live on disk *right now*, given its loaded metadata?
+
+    Resolution rules:
+
+    - If `target.worktree.path` is populated AND the worktree exists AND the
+      workbench is inside the target repo (self-modifying) AND the run dir
+      exists inside the worktree → return the worktree-side path.
+    - Otherwise → return `cfg.runs_path / run_id`.
+
+    This is deterministic: at most one location wins. Collision detection
+    lives in `find_run` / `iter_all_runs`, not here.
+    """
+    target = meta.get("target") or {}
+    worktree = target.get("worktree") or {}
+    wt_path_raw = worktree.get("path")
+    if wt_path_raw and is_self_modifying(cfg, meta):
+        sub = workbench_subpath(cfg)
+        if sub is not None:
+            wt = pathlib.Path(wt_path_raw)
+            candidate = wt / sub / "runs" / run_id
+            if candidate.exists():
+                return candidate
+    return cfg.runs_path / run_id
+
+
+def find_run(cfg: Config, run_id: str) -> Run:
+    """Resolve a run by id across master + every live worktree.
+
+    Raises `RunNotFound` if no matching run dir exists on disk. Raises
+    `RunCollision` (with both absolute paths in the message) if the id
+    resolves to more than one location.
+    """
+    hits = _collect_hits(cfg, run_id)
+    if not hits:
+        raise RunNotFound(f"run {run_id!r} not found in master or any worktree")
+    if len(hits) > 1:
+        paths = "\n  ".join(str(h.run_dir) for h in hits)
+        raise RunCollision(
+            f"run id {run_id!r} resolves to multiple paths:\n  {paths}"
+        )
+    return hits[0]
+
+
+def iter_all_runs(cfg: Config) -> Iterator[Run]:
+    """Enumerate every run on disk across master + worktrees.
+
+    Collisions are downgraded to a stderr warning; the worktree copy wins.
+    Yields in lexicographic order by `run_id`.
+    """
+    by_id: dict[str, list[Run]] = {}
+    for run in _walk_all(cfg):
+        by_id.setdefault(run.run_id, []).append(run)
+    for run_id in sorted(by_id):
+        hits = by_id[run_id]
+        if len(hits) == 1:
+            yield hits[0]
+            continue
+        # Collision: prefer worktree, warn.
+        worktree_hits = [h for h in hits if h.source == SOURCE_WORKTREE]
+        kept = worktree_hits[0] if worktree_hits else hits[0]
+        others = [h for h in hits if h is not kept]
+        other_paths = ", ".join(str(o.run_dir) for o in others)
+        print(
+            f"WARN: run {run_id!r} resolves to multiple paths; using "
+            f"{kept.run_dir} (also at: {other_paths})",
+            file=sys.stderr,
+        )
+        yield kept
+
+
+def _collect_hits(cfg: Config, run_id: str) -> list[Run]:
+    """All on-disk locations for a single id. Internal helper for find_run."""
+    return [r for r in _walk_all(cfg) if r.run_id == run_id]
+
+
+def _walk_all(cfg: Config) -> Iterator[Run]:
+    """Internal: yield every on-disk run from master + worktrees."""
+    yield from _walk_master(cfg)
+    yield from _walk_worktrees(cfg)
+
+
+def _walk_master(cfg: Config) -> Iterator[Run]:
+    runs_path = cfg.runs_path
+    if not runs_path.exists():
+        return
+    for entry in sorted(runs_path.iterdir()):
+        if not entry.is_dir():
+            continue
+        if entry.name == "abandoned":
+            # Archived-abandoned runs nest one level deeper.
+            for sub in sorted(entry.iterdir()):
+                if not sub.is_dir():
+                    continue
+                run = _try_build_run(sub, source=SOURCE_MASTER, cfg=cfg)
+                if run is not None:
+                    yield run
+            continue
+        run = _try_build_run(entry, source=SOURCE_MASTER, cfg=cfg)
+        if run is not None:
+            yield run
+
+
+def _walk_worktrees(cfg: Config) -> Iterator[Run]:
+    sub = workbench_subpath(cfg)
+    if sub is None:
+        return
+    for wt in _list_workbench_worktrees(cfg):
+        wt_runs = wt / sub / "runs"
+        if not wt_runs.exists():
+            continue
+        for entry in sorted(wt_runs.iterdir()):
+            if not entry.is_dir() or entry.name == "abandoned":
+                continue
+            run = _try_build_run(
+                entry, source=SOURCE_WORKTREE, cfg=cfg, worktree_hint=wt,
+            )
+            if run is None:
+                continue
+            # Skip terminal-state runs from worktrees: those are just merged
+            # history checked out in the worktree, NOT live work. The
+            # master-side copy is the canonical archive.
+            if run.status in ("done", "abandoned"):
+                continue
+            # Skip runs whose recorded worktree path doesn't match this
+            # worktree — same reason: those entries are merged-history
+            # artifacts that happen to be checked out here, not work being
+            # done in this worktree.
+            recorded_wt = (run.metadata.get("target") or {}).get("worktree", {}).get("path")
+            if recorded_wt:
+                try:
+                    if pathlib.Path(recorded_wt).resolve() != wt.resolve():
+                        continue
+                except OSError:
+                    pass
+            yield run
+
+
+def _try_build_run(
+    run_dir: pathlib.Path,
+    *,
+    source: str,
+    cfg: Config,
+    worktree_hint: pathlib.Path | None = None,
+) -> Run | None:
+    """Parse one run dir's metadata.yaml into a Run, or None if unreadable."""
+    meta_path = run_dir / "metadata.yaml"
+    if not meta_path.exists():
+        return None
+    try:
+        meta = yaml_io.loads(meta_path.read_text())
+    except Exception:
+        return None
+    if not isinstance(meta, dict):
+        return None
+    run_id = meta.get("run_id")
+    if not isinstance(run_id, str) or run_id != run_dir.name:
+        # Drift between dir name and recorded id — treat as unreadable.
+        return None
+    status = str(meta.get("status") or "")
+    wt_raw = (meta.get("target") or {}).get("worktree", {}).get("path")
+    worktree_path = (
+        pathlib.Path(wt_raw) if wt_raw else (worktree_hint if worktree_hint else None)
+    )
+    return Run(
+        run_id=run_id,
+        run_dir=run_dir.resolve(),
+        worktree_path=worktree_path,
+        status=status,
+        source=source,
+        metadata=meta,
+    )
+
+
+# Cache keyed on the workbench root path string: same root → same worktree
+# set for the lifetime of the process. Tests reset this via reset_caches().
+_WORKTREE_CACHE: dict[str, tuple[pathlib.Path, ...]] = {}
+
+
+def _list_workbench_worktrees(cfg: Config) -> tuple[pathlib.Path, ...]:
+    """Every workbench worktree path *except* the main checkout.
+
+    Cached for the duration of one CLI invocation; the worktree set is stable
+    within a process.
+    """
+    wb_root = cfg.root.resolve()
+    cache_key = str(wb_root)
+    cached = _WORKTREE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    main_repo = _git_main_repo_root(wb_root)
+    if main_repo is None:
+        _WORKTREE_CACHE[cache_key] = ()
+        return ()
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(main_repo), "worktree", "list", "--porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        _WORKTREE_CACHE[cache_key] = ()
+        return ()
+    if proc.returncode != 0:
+        _WORKTREE_CACHE[cache_key] = ()
+        return ()
+    out: list[pathlib.Path] = []
+    current: dict[str, str] = {}
+
+    def _flush() -> None:
+        if not current:
+            return
+        wt = current.get("worktree")
+        if wt and "bare" not in current:
+            p = pathlib.Path(wt).resolve()
+            if p != main_repo:
+                out.append(p)
+        current.clear()
+
+    for line in proc.stdout.splitlines():
+        if not line.strip():
+            _flush()
+            continue
+        if " " in line:
+            key, _, value = line.partition(" ")
+            current[key] = value
+        else:
+            current[line] = ""
+    _flush()
+    result = tuple(out)
+    _WORKTREE_CACHE[cache_key] = result
+    return result
+
+
+def reset_caches() -> None:
+    """Clear in-process caches. Called by tests between scenarios."""
+    _WORKTREE_CACHE.clear()
+
+
+def _git_main_repo_root(start: pathlib.Path) -> pathlib.Path | None:
+    """The main working-copy root of the git repo containing `start`."""
+    for parent in [start, *start.parents]:
+        if (parent / ".git").is_dir():
+            return parent.resolve()
+    # Worktree case: .git is a file pointing at .../worktrees/<name>
+    for parent in [start, *start.parents]:
+        dotgit = parent / ".git"
+        if dotgit.is_file():
+            try:
+                gitfile = dotgit.read_text()
+            except OSError:
+                return None
+            # "gitdir: <abs-path-to-.git/worktrees/<name>>"
+            if not gitfile.startswith("gitdir:"):
+                return None
+            gitdir = pathlib.Path(gitfile.split(":", 1)[1].strip()).resolve()
+            # gitdir = <repo>/.git/worktrees/<name>; the repo root is two parents up
+            # from `worktrees/<name>`.
+            try:
+                return gitdir.parent.parent.parent.resolve()
+            except OSError:
+                return None
+    return None

@@ -1,0 +1,218 @@
+"""Tests for lib.runs: find_run, iter_all_runs, is_self_modifying.
+
+TODO §1A2 + §1C2.
+"""
+from __future__ import annotations
+
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+from tests._helpers import make_tmp_workbench, cleanup, reset_caches  # noqa: F401
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from lib import config, metadata, runs as runs_mod, yaml_io  # noqa: E402
+
+
+def _init_repo(repo_path: pathlib.Path) -> None:
+    subprocess.run(["git", "-C", str(repo_path), "init", "-q", "-b", "main"], check=True)
+    (repo_path / "README.md").write_text("test\n")
+    subprocess.run(["git", "-C", str(repo_path), "add", "-A"], check=True)
+    subprocess.run([
+        "git", "-C", str(repo_path),
+        "-c", "user.name=test", "-c", "user.email=test@x",
+        "commit", "-q", "-m", "init",
+    ], check=True)
+
+
+def _add_worktree(repo_path: pathlib.Path, branch: str, wt_path: pathlib.Path) -> None:
+    subprocess.run(
+        ["git", "-C", str(repo_path), "worktree", "add", "-b", branch, str(wt_path), "main"],
+        check=True,
+    )
+
+
+def _seed_run(run_dir: pathlib.Path, run_id: str, *,
+              worktree_path: str | None, status: str = "building") -> None:
+    run_dir.mkdir(parents=True, exist_ok=True)
+    meta = {
+        "schema_version": 1,
+        "run_id": run_id,
+        "status": status,
+        "created_at": "2026-05-25T00:00:00-04:00",
+        "updated_at": "2026-05-25T00:00:00-04:00",
+        "target": {
+            "repo": {"mode": "existing", "path": "/tmp/fake-repo", "name": "fake",
+                     "base_ref": "main"},
+            "worktree": {"name": run_id, "path": worktree_path, "branch_name": f"agent/{run_id}",
+                         "created": bool(worktree_path), "base_ref": "main"},
+        },
+        "scope": {"kind": "implementation", "summary": ""},
+        "artifacts": {"raw_idea": "raw-idea.md"},
+        "validation": {"required": True, "review_completed": False, "qa_completed": False,
+                       "qa_recorded": False, "tests_passed": None, "known_issues_count": 0},
+        "completion": {"accepted_by": None, "completion_ref": None, "completed_at": None,
+                       "abandoned_reason": None},
+    }
+    (run_dir / "metadata.yaml").write_text(yaml_io.dumps(meta))
+
+
+class TestRunsEnumeration(unittest.TestCase):
+    """Exercise find_run + iter_all_runs against synthetic worktrees."""
+
+    def setUp(self) -> None:
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="aw-runs-test-"))
+        # Layout: tmp is the workbench's main git repo. workbench root = tmp.
+        _init_repo(self.tmp)
+        # Copy the workbench config + schemas into tmp so cfg.load works.
+        shutil.copy(ROOT / "agent-workbench.yaml", self.tmp / "agent-workbench.yaml")
+        shutil.copytree(ROOT / "schemas", self.tmp / "schemas")
+        # Worktrees under tmp/wt/<name>.
+        self.wt1 = self.tmp / "wt" / "wt1"
+        self.wt2 = self.tmp / "wt" / "wt2"
+        self.wt1.parent.mkdir(parents=True, exist_ok=True)
+        _add_worktree(self.tmp, "agent/wt1", self.wt1)
+        _add_worktree(self.tmp, "agent/wt2", self.wt2)
+        self.cfg = config.load(self.tmp)
+        reset_caches()
+
+    def tearDown(self) -> None:
+        reset_caches()
+        cleanup(self.tmp)
+
+    def test_find_run_resolves_master(self) -> None:
+        _seed_run(self.cfg.runs_path / "r-master", "r-master",
+                  worktree_path=None, status="done")
+        run = runs_mod.find_run(self.cfg, "r-master")
+        self.assertEqual(run.run_id, "r-master")
+        self.assertEqual(run.source, runs_mod.SOURCE_MASTER)
+        self.assertEqual(run.run_dir, (self.cfg.runs_path / "r-master").resolve())
+
+    def test_find_run_resolves_worktree(self) -> None:
+        sub = runs_mod.workbench_subpath(self.cfg)
+        self.assertIsNotNone(sub)
+        wt_run_dir = self.wt1 / sub / "runs" / "r-wt1"
+        _seed_run(wt_run_dir, "r-wt1",
+                  worktree_path=str(self.wt1), status="building")
+        run = runs_mod.find_run(self.cfg, "r-wt1")
+        self.assertEqual(run.run_id, "r-wt1")
+        self.assertEqual(run.source, runs_mod.SOURCE_WORKTREE)
+        self.assertEqual(run.run_dir, wt_run_dir.resolve())
+
+    def test_find_run_raises_not_found(self) -> None:
+        with self.assertRaises(runs_mod.RunNotFound):
+            runs_mod.find_run(self.cfg, "nope")
+
+    def test_find_run_raises_collision_with_both_paths(self) -> None:
+        sub = runs_mod.workbench_subpath(self.cfg)
+        wt_run_dir = self.wt1 / sub / "runs" / "r-dup"
+        master_run_dir = self.cfg.runs_path / "r-dup"
+        # On master: pretend it's been merged in but ALSO still on the
+        # worktree (the bug we tolerate). To trigger collision we need both
+        # to surface in the walk — i.e. the worktree copy must NOT be
+        # status=done/abandoned (those get skipped).
+        _seed_run(master_run_dir, "r-dup", worktree_path=str(self.wt1),
+                  status="building")
+        _seed_run(wt_run_dir, "r-dup", worktree_path=str(self.wt1),
+                  status="building")
+        with self.assertRaises(runs_mod.RunCollision) as cm:
+            runs_mod.find_run(self.cfg, "r-dup")
+        self.assertIn(str(master_run_dir), str(cm.exception))
+        self.assertIn(str(wt_run_dir), str(cm.exception))
+
+    def test_removed_worktree_invisible(self) -> None:
+        sub = runs_mod.workbench_subpath(self.cfg)
+        wt_run_dir = self.wt1 / sub / "runs" / "r-removed"
+        _seed_run(wt_run_dir, "r-removed", worktree_path=str(self.wt1),
+                  status="building")
+        runs_mod.reset_caches()
+        run = runs_mod.find_run(self.cfg, "r-removed")
+        self.assertEqual(run.run_id, "r-removed")
+        # Remove worktree from git's perspective; the runs/ dir on disk
+        # still exists but is no longer enumerated.
+        subprocess.run(
+            ["git", "-C", str(self.tmp), "worktree", "remove", "--force", str(self.wt1)],
+            check=True,
+        )
+        runs_mod.reset_caches()
+        with self.assertRaises(runs_mod.RunNotFound):
+            runs_mod.find_run(self.cfg, "r-removed")
+
+    def test_iter_all_runs_yields_master_and_worktree(self) -> None:
+        sub = runs_mod.workbench_subpath(self.cfg)
+        _seed_run(self.cfg.runs_path / "r-m", "r-m",
+                  worktree_path=None, status="done")
+        _seed_run(self.wt1 / sub / "runs" / "r-1", "r-1",
+                  worktree_path=str(self.wt1), status="building")
+        _seed_run(self.wt2 / sub / "runs" / "r-2", "r-2",
+                  worktree_path=str(self.wt2), status="building")
+        runs_mod.reset_caches()
+        ids = sorted(r.run_id for r in runs_mod.iter_all_runs(self.cfg))
+        self.assertEqual(ids, ["r-1", "r-2", "r-m"])
+
+
+class TestIsSelfModifying(unittest.TestCase):
+    """Self-modifying detection: workbench inside the target repo."""
+
+    def setUp(self) -> None:
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="aw-runs-sm-"))
+        _init_repo(self.tmp)
+        shutil.copy(ROOT / "agent-workbench.yaml", self.tmp / "agent-workbench.yaml")
+        shutil.copytree(ROOT / "schemas", self.tmp / "schemas")
+        self.cfg = config.load(self.tmp)
+        reset_caches()
+
+    def tearDown(self) -> None:
+        reset_caches()
+        cleanup(self.tmp)
+
+    def test_target_is_workbench_root_is_self_modifying(self) -> None:
+        meta = {"target": {"repo": {"path": str(self.tmp)}}}
+        self.assertTrue(runs_mod.is_self_modifying(self.cfg, meta))
+
+    def test_unrelated_repo_is_not_self_modifying(self) -> None:
+        other = pathlib.Path(tempfile.mkdtemp(prefix="aw-other-"))
+        try:
+            _init_repo(other)
+            meta = {"target": {"repo": {"path": str(other)}}}
+            self.assertFalse(runs_mod.is_self_modifying(self.cfg, meta))
+        finally:
+            cleanup(other)
+
+
+class TestListRunsUnion(unittest.TestCase):
+    """metadata.list_runs delegates to iter_all_runs."""
+
+    def setUp(self) -> None:
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="aw-list-"))
+        _init_repo(self.tmp)
+        shutil.copy(ROOT / "agent-workbench.yaml", self.tmp / "agent-workbench.yaml")
+        shutil.copytree(ROOT / "schemas", self.tmp / "schemas")
+        self.wt = self.tmp / "wt"
+        _add_worktree(self.tmp, "agent/wt", self.wt)
+        self.cfg = config.load(self.tmp)
+        reset_caches()
+
+    def tearDown(self) -> None:
+        reset_caches()
+        cleanup(self.tmp)
+
+    def test_list_runs_includes_worktrees(self) -> None:
+        sub = runs_mod.workbench_subpath(self.cfg)
+        _seed_run(self.cfg.runs_path / "r-master", "r-master",
+                  worktree_path=None, status="done")
+        _seed_run(self.wt / sub / "runs" / "r-wt", "r-wt",
+                  worktree_path=str(self.wt), status="building")
+        runs_mod.reset_caches()
+        ids = metadata.list_runs(self.cfg)
+        self.assertIn("r-master", ids)
+        self.assertIn("r-wt", ids)
+
+
+if __name__ == "__main__":
+    unittest.main()

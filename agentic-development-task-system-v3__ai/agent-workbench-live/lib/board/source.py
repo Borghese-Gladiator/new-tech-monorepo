@@ -18,8 +18,12 @@ import re
 import subprocess
 from typing import Any
 
-from lib import lifecycle, metadata
+from lib import lifecycle, metadata, runs as runs_mod
 from lib.config import Config
+
+# Re-export so the cmd_board renderers don't have to import from lib.runs.
+SOURCE_MASTER = runs_mod.SOURCE_MASTER
+SOURCE_WORKTREE = runs_mod.SOURCE_WORKTREE
 
 
 # Cached git-diff shortstats. Key = (run_id, updated_at). Module-level on
@@ -158,6 +162,11 @@ class RunSnapshot:
     # Pass-2 A9: session-staleness indicator. Largest single-session turn
     # count across the run; > 100 surfaces a dim "turns N" hint on the card.
     metrics_largest_session_turns: int | None
+
+    # TODO §1B1: where this run lives on disk right now — "worktree" for live
+    # runs, "master" for archived runs. Drives the "(archived)" suffix on the
+    # card.
+    source: str = runs_mod.SOURCE_MASTER
 
 
 def _parse_iso(ts: str) -> dt.datetime | None:
@@ -450,6 +459,13 @@ def load_run_snapshot(
     updated_at = meta.get("updated_at", "")
 
     rd = metadata.run_dir(cfg, run_id)
+    # TODO §1B1: derive source ("master" vs "worktree") from the resolved
+    # path so the card can show (archived) on master-side runs.
+    try:
+        rd.relative_to(cfg.runs_path)
+        source = runs_mod.SOURCE_MASTER
+    except ValueError:
+        source = runs_mod.SOURCE_WORKTREE
     events_path = rd / "events.jsonl"
 
     # Walk events to compute time-in-stage, recent activity, bounce count, error flag.
@@ -658,6 +674,7 @@ def load_run_snapshot(
         metrics_validate_attempts=m_val,
         metrics_cost_usd=m_cost,
         metrics_largest_session_turns=m_largest_turns,
+        source=source,
     )
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 import pathlib
 import sys
 
-from lib import metadata, events, run_ids, repos, lifecycle
+from lib import metadata, events, run_ids, repos, lifecycle, runs as runs_mod
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -72,6 +72,43 @@ def run(args) -> int:
     if not idea:
         return fail("idea is empty", 2)
 
+    # TODO §1A: for an existing self-modifying target (workbench is inside the
+    # repo), create the worktree NOW so the run dir lives inside it from the
+    # start. For new-repo mode the repo doesn't exist yet — the existing
+    # behavior (run dir in cfg.runs_path, worktree created later at /start
+    # against the now-existing repo) keeps working.
+    worktree_path: pathlib.Path | None = None
+    base_ref_sha: str | None = None
+    run_dir_override: pathlib.Path | None = None
+    if repo_mode == "existing":
+        probe_meta = {"target": {"repo": {"path": str(repo_path)}}}
+        if runs_mod.is_self_modifying(cfg, probe_meta):
+            try:
+                base_ref_sha = repos.resolve_ref_to_sha(repo_path, base_ref)
+            except repos.RepoError as e:
+                return fail(f"failed to resolve base_ref {base_ref!r}: {e}", 2)
+            worktree_path = run_ids.make_worktree_path(
+                cfg, repo_name, worktree_name, run_id,
+            )
+            try:
+                repos.create_worktree(repo_path, branch_name, worktree_path, base_ref)
+            except repos.RepoError as e:
+                return fail(f"failed to create worktree: {e}", 2)
+            # New worktree → invalidate the worktree-list cache so the next
+            # lookup sees it (TODO §1A1).
+            runs_mod.reset_caches()
+            sub = runs_mod.workbench_subpath(cfg)
+            if sub is None:
+                # Self-modifying detected but the workbench is not inside the
+                # cfg.root's owning repo — should not happen, but bail cleanly.
+                repos.remove_worktree(repo_path, worktree_path, force=True)
+                return fail(
+                    "internal: workbench subpath could not be derived; "
+                    "cannot place run dir inside worktree.",
+                    4,
+                )
+            run_dir_override = worktree_path / sub / "runs" / run_id
+
     # Create the run.
     metadata.create(
         cfg, run_id,
@@ -84,6 +121,9 @@ def run(args) -> int:
         raw_idea_path="raw-idea.md",
         scope_kind=args.scope_kind,
         scope_summary=args.scope_summary,
+        worktree_path=str(worktree_path) if worktree_path else None,
+        base_ref_sha=base_ref_sha,
+        run_dir_override=run_dir_override,
     )
     rd = metadata.run_dir(cfg, run_id)
     (rd / "raw-idea.md").write_text(idea + "\n")

@@ -210,6 +210,7 @@ The artifacts listed under **Produces** are required to advance to the next stat
 - The only state in which the agent may ask the human clarifying questions.
 - Good questions materially change scope, target repo, behavior, or acceptance criteria.
 - Bad questions can be resolved by existing repo conventions or by recording a reasonable assumption.
+- For self-modifying runs (workbench is inside the target repo), `new-run` creates the worktree at draft time so subsequent stages (shaping, planning, ready) work inside the worktree. Abandoning a draft removes a real worktree (TODO §1A1).
 
 **To exit → `shaping`**
 
@@ -332,7 +333,8 @@ Decisions & assumptions         # anchored: #decisions--assumptions
 
 **Rules**
 
-- The branch and worktree do not exist yet — they are created on the `ready -> building` transition.
+- For self-modifying runs (workbench is inside the target repo), the branch + worktree were created at `new-run` time and the run dir already lives inside the worktree (TODO §1A1). `/start` is a state-only transition.
+- For non-self-modifying runs, the branch and worktree do not exist yet — they are created on the `ready -> building` transition.
 - The human reviews the plan and approves (or abandons and starts a new run with a corrected brief).
 
 **To exit → `building`**
