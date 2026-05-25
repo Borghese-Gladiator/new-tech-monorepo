@@ -13,7 +13,7 @@ import datetime as dt
 import json
 import pathlib
 
-from lib import metadata as metadata_mod
+from lib import metadata as metadata_mod, runs as runs_mod
 from lib.metrics import summary as summary_mod
 
 
@@ -53,24 +53,24 @@ def _month_key(ts: str | None) -> str | None:
 
 
 def rebuild(cfg) -> pathlib.Path:
-    """Walk every run's metrics.jsonl and write metrics/index.json."""
-    runs_dir = cfg.runs_path
+    """Walk every run's metrics.jsonl and write metrics/index.json.
+
+    Enumerates the union of master + worktree run dirs via
+    ``runs.iter_all_runs`` (TODO §1B2). Per-run reads use the resolved
+    ``run.run_dir`` so worktree-side artifacts are picked up correctly.
+    """
     summaries: list[dict] = []
     per_scope: dict[str, dict] = {}
     monthly_cost: dict[str, float] = {}
     monthly_accepted: dict[str, float] = {}
 
-    for run_dir in sorted(runs_dir.glob("*")):
-        if not run_dir.is_dir():
-            continue
-        run_id = run_dir.name
+    for run in sorted(runs_mod.iter_all_runs(cfg), key=lambda r: r.run_id):
+        run_id = run.run_id
+        run_dir = run.run_dir
         metrics_path = run_dir / "metrics.jsonl"
         if not metrics_path.exists():
             continue
-        try:
-            run_meta = metadata_mod.load(cfg, run_id)
-        except Exception:
-            continue
+        run_meta = run.metadata
         try:
             s = summary_mod.summarize(cfg, run_id)
         except Exception:

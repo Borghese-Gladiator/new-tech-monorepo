@@ -58,7 +58,36 @@ def now_iso() -> str:
 
 
 def run_dir(cfg: Config, run_id: str) -> pathlib.Path:
-    return cfg.runs_path / run_id
+    """Where does this run live on disk?
+
+    For runs whose metadata is already on disk, the path honors
+    ``target.worktree.path`` (self-modifying runs live inside their
+    worktree). For runs with no metadata yet (e.g. before
+    ``metadata.create`` writes the first file) this falls back to
+    ``cfg.runs_path / run_id`` — which is also where ``create`` writes
+    the seed and where non-self-modifying runs stay.
+    """
+    # Local import keeps the module-load graph acyclic (lib.runs imports
+    # nothing from this module, but lib.runs.find_run drives metadata
+    # discovery elsewhere).
+    from lib import runs as runs_mod
+
+    candidate = cfg.runs_path / run_id
+    meta_at_master = candidate / "metadata.yaml"
+    if meta_at_master.exists():
+        try:
+            data = yaml_io.loads(meta_at_master.read_text())
+        except Exception:
+            return candidate
+        if isinstance(data, dict):
+            return runs_mod.resolve_run_dir_for_meta(cfg, run_id, data)
+        return candidate
+    # No master-side metadata; the run may live entirely in a worktree.
+    try:
+        run = runs_mod.find_run(cfg, run_id)
+        return run.run_dir
+    except (runs_mod.RunNotFound, runs_mod.RunCollision):
+        return candidate
 
 
 def metadata_path(cfg: Config, run_id: str) -> pathlib.Path:
@@ -88,10 +117,19 @@ def load(cfg: Config, run_id: str) -> dict:
     return data
 
 
-def save(cfg: Config, run_id: str, data: dict) -> None:
+def save(cfg: Config, run_id: str, data: dict, *, dest: pathlib.Path | None = None) -> None:
+    """Write metadata.yaml for one run.
+
+    ``dest`` lets the caller bypass the run_dir lookup (used by ``create``
+    on the seed write, when run_dir's resolution can't see the freshly-
+    created directory yet).
+    """
     _validate(data)
     data["updated_at"] = now_iso()
-    p = metadata_path(cfg, run_id)
+    if dest is not None:
+        p = dest / "metadata.yaml"
+    else:
+        p = metadata_path(cfg, run_id)
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(p.suffix + ".tmp")
     with open(tmp, "w") as f:
@@ -112,9 +150,18 @@ def create(
     raw_idea_path: str,
     scope_kind: str = "implementation",
     scope_summary: str = "",
+    worktree_path: str | None = None,
+    base_ref_sha: str | None = None,
+    run_dir_override: pathlib.Path | None = None,
 ) -> dict:
-    """Create the run directory and initial metadata.yaml. Returns the saved metadata."""
-    rd = run_dir(cfg, run_id)
+    """Create the run directory and initial metadata.yaml. Returns the saved metadata.
+
+    ``worktree_path`` + ``base_ref_sha`` are populated when ``new-run`` creates
+    the worktree up front (TODO §1A). ``run_dir_override`` is the absolute
+    path to write the run dir at — used by ``new-run`` for self-modifying
+    runs to place the dir inside the freshly-created worktree.
+    """
+    rd = run_dir_override if run_dir_override is not None else run_dir(cfg, run_id)
     if rd.exists():
         raise MetadataError(f"run {run_id!r} already exists at {rd}")
     rd.mkdir(parents=True)
@@ -131,14 +178,15 @@ def create(
                 "path": repo_path,
                 "name": repo_name,
                 "base_ref": base_ref,
+                "base_ref_sha": base_ref_sha,
                 "fingerprint": None,
                 "created_by_run": run_id if repo_mode == "new" else None,
             },
             "worktree": {
                 "name": worktree_name,
-                "path": None,
+                "path": worktree_path,
                 "branch_name": branch_name,
-                "created": False,
+                "created": bool(worktree_path),
                 "base_ref": base_ref,
                 "initial_commit_sha": None,
             },
@@ -187,7 +235,7 @@ def create(
             "max_iterations": _resolve_max_build_iterations(cfg),
         },
     }
-    save(cfg, run_id, data)
+    save(cfg, run_id, data, dest=rd)
     return data
 
 
@@ -215,6 +263,7 @@ def update(cfg: Config, run_id: str, mutator) -> dict:
 
 
 def list_runs(cfg: Config) -> list[str]:
-    if not cfg.runs_path.exists():
-        return []
-    return sorted(p.name for p in cfg.runs_path.iterdir() if (p / "metadata.yaml").exists())
+    """Run ids across master + every live worktree, deduplicated."""
+    # Local import to keep the module-load graph acyclic.
+    from lib import runs as runs_mod
+    return [r.run_id for r in runs_mod.iter_all_runs(cfg)]

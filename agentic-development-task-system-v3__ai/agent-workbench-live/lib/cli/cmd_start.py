@@ -54,29 +54,38 @@ def run(args) -> int:
     base_ref = meta["target"]["repo"]["base_ref"]
     branch_name = meta["target"]["worktree"]["branch_name"]
     worktree_name = meta["target"]["worktree"]["name"]
-    worktree_path = run_ids.make_worktree_path(cfg, repo_name, worktree_name, run_id)
+    already_created = bool(meta["target"]["worktree"].get("created"))
 
-    # Resolve symbolic `base_ref` to a 40-char SHA against the source repo
-    # *before* the worktree exists. The captured SHA is what the metrics
-    # layer (lib/metrics/lines.py) uses for `<base_ref>..HEAD` ranges; the
-    # original symbolic name stays in metadata for human readability.
-    try:
-        base_ref_sha = repos.resolve_ref_to_sha(repo_path, base_ref)
-    except repos.RepoError as e:
-        return fail(f"failed to resolve base_ref {base_ref!r}: {e}", 2)
+    if already_created:
+        # TODO §1A: self-modifying runs created the worktree at new-run time.
+        # /start is a state-only transition here.
+        worktree_path = pathlib.Path(meta["target"]["worktree"]["path"])
+    else:
+        worktree_path = run_ids.make_worktree_path(
+            cfg, repo_name, worktree_name, run_id,
+        )
 
-    # Create the worktree.
-    try:
-        repos.create_worktree(repo_path, branch_name, worktree_path, base_ref)
-    except repos.RepoError as e:
-        return fail(f"failed to create worktree: {e}", 2)
+        # Resolve symbolic `base_ref` to a 40-char SHA against the source repo
+        # *before* the worktree exists. The captured SHA is what the metrics
+        # layer (lib/metrics/lines.py) uses for `<base_ref>..HEAD` ranges; the
+        # original symbolic name stays in metadata for human readability.
+        try:
+            base_ref_sha = repos.resolve_ref_to_sha(repo_path, base_ref)
+        except repos.RepoError as e:
+            return fail(f"failed to resolve base_ref {base_ref!r}: {e}", 2)
 
-    # Reflect in metadata.
-    def _m(d):
-        d["target"]["worktree"]["path"] = str(worktree_path)
-        d["target"]["worktree"]["created"] = True
-        d["target"]["repo"]["base_ref_sha"] = base_ref_sha
-    metadata.update(cfg, run_id, _m)
+        # Create the worktree.
+        try:
+            repos.create_worktree(repo_path, branch_name, worktree_path, base_ref)
+        except repos.RepoError as e:
+            return fail(f"failed to create worktree: {e}", 2)
+
+        # Reflect in metadata.
+        def _m(d):
+            d["target"]["worktree"]["path"] = str(worktree_path)
+            d["target"]["worktree"]["created"] = True
+            d["target"]["repo"]["base_ref_sha"] = base_ref_sha
+        metadata.update(cfg, run_id, _m)
 
     # Transition.
     if staged:

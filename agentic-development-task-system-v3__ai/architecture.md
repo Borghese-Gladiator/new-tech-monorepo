@@ -34,6 +34,8 @@ Most AI-coding setups scatter planning artifacts across the product repos themse
 
 Agent Workbench inverts the relationship: orchestration is its own workspace, product repos are downstream consumers. The product repos never know Agent Workbench exists; they just see well-formed feature branches arrive.
 
+The workbench root is the **integration target**, not the **runtime artifact store**. Live runs live in their worktrees while in flight; the auto-merge that runs at `complete`/`abandon` is the archival path that delivers the run dir onto master. This keeps master's working tree clean during multi-run sessions — two parallel runs can land their feature branches into master without ever needing a `git stash` between them. The detection helper is `lib.runs.is_self_modifying(cfg, meta)` (true iff the workbench checkout is inside the target repo); for non-self-modifying runs against an unrelated product repo, the run dir continues to live in the workbench checkout's `runs/` for the whole lifecycle, since master's working tree of an unrelated repo isn't a sharing concern.
+
 ## Why worktrees are isolated
 
 Every run gets a fresh worktree at `worktrees/<repo_name>/<worktree_name>/`, checked out from the product repo. Reasons:

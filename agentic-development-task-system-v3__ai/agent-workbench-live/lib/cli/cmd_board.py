@@ -137,7 +137,10 @@ def _static_render(
 def _static_card_line(run, line_idx: int, *, compact: bool) -> str:
     """Compact one-liner (used in --compact mode only)."""
     from lib.board.snapshot import format_age
-    from lib.board.source import severity, SEVERITY_BLOCKING, SEVERITY_WARNING, severity_reason
+    from lib.board.source import (
+        severity, SEVERITY_BLOCKING, SEVERITY_WARNING, severity_reason,
+        SOURCE_MASTER,
+    )
 
     sv = severity(run)
     marker = ""
@@ -145,7 +148,10 @@ def _static_card_line(run, line_idx: int, *, compact: bool) -> str:
         marker = "✕ "
     elif sv == SEVERITY_WARNING:
         marker = "⚠ "
-    bits = [marker + run.run_id, format_age(run.age_seconds)]
+    title = run.run_id
+    if run.source == SOURCE_MASTER and run.status in ("done", "abandoned"):
+        title += " (archived)"
+    bits = [marker + title, format_age(run.age_seconds)]
     if run.repo_name:
         bits.append(run.repo_name)
     if run.is_live:
@@ -195,7 +201,10 @@ def _static_card_stack(
     lines: list[str] = []
 
     # --- Title band
+    from lib.board.source import SOURCE_MASTER
     head = f"{marker}{run.run_id}  [{run.status}]"
+    if run.source == SOURCE_MASTER and run.status in ("done", "abandoned"):
+        head += "  (archived)"
     if run.scope_kind:
         head += f"  {run.scope_kind}"
     if run.is_live:

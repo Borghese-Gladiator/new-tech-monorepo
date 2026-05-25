@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pathlib
 
-from lib import metadata, transitions, locks, repos, events as events_mod
+from lib import metadata, transitions, locks, repos, events as events_mod, runs as runs_mod
 from lib.cli._common import actor_from_env, fail, load_config
 from lib.cli._stop_banner import print_stop_banner
 from lib.metrics import writer as metrics_writer
@@ -183,6 +183,25 @@ def _do_merge(
             f"worktree path does not exist: {worktree}; cannot merge",
             exit_code=2,
         )
+
+    # TODO §1A4: stage + commit the run dir on the agent branch BEFORE the
+    # dirty-tree refusal. The run dir is workbench-managed; its contents are
+    # always safe to auto-commit. The dirty-tree check below then refuses
+    # the merge only if other (human-authored) changes remain.
+    meta = metadata.load(cfg, run_id)
+    if runs_mod.is_self_modifying(cfg, meta):
+        sub = runs_mod.workbench_subpath(cfg)
+        if sub is not None:
+            run_dir_rel = sub / "runs" / run_id
+            try:
+                pre_sha = repos.stage_and_commit_run_dir(
+                    worktree, run_dir_rel,
+                    message=f"runs: {run_id} (complete)",
+                )
+            except repos.RepoError as e:
+                raise _CompleteError(str(e), exit_code=3)
+            if pre_sha:
+                print(f"runs: {run_id} (complete): committed pre-merge as {pre_sha[:12]}")
 
     # Refuse if the worktree has uncommitted changes — the merge would skip
     # whatever the human has not committed yet, which is almost certainly not

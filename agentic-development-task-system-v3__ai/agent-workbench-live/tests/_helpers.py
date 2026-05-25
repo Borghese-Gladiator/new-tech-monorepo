@@ -26,6 +26,7 @@ def cleanup(path: pathlib.Path) -> None:
 
 def reset_caches() -> None:
     """Clear lru_caches in lib modules between tests (schemas/config)."""
-    from lib import events as ev, transitions as tr
+    from lib import events as ev, transitions as tr, runs as runs_mod
     ev._load_schemas.cache_clear()
     tr._load_schema.cache_clear()
+    runs_mod.reset_caches()

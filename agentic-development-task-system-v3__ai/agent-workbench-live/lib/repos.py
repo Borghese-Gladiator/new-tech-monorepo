@@ -133,6 +133,103 @@ def remove_worktree(repo_path: pathlib.Path, worktree_path: pathlib.Path, *, for
     _git_strict(repo_path, *args)
 
 
+def delete_branch(repo_path: pathlib.Path | str, branch: str) -> None:
+    """Delete a local branch with -D (force). Used after worktree removal."""
+    _git_strict(repo_path, "branch", "-D", branch)
+
+
+def stage_and_commit_run_dir(
+    worktree_path: pathlib.Path | str,
+    run_dir_relpath: pathlib.Path | str,
+    *,
+    message: str,
+) -> str | None:
+    """Stage everything inside ``run_dir_relpath`` (relative to the worktree)
+    and commit if anything was uncommitted. Returns the commit SHA, or None
+    if there was nothing to commit.
+
+    The commit uses a deterministic identity (``Agent Workbench`` /
+    ``agent-workbench@local``) so callers don't need to thread author info.
+    """
+    rel = str(run_dir_relpath)
+    add = _git(worktree_path, "add", "--", rel)
+    if add.returncode != 0:
+        # Path missing inside the worktree is fine (nothing to commit). Other
+        # errors surface as RepoError.
+        if "did not match any files" in (add.stderr or "").lower():
+            return None
+        raise RepoError(
+            f"git add {rel!r} failed in {worktree_path}: {add.stderr.strip()}"
+        )
+    # Are there any staged changes under that path?
+    diff = _git(worktree_path, "diff", "--cached", "--quiet", "--", rel)
+    # `diff --quiet` exits 0 when there are no changes, 1 when there are.
+    if diff.returncode == 0:
+        return None
+    if diff.returncode != 1:
+        raise RepoError(
+            f"git diff --cached failed in {worktree_path}: {diff.stderr.strip()}"
+        )
+    commit = _git(
+        worktree_path,
+        "-c", "user.name=Agent Workbench",
+        "-c", "user.email=agent-workbench@local",
+        "commit", "-q", "-m", message, "--", rel,
+    )
+    if commit.returncode != 0:
+        raise RepoError(
+            f"git commit failed in {worktree_path}: {commit.stderr.strip()}"
+        )
+    sha = _git_strict(worktree_path, "rev-parse", "HEAD").strip()
+    return sha
+
+
+def archive_tree_to_path(
+    repo_path: pathlib.Path | str,
+    ref: str,
+    source_relpath: pathlib.Path | str,
+    dest_abs_path: pathlib.Path,
+) -> None:
+    """Extract ``source_relpath`` from ``ref`` in ``repo_path`` to ``dest_abs_path``.
+
+    Uses ``git archive | tar`` so the operation works without checking the
+    ref out and without depending on whichever working copy is currently
+    materialised. ``dest_abs_path`` is created (and parents created) as
+    needed; on success the directory contains the same files that
+    ``ref:source_relpath`` does.
+
+    Raises ``RepoError`` if either git or tar fails.
+    """
+    src = str(source_relpath)
+    dest = pathlib.Path(dest_abs_path)
+    dest.mkdir(parents=True, exist_ok=True)
+    git_proc = subprocess.Popen(
+        ["git", "-C", str(repo_path), "archive", "--format=tar", ref, src],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    tar_proc = subprocess.Popen(
+        ["tar", "-x", "--strip-components", str(len(pathlib.PurePath(src).parts)),
+         "-C", str(dest)],
+        stdin=git_proc.stdout,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if git_proc.stdout:
+        git_proc.stdout.close()  # allow git_proc to receive a SIGPIPE if tar exits
+    _, tar_err = tar_proc.communicate()
+    git_proc.wait()
+    git_err = (git_proc.stderr.read() if git_proc.stderr else b"").decode()
+    if git_proc.returncode != 0:
+        raise RepoError(
+            f"git archive failed for {ref}:{src} in {repo_path}: {git_err.strip()}"
+        )
+    if tar_proc.returncode != 0:
+        raise RepoError(
+            f"tar -x failed extracting to {dest}: {tar_err.decode().strip()}"
+        )
+
+
 class MergeConflictError(RepoError):
     """Raised when `git merge --no-ff` produced conflicts; the merge has been aborted."""
 

@@ -40,6 +40,13 @@ LLM-bearing slash commands: `/shape`, `/plan`, `/validate`, `/followups`. Thin w
 
 Directory names, branch names, and worktree paths are **not** sources of truth. If they disagree with `metadata.yaml`, `metadata.yaml` wins.
 
+The run dir's **physical location** depends on the run's lifecycle stage and whether it's self-modifying (the workbench is inside the target repo):
+
+- Self-modifying runs live inside their worktree (`<worktree>/agentic-development-task-system-v3__ai/agent-workbench-live/runs/<run_id>/`) from `new-run` until `complete` or `abandon`. After the terminal merge, master picks up the run dir at `<workbench>/runs/<run_id>/` (`complete`) or `<workbench>/runs/abandoned/<run_id>/` (`abandon`).
+- Non-self-modifying runs (unrelated product repo) keep the run dir at `<workbench>/runs/<run_id>/` the whole way through; the worktree is the *product* worktree and never holds the run dir.
+
+The `target.worktree.path` field is the canonical pointer for self-modifying runs. `lib/runs.py:find_run` resolves any run id to its current physical location across master + every workbench worktree.
+
 ## When you get stuck
 
 - **Ambiguity during `shaping`/`planning`** → record an assumption in `assumptions.md` (or plan.md's "Decisions & assumptions"), continue with the safest small impl. Don't ask the human.
