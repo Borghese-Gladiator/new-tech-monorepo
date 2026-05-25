@@ -1,8 +1,8 @@
 schema_version: 1
 run_id: "2026-05-24-fix-generated-lines-base-ref-head"
-status: human_review
+status: done
 created_at: "2026-05-24T21:18:02-04:00"
-updated_at: "2026-05-24T21:38:37-04:00"
+updated_at: "2026-05-24T23:18:05-04:00"
 target:
   repo:
     mode: existing
@@ -44,9 +44,9 @@ validation:
   tests_passed: true
   known_issues_count: 0
 completion:
-  accepted_by: null
-  completion_ref: null
-  completed_at: null
+  accepted_by: timothy.shee
+  completion_ref: merge:303bd408dad335d6ed1d8b5bcf91a6fae3e52ad6
+  completed_at: "2026-05-24T23:18:05-04:00"
   abandoned_reason: null
 build:
   iterations: 1

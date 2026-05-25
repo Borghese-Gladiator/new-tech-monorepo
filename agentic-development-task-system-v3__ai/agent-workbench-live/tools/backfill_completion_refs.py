@@ -38,6 +38,11 @@ BACKFILL = {
     # TODO §1 pass-2 (token efficiency). Hit the same `.lock`-during-dirty-check
     # gap as the stop-banner run; merged by hand.
     "2026-05-24-token-efficiency-pass-2": "be9f1122af28184d0d86aa6ac213291659c34135",
+    # TODO §3 (fix generated_lines for base_ref=HEAD). Run reached `done` via the
+    # legacy code path because its `runs/<id>/` lived in master's working tree
+    # rather than the worktree (the §1 orphan-runs bug — see TODO §1), so the
+    # auto-merge code didn't fire. Merged by hand; backfill the merge SHA.
+    "2026-05-24-fix-generated-lines-base-ref-head": "303bd408dad335d6ed1d8b5bcf91a6fae3e52ad6",
 }
 
 
