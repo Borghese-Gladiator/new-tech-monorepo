@@ -74,6 +74,21 @@ def _render_summary_plain(s) -> str:
         lines.append(f"  agent-approved validates    0/{s.validate_attempts}")
     lines.append(f"  build->validate cycles      {s.attempts_per_success}")
     lines.append(f"  repair tokens               {_fmt_int(s.repair_tokens)} tokens")
+    # A7: billable net excludes cache_read so the per-build metric tracks
+    # agent efficiency rather than session length.
+    if s.billable_net_per_passing_build is not None:
+        lines.append(
+            f"  billable_net_per_passing_build {_fmt_int(int(s.billable_net_per_passing_build))} tokens"
+            f"  (excludes cache_read)"
+        )
+    # A6: cache misses are turns whose cache_creation crossed 1k.
+    lines.append(f"  cache misses                {s.cache_misses}")
+    # A8: session-staleness indicator.
+    if s.largest_session_turns:
+        sid_short = s.largest_session_id[:8] if s.largest_session_id else "?"
+        lines.append(
+            f"  largest session             {sid_short} ({s.largest_session_turns} turns)"
+        )
     lines.append("")
     lines.append("Acceptance (gated on human + merge):")
     if s.merge_commit:
@@ -85,10 +100,21 @@ def _render_summary_plain(s) -> str:
     lines.append(f"  generated lines (all drafts){s.generated_lines:>4}")
     lines.append(f"  generated cost              {_fmt_cost(s.cost_generated_usd)}")
     lines.append("")
-    lines.append("Context buckets (input tokens only; cache_read not bucketed):")
-    for k, v in sorted(s.bucket_totals.items(), key=lambda kv: -kv[1]):
-        lines.append(f"  - {k}: {_fmt_int(v)} tokens")
-    lines.append("")
+    # A4: three independent bucket sub-sections. v1-run dicts pass through
+    # cleanly with empty cache_read / cache_creation maps.
+    def _emit_bucket_section(header: str, d: dict) -> None:
+        lines.append(f"{header}:")
+        items = sorted(d.items(), key=lambda kv: -int(kv[1] or 0))
+        if not items or all(int(v or 0) == 0 for _, v in items):
+            lines.append("  (no attribution)")
+        else:
+            for k, v in items:
+                lines.append(f"  - {k}: {_fmt_int(int(v or 0))} tokens")
+        lines.append("")
+
+    _emit_bucket_section("input buckets", s.bucket_totals)
+    _emit_bucket_section("cache_read buckets", s.cache_read_by_bucket)
+    _emit_bucket_section("cache_creation buckets", s.cache_creation_by_bucket)
     if s.tokens_by_stage:
         lines.append("by stage:")
         for st, n in sorted(s.tokens_by_stage.items(), key=lambda kv: -kv[1]):

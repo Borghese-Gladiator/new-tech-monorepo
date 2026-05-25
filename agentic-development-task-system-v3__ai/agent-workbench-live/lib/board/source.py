@@ -155,6 +155,9 @@ class RunSnapshot:
     metrics_approves: int | None
     metrics_validate_attempts: int | None
     metrics_cost_usd: float | None
+    # Pass-2 A9: session-staleness indicator. Largest single-session turn
+    # count across the run; > 100 surfaces a dim "turns N" hint on the card.
+    metrics_largest_session_turns: int | None
 
 
 def _parse_iso(ts: str) -> dt.datetime | None:
@@ -577,6 +580,7 @@ def load_run_snapshot(
     # the board loop must stay fast.
     m_total = m_appr = m_val = None
     m_cost: float | None = None
+    m_largest_turns: int | None = None
     metrics_path = rd / "metrics.jsonl"
     summary_path = rd / "metrics-summary.json"
     if metrics_path.exists():
@@ -591,11 +595,13 @@ def load_run_snapshot(
                 m_appr = int(d.get("approves") or 0)
                 m_val = int(d.get("validate_attempts") or 0)
                 m_cost = float(d.get("cost_generated_usd") or 0.0)
+                m_largest_turns = int(d.get("largest_session_turns") or 0) or None
             else:
-                m_total, m_appr, m_val, m_cost = _quick_metrics_from_jsonl(metrics_path)
+                m_total, m_appr, m_val, m_cost, m_largest_turns = _quick_metrics_from_jsonl(metrics_path)
         except Exception:
             m_total = m_appr = m_val = None
             m_cost = None
+            m_largest_turns = None
 
     return RunSnapshot(
         run_id=run_id,
@@ -651,20 +657,23 @@ def load_run_snapshot(
         metrics_approves=m_appr,
         metrics_validate_attempts=m_val,
         metrics_cost_usd=m_cost,
+        metrics_largest_session_turns=m_largest_turns,
     )
 
 
-def _quick_metrics_from_jsonl(path: pathlib.Path) -> tuple[int, int, int, float]:
+def _quick_metrics_from_jsonl(path: pathlib.Path) -> tuple[int, int, int, float, int | None]:
     """Cheap pass over metrics.jsonl for the board card.
 
-    Returns ``(total_tokens, approves, validate_attempts, cost_usd)``.
-    Avoids the full summary recomputation so the board stays snappy.
+    Returns ``(total_tokens, approves, validate_attempts, cost_usd,
+    largest_session_turns)``. Avoids the full summary recomputation so the
+    board stays snappy.
     """
     import json as _json
     total = 0
     appr = 0
     val = 0
     cost = 0.0
+    session_counts: dict[str, int] = {}
     with path.open("r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -683,11 +692,15 @@ def _quick_metrics_from_jsonl(path: pathlib.Path) -> tuple[int, int, int, float]
                     + (u.get("cache_creation") or 0)
                 )
                 cost += float(row.get("cost_usd") or 0)
+                sid = (row.get("transcript_ref") or {}).get("session_id") or ""
+                if sid:
+                    session_counts[sid] = session_counts.get(sid, 0) + 1
             elif row.get("kind") == "build_outcome":
                 val += 1
                 if row.get("validate_result") == "approve":
                     appr += 1
-    return total, appr, val, cost
+    largest = max(session_counts.values()) if session_counts else None
+    return total, appr, val, cost, largest
 
 
 def _maybe_int(v: Any) -> int | None:

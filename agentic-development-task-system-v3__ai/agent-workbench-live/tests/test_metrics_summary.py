@@ -182,6 +182,69 @@ class TestSummarize(unittest.TestCase):
         # The second turn's 50 input tokens count as repair.
         self.assertEqual(s.repair_tokens, 50)
 
+    def test_pass2_fields_cache_misses_billable_net_largest_session(self):
+        """Pass-2 A6/A7/A8 — summary surfaces the new fields."""
+        from lib.metrics import summary as summ
+        rows = [
+            # Two turns in the same session (sess-A) — large session candidate.
+            {"schema_version": 2, "kind": "turn", "at": "2026-05-22T10:00:00Z",
+             "stage": "building", "command": "/build", "model": "m",
+             "usage": {"input": 100, "output": 10, "cache_read": 50_000, "cache_creation": 5_000},
+             "bucket_attribution": {}, "cache_read_attribution": {"system_prompt": 50_000},
+             "cache_creation_attribution": {"user_messages": 5_000},
+             "transcript_ref": {"session_id": "sess-A", "path": "x", "turn_id": "t1"},
+             "cost_usd": 0.10},
+            {"schema_version": 2, "kind": "turn", "at": "2026-05-22T10:01:00Z",
+             "stage": "building", "command": "/build", "model": "m",
+             "usage": {"input": 50, "output": 5, "cache_read": 50_000, "cache_creation": 200},
+             "bucket_attribution": {}, "cache_read_attribution": {"system_prompt": 50_000},
+             "cache_creation_attribution": {},
+             "transcript_ref": {"session_id": "sess-A", "path": "x", "turn_id": "t2"},
+             "cost_usd": 0.10},
+            # One turn in a smaller session.
+            {"schema_version": 2, "kind": "turn", "at": "2026-05-22T10:02:00Z",
+             "stage": "validating", "command": "/validate", "model": "m",
+             "usage": {"input": 10, "output": 1, "cache_read": 1000, "cache_creation": 2000},
+             "bucket_attribution": {}, "cache_read_attribution": {},
+             "cache_creation_attribution": {},
+             "transcript_ref": {"session_id": "sess-B", "path": "x", "turn_id": "t3"},
+             "cost_usd": 0.01},
+            {"schema_version": 1, "kind": "build_outcome", "at": "z",
+             "attempt": 1, "validate_result": "approve"},
+        ]
+        self._make_run("r-pass2", rows, status="done", completion_ref="merge:abc")
+        s = summ.summarize(self.cfg, "r-pass2")
+        # A8: largest session by turn count.
+        self.assertEqual(s.largest_session_id, "sess-A")
+        self.assertEqual(s.largest_session_turns, 2)
+        # A6: cache_misses = turns with cache_creation > 1000.
+        # sess-A turn 1 (5000) yes; sess-A turn 2 (200) no; sess-B (2000) yes.
+        self.assertEqual(s.cache_misses, 2)
+        # A7: billable_net excludes cache_read.
+        # total_input=160, total_output=16, total_cc=7200 → 7376 / 1 approve.
+        self.assertEqual(s.billable_net_per_passing_build, 7376.0)
+        # A4: pass-2 cache_read_by_bucket / cache_creation_by_bucket.
+        self.assertEqual(s.cache_read_by_bucket["system_prompt"], 100_000)
+        self.assertEqual(s.cache_creation_by_bucket["user_messages"], 5_000)
+
+    def test_v1_rows_tolerated(self):
+        """schema_version=1 rows pass through; cache buckets are empty."""
+        from lib.metrics import summary as summ
+        rows = [
+            {"schema_version": 1, "kind": "turn", "at": "x",
+             "stage": "building", "command": "/build", "model": "m",
+             "usage": {"input": 100, "output": 0, "cache_read": 50_000, "cache_creation": 0},
+             "bucket_attribution": {"user_messages": 100}, "cost_usd": 0.01,
+             "transcript_ref": {"session_id": "s1", "path": "x", "turn_id": "t"}},
+        ]
+        self._make_run("r-v1", rows, status="building")
+        s = summ.summarize(self.cfg, "r-v1")
+        self.assertEqual(s.total_cache_read, 50_000)
+        # No cache_read_attribution on the v1 row → bucket totals are zero.
+        self.assertEqual(sum(s.cache_read_by_bucket.values()), 0)
+        # Largest session still computed from transcript_ref.
+        self.assertEqual(s.largest_session_id, "s1")
+
     def test_summary_cache_round_trip(self):
         from lib.metrics import summary as summ
         rows = [

@@ -39,8 +39,19 @@ class RunMetricsSummary:
     # Per-run attempt count (build → validate cycles up to terminal state).
     attempts_per_success: int
 
-    # Bucket histogram.
-    bucket_totals: dict  # str -> int
+    # Bucket histograms (pass-2: three independent streams).
+    bucket_totals: dict  # str -> int (input only — back-compat name)
+    cache_read_by_bucket: dict  # str -> int (pass-2 A4)
+    cache_creation_by_bucket: dict  # str -> int (pass-2 A4)
+
+    # Cache-miss visibility (pass-2 A6). Count of turns whose
+    # cache_creation_input_tokens > 1000 — a long pause that re-wrote the
+    # cache.
+    cache_misses: int
+
+    # Session-turn-count metric (pass-2 A8).
+    largest_session_turns: int
+    largest_session_id: str
 
     # Lines.
     generated_lines: int
@@ -54,6 +65,11 @@ class RunMetricsSummary:
     # Cost.
     cost_generated_usd: float
     cost_accepted_usd: float  # 0.0 unless meta.status == 'done' and merge sha present
+
+    # Tokens / agent-approved validate (existing) vs. *billable net* /
+    # approved validate (pass-2 A7) — the latter excludes cache_read so the
+    # metric tracks agent efficiency rather than session length.
+    billable_net_per_passing_build: float | None
 
     # Per-stage / per-command breakdowns (read-only conveniences).
     tokens_by_stage: dict  # stage -> total tokens
@@ -109,10 +125,44 @@ def summarize(cfg, run_id: str) -> RunMetricsSummary:
     bucket_totals = buckets_mod.merge(
         r.get("bucket_attribution") or {} for r in turn_rows
     )
+    cache_read_by_bucket = buckets_mod.merge(
+        r.get("cache_read_attribution") or {} for r in turn_rows
+    )
+    cache_creation_by_bucket = buckets_mod.merge(
+        r.get("cache_creation_attribution") or {} for r in turn_rows
+    )
+
+    # A6: cache misses = turns whose cache_creation crossed the 1k threshold.
+    # A long pause (> 5 min cache TTL) re-writes the cache; we count those.
+    cache_misses = sum(
+        1 for r in turn_rows
+        if int((r.get("usage") or {}).get("cache_creation", 0) or 0) > 1000
+    )
+
+    # A8: largest session by turn count.
+    session_counts: dict[str, int] = {}
+    for r in turn_rows:
+        sid = (r.get("transcript_ref") or {}).get("session_id") or ""
+        if sid:
+            session_counts[sid] = session_counts.get(sid, 0) + 1
+    if session_counts:
+        largest_session_id = max(session_counts, key=lambda k: session_counts[k])
+        largest_session_turns = session_counts[largest_session_id]
+    else:
+        largest_session_id = ""
+        largest_session_turns = 0
 
     approves = sum(1 for r in outcome_rows if r.get("validate_result") == "approve")
     validate_attempts = len(outcome_rows)
     tokens_per_passing = (total_tokens / approves) if approves > 0 else None
+
+    # A7: billable net per passing build = (input + output + cache_creation) /
+    # approves. Excludes cache_read so the metric tracks agent efficiency
+    # rather than session length.
+    billable_net = total_input + total_output + total_cc
+    billable_net_per_passing = (
+        billable_net / approves if approves > 0 else None
+    )
 
     cost_gen = round(sum(float(r.get("cost_usd") or 0) for r in turn_rows), 6)
     is_done = meta.get("status") == "done"
@@ -161,12 +211,18 @@ def summarize(cfg, run_id: str) -> RunMetricsSummary:
         tokens_per_passing_build=tokens_per_passing,
         attempts_per_success=attempts_per_success,
         bucket_totals=bucket_totals,
+        cache_read_by_bucket=cache_read_by_bucket,
+        cache_creation_by_bucket=cache_creation_by_bucket,
+        cache_misses=cache_misses,
+        largest_session_turns=largest_session_turns,
+        largest_session_id=largest_session_id,
         generated_lines=gen_lines,
         accepted_lines=acc_lines,
         merge_commit=merge_sha,
         repair_tokens=repair_tokens,
         cost_generated_usd=cost_gen,
         cost_accepted_usd=cost_accepted,
+        billable_net_per_passing_build=billable_net_per_passing,
         tokens_by_stage=tokens_by_stage,
         tokens_by_command=tokens_by_command,
     )

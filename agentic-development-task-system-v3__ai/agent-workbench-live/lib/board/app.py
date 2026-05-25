@@ -101,7 +101,12 @@ def _format_metrics_line(run: RunSnapshot) -> str:
         build_str = f"{appr or 0}/{val}"
     cost = run.metrics_cost_usd or 0.0
     cost_str = f"${cost:.2f}" if cost >= 0.01 else f"${cost:.4f}"
-    return f"tokens {tok_str} · build {build_str} · {cost_str}"
+    line = f"tokens {tok_str} · build {build_str} · {cost_str}"
+    # Pass-2 A9: dim session-staleness nudge when one session grew large.
+    lst = run.metrics_largest_session_turns
+    if lst is not None and lst > 100:
+        line = f"{line} · turns {lst}"
+    return line
 
 
 def _format_event_ts(seconds: float) -> str:

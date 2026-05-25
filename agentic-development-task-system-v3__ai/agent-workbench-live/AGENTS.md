@@ -16,78 +16,49 @@ Agent Workbench is a local run orchestrator. One run = one fuzzy idea turned int
 draft -> shaping -> planning -> ready -> building -> validating -> human_review -> done
 ```
 
-Any non-terminal state can also go to `abandoned`. `human_review` can bounce back to `building`.
-
-| State | What happens | You may ask questions? | You may read code? |
-|---|---|---|---|
-| `draft` | Raw idea captured. | **Yes** | No |
-| `shaping` | Write `brief.md` from raw idea. | No | No |
-| `planning` | Inspect repo, write plan + assumptions + decisions + preflight. | No | Yes |
-| `ready` | Human approval gate. | N/A | N/A |
-| `building` | Implement inside the worktree. | No, unless hard-blocked | Yes |
-| `validating` | Self-review + QA + render audit + handoff. | No | Yes |
-| `human_review` | Branch is ready for the human. | Human decides | Yes |
-| `done` | Accepted. Terminal. | No | No |
-| `abandoned` | Stopped intentionally. Terminal. | No | No |
+Any non-terminal state can also go to `abandoned`. `human_review` can bounce back to `building`. Read `../docs/lifecycle.md` for the per-stage contract (inputs, produces, exit evidence) and the agent-may-ask / may-read-code matrix.
 
 ## Two hard rules
 
-1. **Only `draft` may ask the human clarifying questions.** Every other state must proceed by recording an assumption (`assumptions.md`), making a decision (`decisions.md`), or stopping with evidence.
-
-2. **Only `lib/transitions.transition(...)` writes `status`.** Never edit `runs/<run_id>/metadata.yaml`'s `status` field directly. Never append to `events.jsonl` by hand. Use the CLI; the CLI calls the transition engine; the engine emits the right events.
+1. **Only `draft` may ask the human clarifying questions.** Every other state proceeds by recording an assumption (`assumptions.md`), a decision (`decisions.md`), or stopping with evidence.
+2. **Only `lib/transitions.transition(...)` writes `status`.** Never edit `runs/<run_id>/metadata.yaml`'s `status` field by hand. Never append to `events.jsonl` directly. Use the CLI.
 
 ## How to drive the workbench
 
-Run the CLI:
+Use the CLI (`agent-workbench <subcommand>`) or the matching slash command in Claude Code. Slash commands wrap the CLI for the LLM-bearing steps. The full command → state map lives in `../docs/lifecycle.md` § "Command-to-state map".
 
-```bash
-agent-workbench <subcommand> [args]
-```
-
-Or invoke the matching slash command if you're in a Claude Code session (slash commands wrap the CLI for the LLM-bearing steps).
-
-### Command -> state map
-
-| Command | Transition | When to use |
-|---|---|---|
-| `new-run` | (creates run in `draft`) | A new idea arrives. |
-| `shape <id>` | `draft -> shaping -> planning` | LLM-bearing. Use `/shape`. |
-| `plan <id>` | `shaping -> planning -> ready` | LLM-bearing. Use `/plan`. |
-| `start <id>` | `ready -> building` | Human approved; create branch + worktree. |
-| `validate <id>` | `building -> validating -> human_review` | LLM-bearing. Use `/validate`. |
-| `handoff <id>` | (read-only) | Re-display handoff info. |
-| `complete <id>` | `human_review -> done` | Human accepted. |
-| `bounce <id>` | `human_review -> building` | Human wants changes. |
-| `abandon <id>` | any non-terminal -> `abandoned` | Stop the run. |
-| `list` / `show` / `events` | (read-only) | Inspect state. |
-
-### Slash commands
-
-LLM-bearing (you read+write artifacts inside these):
-
-- `/shape` — write `brief.md` from `raw-idea.md`.
-- `/plan` — inspect the target repo, write `plan.md`, `preflight.md`, `assumptions.md`, `decisions.md`.
-- `/validate` — review + QA + render `audit.md` and `handoff.md`.
-
-Thin wrappers (just call the CLI):
-
-- `/new-run`, `/start`, `/handoff`, `/complete`, `/bounce`, `/abandon`, `/runs`, `/run-show`.
+LLM-bearing slash commands: `/shape`, `/plan`, `/validate`, `/followups`. Thin wrappers (just call the CLI): `/new-run`, `/start`, `/handoff`, `/complete`, `/bounce`, `/abandon`, `/runs`, `/run-show`.
 
 ## Source of truth
 
 - `runs/<run_id>/metadata.yaml` — current state, pointers to artifacts. Written only by the metadata + transitions modules.
 - `runs/<run_id>/events.jsonl` — append-only history. Written only by the events module.
-- `runs/<run_id>/*.md` — the artifacts you fill in (brief, plan, assumptions, decisions, implementation-summary, etc).
-- `runs/<run_id>/audit.md` — human-readable timeline, rendered from `events.jsonl` + artifacts during validation.
+- `runs/<run_id>/*.md` — the artifacts you fill in (brief, plan, assumptions, decisions, build, review, qa, etc.).
+- `runs/<run_id>/audit.md` — human-readable timeline, rendered during validation.
 
 Directory names, branch names, and worktree paths are **not** sources of truth. If they disagree with `metadata.yaml`, `metadata.yaml` wins.
 
 ## When you get stuck
 
-- **Ambiguity during `shaping` or `planning`** → record an assumption in `assumptions.md` and continue with the safest small implementation. Do not ask the human.
-- **A command failed during `building`** → record what happened in `implementation-summary.md`. Try to repair. Do not silently retry. If you cannot proceed, hand off with known issues; the human can bounce or abandon.
-- **State seems wrong** → run `agent-workbench show <run_id>` and `agent-workbench events <run_id>`. Never patch `metadata.yaml` to "fix" state.
-- **A transition is rejected** → read the `TransitionRejected` event's `reason` field. The missing evidence is listed there.
+- **Ambiguity during `shaping`/`planning`** → record an assumption in `assumptions.md` (or plan.md's "Decisions & assumptions"), continue with the safest small impl. Don't ask the human.
+- **Command failed during `building`** → record it in `build.md`. Repair; don't silently retry. If you can't proceed, hand off with known issues.
+- **State seems wrong** → `agent-workbench show <run_id>` and `agent-workbench events <run_id>`. Never patch `metadata.yaml`.
+- **Transition rejected** → read the `TransitionRejected` event's `reason` field — it lists the missing evidence.
+
+## Session discipline
+
+Claude Code's conversation prefix grows monotonically inside a session. Every turn re-reads the full prefix — `cache_read_input_tokens` accumulates as `(prefix size) × (turn count)`. On a long single session, this is the dominant cost: the pass-1 dogfood run paid 121.8M tokens of `cache_read` (98.7% of total) across 621 turns in one session. Pass-2 measurement lives in `lib/metrics/buckets.py` (`cache_read buckets`); the rules below are the structural fix.
+
+When the agent sees a `STOP.` banner from the CLI (e.g. after `/followups`), the run is human-owned. Stop the session.
+
+- **Always start a new Claude Code session at the `/validate` boundary** when the building session has more than 100 turns. The handoff is the `run_id` + worktree path — nothing else needs to carry over, because `validate --init` writes `stages/5_validating/validate-context.md` + `blast-radius.txt` for you. (Threshold is configurable via `session_staleness_threshold_turns` in `agent-workbench.yaml`; `validate --init` prints a copy-pasteable handoff block when the threshold is crossed.)
+- **Always start a new session between independent runs.** A new `/new-run` for an unrelated task = exit Claude Code and relaunch first. Cross-run prefix has zero amortization value.
+- **Stay in the same session for `/shape` → `/plan` → `/build`.** These share useful context (the brief informs the plan; the plan informs the build); the cache amortizes well here.
+- **Restart when you see Claude Code's auto-compact notice.** The prefix is already heavy. Restart with the fresh-session handoff rather than letting auto-compaction run mid-task.
+
+### Why
+
+The cache layer doesn't deduplicate across sessions, and Claude Code's auto-compact isn't aligned to the lifecycle boundary. So discipline is the only lever: cut the session at the point where the next stage genuinely doesn't need the prior conversation (the validate boundary qualifies — the validator needs the diff and the right files, not the build session's history). The handoff block printed by `validate --init` when `largest_session_turns > threshold` is the explicit nudge.
 
 ## Subagent discipline
 
@@ -96,6 +67,16 @@ When you fan out work via Claude Code's Agent tool:
 - The master session owns lifecycle state. Subagents return findings; the master decides whether to advance status.
 - Pick the narrowest agent type. `Explore` for read-only search. `Plan` for planning. `general-purpose` only when edits or tool use are needed.
 - Subagents are session-internal. They never write `metadata.yaml` or `events.jsonl`.
+- **Subagent-first read strategy for `/build` and `/validate`.** When a stage needs to read more than 3 files for *exploration* (not editing), route through an `Explore` subagent. File reads in the master session stick in the prefix forever; subagent reads do not — the subagent returns a summary; the master keeps a tiny footprint. Example: "find every call site of `record_run_metrics` in `agent-workbench-live/`" → spawn `Explore` rather than running four `grep`/`Read` calls in-session.
+
+### Tool-output budget
+
+Soft per-call budget for Bash tools. Not enforced; pattern guidance to keep prefix growth bounded:
+
+- `Read` outputs over ~2k tokens → scope with `head -n 100`, `tail -n 100`, or `grep` before reading the whole file.
+- `git log` → cap with `-n 20` unless the question demands full history.
+- `git diff` → start with `--stat`; only run the full diff if needed.
+- `find` → scope by `-name` / `-path`; avoid full-tree walks (`find /` is blocked anyway).
 
 ## Context library
 

@@ -30,7 +30,8 @@ from lib.metrics import prices as prices_mod
 from lib.metrics import transcript as transcript_mod
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # pass-2: turn rows now carry cache_read_attribution +
+# cache_creation_attribution alongside the input-only bucket_attribution.
 METRICS_FILE = "metrics.jsonl"
 SUMMARY_FILE = "metrics-summary.json"
 
@@ -163,7 +164,10 @@ def record_run_metrics(cfg, run_id: str) -> pathlib.Path:
             "message": f"no transcripts found for project slugs {slugs!r}",
         })
 
-    # Correlate turns.
+    # Correlate turns. Pass the workbench root so the A1 fallback can attribute
+    # workbench-driven slash commands even when the operator's cwd doesn't
+    # match the run's worktree/repo (multi-window, sibling-dir invocation).
+    workbench_root = str(cfg.root) if hasattr(cfg, "root") else None
     turn_rows: list[dict] = []
     for cwd_candidate in _run_cwd_candidates(meta):
         turns = transcript_mod.correlate(
@@ -171,10 +175,11 @@ def record_run_metrics(cfg, run_id: str) -> pathlib.Path:
             run_cwd=cwd_candidate,
             window_start=meta.get("created_at"),
             window_end=None,
+            workbench_root=workbench_root,
         )
         if turns:
             for turn in turns:
-                bucket = buckets_mod.attribute(turn)
+                attr = buckets_mod.attribute_all(turn)
                 cost = prices_mod.cost_usd(turn.usage, turn.model, price_table) if price_table else 0.0
                 turn_rows.append({
                     "schema_version": SCHEMA_VERSION,
@@ -189,7 +194,11 @@ def record_run_metrics(cfg, run_id: str) -> pathlib.Path:
                         "cache_read": turn.usage.get("cache_read_input_tokens", 0),
                         "cache_creation": turn.usage.get("cache_creation_input_tokens", 0),
                     },
-                    "bucket_attribution": bucket,
+                    # A5: three independent attribution dicts. v1 readers
+                    # ignore the cache_* keys; v2 readers use all three.
+                    "bucket_attribution": attr.input_buckets,
+                    "cache_read_attribution": attr.cache_read_buckets,
+                    "cache_creation_attribution": attr.cache_creation_buckets,
                     "cost_usd": round(cost, 6),
                     "transcript_ref": {
                         "path": turn.transcript_path,

@@ -19,6 +19,7 @@ eggs/
 .eggs/
 lib/
 !agentic-development-task-system-v2__ai/agent-workbench-live/lib/
+!agentic-development-task-system-v3__ai/agent-workbench-live/lib/
 lib64/
 parts/
 sdist/

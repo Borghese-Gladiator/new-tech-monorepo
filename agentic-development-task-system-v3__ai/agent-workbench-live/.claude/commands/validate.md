@@ -14,28 +14,22 @@ agent-workbench validate "$RUN_ID" --init
 
 That:
 - transitions `building -> validating`
-- stages `implementation-summary.md`, `diff-summary.md`, `review.md`, `qa/report.md`, `handoff.md`
+- stages `review.md`, `qa/report.md`, `HUMAN_REVIEW.md` (staged runs) or `implementation-summary.md` / `diff-summary.md` / `review.md` / `qa/report.md` / `handoff.md` (legacy flat runs)
 - creates `qa/{artifacts,recordings,traces}/` and `qa/commands.txt`
+- **pass-2**: writes `stages/5_validating/validate-context.md` and `stages/5_validating/blast-radius.txt` (deterministic Python; no LLM call). These are the curated entry point for the rest of the steps below.
+- **pass-2**: if the building session crossed the staleness threshold, prints a fresh-session handoff block. **Exit Claude Code and restart in a fresh session** when you see that block — the new session bootstraps from `validate-context.md` and has everything it needs.
 
-## Step 2 — write implementation-summary.md and diff-summary.md
+## Step 2 — read the curated context
 
-Inspect the worktree (`runs/$RUN_ID/metadata.yaml` `target.worktree.path`).
+Read `runs/$RUN_ID/stages/5_validating/validate-context.md`. That file is the curated entry point: it carries the original task, acceptance criteria, filtered plan decisions/assumptions, the diff (or a summary if too large), files changed, commands run, test results, and known issues — all built deterministically from the existing artifacts.
 
-Run from inside the worktree:
+**Do NOT re-read** `brief.md`, `plan.md`, `build.md`, or `qa/report.md` separately if `validate-context.md` already covers what you need. Read them directly only when `validate-context.md` points you at a specific section that needs a deeper look.
 
-```bash
-git status
-git diff --stat
-git log --oneline
-```
-
-Fill `implementation-summary.md`: what changed, files changed, acceptance criteria coverage (map to brief.md), deviations from plan, known issues, commands run.
-
-Fill `diff-summary.md`: scope, files added/modified/deleted, highlights for reviewers.
+For multi-file exploration (more than 3 files for understanding, not editing), route through an `Explore` subagent — see `agent-workbench-live/AGENTS.md` § "Subagent discipline".
 
 ## Step 3 — review
 
-Be adversarial. The reviewer is not the builder. Read `brief.md`, `plan.md`, and the diff, and answer:
+Be adversarial. The reviewer is not the builder. Answer from `validate-context.md`:
 
 - Did the implementation satisfy the brief?
 - Did it accidentally expand scope?
@@ -46,19 +40,11 @@ Be adversarial. The reviewer is not the builder. Read `brief.md`, `plan.md`, and
 
 Write `review.md` with a Decision (`approve` | `request_changes` | `block`) and any findings.
 
-### Blast radius (TODO §1g)
+### Blast radius
 
-Author a `## Blast radius` section in `review.md` by tracing callers up to depth 3 via git commands run from inside the worktree:
+Read `runs/$RUN_ID/stages/5_validating/blast-radius.txt`. That file has the depth-1/2/3 caller tree, pre-computed by `validate --init` from `git diff` + `git grep`. Summarize anything notable in `review.md` under a `## Blast radius` heading. Flag any depth-2/3 file that lives OUTSIDE what `brief.md`'s expected-scope section anticipated.
 
-```bash
-git diff --name-only <base_ref>...HEAD       # depth-1: changed files
-# For each touched file, identify top-level symbols modified in the diff.
-# For each modified symbol:
-git grep -n <symbol>                          # depth-2: callers
-# Repeat for callers of those callers; STOP AT DEPTH 3.
-```
-
-Render the result as a small tree (see `templates/review.md` for the exact format). Flag any depth-2/3 file that lives OUTSIDE what `brief.md`'s expected-scope section anticipated. The CLI's `validate` command separately handles depth-1 scope creep — if it finds any, it appends a `## Scope creep check` section to `review.md` for you; mention it in your Blast radius narrative if so.
+The CLI's `validate` command separately handles depth-1 scope creep — if it finds any, it appends a `## Scope creep check` section to `review.md` for you; mention it in your Blast radius narrative if so.
 
 ## Step 4 — QA
 
