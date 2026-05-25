@@ -32,3 +32,10 @@ motivation: review.md F-002 noted that `_write_validate_context_artifacts()` wra
 suggested_scope: Small, ~few hours. One test that monkey-patches `validate_context.build` to raise; assert the transition still succeeds AND that the file is NOT written (proving the catch fired). One test that constructs an unparseable build.md and asserts the generator produces a sentinel-fallback file rather than crashing. Optional: log the swallowed exception to events.jsonl so a future audit can find silent failures.
 category: tech_debt
 ---
+
+---
+title: Fix auto-merge dirty-check seeing its own `.lock` file
+motivation: `agent-workbench complete` acquires `runs/<id>/.lock` via `locks.acquire(cfg, run_id)` BEFORE calling `repos.merge_no_ff`, which then runs `worktree_dirty_files(repo_path)` and sees the lock file as untracked (it's in the runs/ tree that's tracked in the parent repo). The check refuses the merge with "refusing to merge: <repo> has uncommitted changes: ['runs/<id>/.lock']". Hit twice now — the CLI stop-banner run and this pass-2 run both fell back to `--no-merge` + manual `git merge --no-ff`, then `backfill_completion_refs.py` to rewrite `local-branch:` → `merge:<sha>`. The backfill tool's comments (lines 32-37) document the pattern but it's a real bug. Without the fix, every future run that committed its run dir to master before `complete` runs will hit the same wall.
+suggested_scope: Small, ~half day. Two options to evaluate: (a) exclude `runs/*/.lock` paths from the dirty-check inside `repos.merge_no_ff` (or in `worktree_dirty_files` with an opt-in filter argument); (b) reorder `cmd_complete` so the dirty-check runs BEFORE `locks.acquire`. Option (a) is robust to future lock-file paths; option (b) is more honest about ordering but risks a TOCTOU window. Add a regression E2E test that runs the full `complete` path with a committed run dir; assert no `.lock`-related refusal. Also update `backfill_completion_refs.py` comments to point at this follow-up's fix.
+category: bug_risk
+---

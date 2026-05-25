@@ -35,6 +35,9 @@ BACKFILL = {
     # check runs (latent gap, tracked in this run's follow-ups). Used
     # `--no-merge` + `git merge --no-ff` by hand; backfill the merge SHA.
     "2026-05-24-cli-stop-banner-on-agent-stopping-transitions": "9eda554b2c5b6ea432f23b376133059925679ee9",
+    # TODO §1 pass-2 (token efficiency). Hit the same `.lock`-during-dirty-check
+    # gap as the stop-banner run; merged by hand.
+    "2026-05-24-token-efficiency-pass-2": "be9f1122af28184d0d86aa6ac213291659c34135",
 }
 
 

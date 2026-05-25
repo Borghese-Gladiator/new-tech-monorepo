@@ -45,7 +45,7 @@ validation:
   known_issues_count: 3
 completion:
   accepted_by: timothysheee
-  completion_ref: local-branch:agent/token-efficiency-pass-2
+  completion_ref: merge:be9f1122af28184d0d86aa6ac213291659c34135
   completed_at: "2026-05-24T23:27:26-04:00"
   abandoned_reason: null
 build:
