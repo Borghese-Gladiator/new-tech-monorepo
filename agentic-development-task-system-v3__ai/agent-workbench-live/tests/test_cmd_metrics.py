@@ -47,6 +47,7 @@ class TestMetricsCLI(unittest.TestCase):
              "bucket_attribution": {"system_prompt": 5, "tool_defs": 10, "claude_md_and_agents_md": 5,
                                     "context_imports": 0, "slash_command_body": 5, "user_messages": 30,
                                     "assistant_history": 0, "tool_results": 45, "other": 0},
+             "transcript_ref": {"session_id": "sess-fixture", "path": "x", "turn_id": "t1"},
              "cost_usd": 0.0023},
             {"schema_version": 1, "kind": "build_outcome", "at": "2026-05-22T10:30:00Z",
              "attempt": 1, "validate_result": "approve"},
@@ -65,7 +66,14 @@ class TestMetricsCLI(unittest.TestCase):
         self.assertIn("Token spend", r.stdout)
         self.assertIn("Build progress", r.stdout)
         self.assertIn("Acceptance", r.stdout)
-        self.assertIn("Context buckets", r.stdout)
+        # Pass-2: three bucket sub-sections instead of one "Context buckets".
+        self.assertIn("input buckets", r.stdout)
+        self.assertIn("cache_read buckets", r.stdout)
+        self.assertIn("cache_creation buckets", r.stdout)
+        # Pass-2 surface fields.
+        self.assertIn("cache misses", r.stdout)
+        self.assertIn("billable_net_per_passing_build", r.stdout)
+        self.assertIn("largest session", r.stdout)
         # Units present.
         self.assertIn("tokens", r.stdout)
         # Cache-read row labeled.

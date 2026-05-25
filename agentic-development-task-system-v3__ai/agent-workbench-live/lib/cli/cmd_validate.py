@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import subprocess
 
-from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims, scope_check, stub_llm
+from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims, scope_check, stub_llm, validate_context
 from lib.cli._common import actor_from_env, fail, load_config
 from lib.cli._stop_banner import print_stop_banner
+from lib.metrics import summary as metrics_summary
 from lib.metrics import writer as metrics_writer
 
 
@@ -40,6 +41,93 @@ def register(p) -> None:
     p.add_argument("--init", action="store_true", help="Stage post-impl templates and transition building -> validating.")
     p.add_argument("--tests-passed", choices=("true", "false"), help="Recorded on QACompleted.")
     p.add_argument("--known-issues", type=int, default=0)
+
+
+def _write_validate_context_artifacts(cfg, run_id, rd, staged: bool, meta: dict) -> None:
+    """Pass-2 B2 + B4. Write validate-context.md and blast-radius.txt into
+    the validating stage dir. Idempotent. Errors are swallowed — these are
+    convenience artifacts; their absence shouldn't break the transition."""
+    try:
+        target_dir = lifecycle.stage_dir(cfg, run_id, "validating") if staged else rd
+        worktree = (meta.get("target") or {}).get("worktree") or {}
+        worktree_path = worktree.get("path") or ""
+        repo = (meta.get("target") or {}).get("repo") or {}
+        base_ref = repo.get("base_ref") or "HEAD"
+
+        if staged:
+            brief_path = lifecycle.stage_dir(cfg, run_id, "shaping") / "brief.md"
+            plan_path = lifecycle.stage_dir(cfg, run_id, "planning") / "plan.md"
+            build_md_path = lifecycle.stage_dir(cfg, run_id, "building") / "build.md"
+        else:
+            brief_path = rd / "brief.md"
+            plan_path = rd / "plan.md"
+            build_md_path = rd / "build.md"
+        qa_path = rd / "qa" / "report.md"
+
+        body = validate_context.build(
+            brief_path=brief_path,
+            plan_path=plan_path,
+            build_md_path=build_md_path,
+            qa_report_path=qa_path,
+            worktree_path=worktree_path,
+            base_ref=base_ref,
+        )
+        validate_context.write(target_dir / "validate-context.md", body)
+
+        br_text = validate_context.build_blast_radius(
+            worktree_path=worktree_path,
+            base_ref=base_ref,
+        )
+        (target_dir / "blast-radius.txt").write_text(br_text, encoding="utf-8")
+    except Exception:
+        # Best-effort: never fail the transition over a curation artifact.
+        pass
+
+
+def _session_staleness_threshold(cfg) -> int:
+    """Read the configurable threshold from agent-workbench.yaml; default 100."""
+    raw = getattr(cfg, "raw", {}) or {}
+    val = raw.get("session_staleness_threshold_turns")
+    try:
+        return int(val) if val is not None else 100
+    except (TypeError, ValueError):
+        return 100
+
+
+def _print_fresh_session_handoff(cfg, run_id, rd, meta) -> None:
+    """Pass-2 B5. When the run's largest session crossed the threshold,
+    print a copy-pasteable handoff block ahead of the existing transition
+    line. Silent when no metrics yet, or when the threshold isn't crossed.
+    """
+    try:
+        # If metrics.jsonl exists but is fresh from a prior run, summarize();
+        # otherwise we don't have a turn count to compare yet.
+        if not (rd / "metrics.jsonl").exists():
+            return
+        s = metrics_summary.summarize(cfg, run_id)
+    except Exception:
+        return
+    threshold = _session_staleness_threshold(cfg)
+    if (s.largest_session_turns or 0) <= threshold:
+        return
+    worktree = (meta.get("target") or {}).get("worktree") or {}
+    branch = worktree.get("branch_name") or "?"
+    worktree_path = worktree.get("path") or "?"
+    bar = "=" * 60
+    print(bar)
+    print(f"This run is ready for validation in a fresh Claude Code session.")
+    print(f"  run_id:    {run_id}")
+    print(f"  worktree:  {worktree_path}")
+    print(f"  branch:    {branch}")
+    print(f"")
+    print(f"Exit Claude Code, then:")
+    print(f"  cd {worktree_path}")
+    print(f"  claude")
+    print(f"  /validate {run_id}")
+    print(f"")
+    print(f"The new session bootstraps from validate-context.md — no other context needed.")
+    print(f"(Building session reached {s.largest_session_turns} turns; threshold {threshold}.)")
+    print(bar)
 
 
 def _check_scope_creep_staged(cfg, run_id, rd, meta, actor) -> None:
@@ -271,6 +359,26 @@ def run(args) -> int:
                 d["artifacts"]["qa_report"] = "qa/report.md"
                 d["artifacts"]["handoff"] = "handoff.md"
         metadata.update(cfg, run_id, _m)
+
+        # Pass-2 (B2 + B4): write deterministic validate-context.md and
+        # blast-radius.txt into the validating stage dir. Pure Python — no
+        # LLM call. The validator reads these instead of brief/plan/build/qa
+        # separately.
+        _write_validate_context_artifacts(cfg, run_id, rd, staged, meta)
+
+        # Pass-2 (B5): refresh metrics now so the handoff check sees the
+        # building session's turn count.
+        try:
+            metrics_writer.record_run_metrics(cfg, run_id)
+        except Exception:
+            pass
+
+        # Pass-2 (B5): fresh-session handoff block. When the build session
+        # crossed the staleness threshold, print a copy-pasteable block at
+        # the top so the operator restarts Claude Code in a fresh session
+        # before driving /validate.
+        _print_fresh_session_handoff(cfg, run_id, rd, meta)
+
         print(f"{run_id}: building -> validating; staged post-impl templates")
         return 0
 

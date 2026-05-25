@@ -80,6 +80,12 @@ board:
   # as stale on `agent-workbench board`. See TODO §1.
   stale_human_review_hours: 24
 
+# Pass-2 (B5): when a run's largest session exceeds this turn count,
+# `validate --init` prints a fresh-session handoff block urging the operator
+# to exit Claude Code and restart in a fresh session before /validate. See
+# `agent-workbench-live/AGENTS.md` § "Session discipline".
+session_staleness_threshold_turns: 100
+
 artifacts:
   raw_idea: raw-idea.md
   answers: answers.md

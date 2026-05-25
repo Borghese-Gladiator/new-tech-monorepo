@@ -268,6 +268,7 @@ def _make_snapshot(**overrides):
         metrics_approves=None,
         metrics_validate_attempts=None,
         metrics_cost_usd=None,
+        metrics_largest_session_turns=None,
     )
     defaults.update(overrides)
     return RunSnapshot(**defaults)

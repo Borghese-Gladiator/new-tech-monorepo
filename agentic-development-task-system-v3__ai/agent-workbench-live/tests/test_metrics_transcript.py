@@ -169,6 +169,75 @@ class TestCorrelate(unittest.TestCase):
         out = trans.correlate([path], run_cwd=self.cwd)
         self.assertEqual(len(out), 1)
 
+    def test_correlator_inherits_command_across_files(self):
+        """Pass-2 A1. A slash command issued in file 1 continues to attribute
+        assistant turns in file 2 (same session, multi-file transcript)."""
+        p1 = self.tmp / "01.jsonl"
+        p2 = self.tmp / "02.jsonl"
+        _write_jsonl(p1, [
+            _make_user_command("/build", "2026-05-22T10:00:00.000Z", self.cwd),
+            _make_assistant("2026-05-22T10:00:01.000Z", self.cwd, input_tokens=11, uuid="a1"),
+        ])
+        _write_jsonl(p2, [
+            # No fresh /build marker — but turn still belongs to /build.
+            _make_assistant("2026-05-22T10:01:00.000Z", self.cwd, input_tokens=22, uuid="a2"),
+        ])
+        out = trans.correlate([p1, p2], run_cwd=self.cwd)
+        self.assertEqual(len(out), 2)
+        self.assertEqual(out[0].stage, "building")
+        self.assertEqual(out[1].stage, "building",
+                         "A1: command must persist across file boundary")
+        self.assertEqual(out[1].command, "/build")
+
+    def test_workbench_fallback_attributes_known_command(self):
+        """Pass-2 A1. When cwd doesn't match the run but the slash command is
+        workbench-known AND the cwd is under workbench_root, attribute to the
+        stage rather than 'other'."""
+        path = self.tmp / "t.jsonl"
+        # cwd is /Users/me/sibling — NOT under self.cwd.
+        sibling = "/Users/me/sibling"
+        _write_jsonl(path, [
+            _make_user_command("/validate", "2026-05-22T10:00:00.000Z", sibling),
+            _make_assistant("2026-05-22T10:00:01.000Z", sibling, input_tokens=33),
+        ])
+        # workbench_root is /Users/me (parent of sibling). Should fall back.
+        out = trans.correlate([path], run_cwd=self.cwd, workbench_root="/Users/me")
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0].stage, "validating",
+                         "A1 fallback: workbench-driven turn attributes despite cwd mismatch")
+
+    def test_workbench_fallback_off_when_no_command(self):
+        """The fallback only fires when a known slash command is active."""
+        path = self.tmp / "t.jsonl"
+        sibling = "/Users/me/sibling"
+        _write_jsonl(path, [
+            _make_user_text("just a question, no command", "2026-05-22T10:00:00.000Z", sibling),
+            _make_assistant("2026-05-22T10:00:01.000Z", sibling, input_tokens=44),
+        ])
+        out = trans.correlate([path], run_cwd=self.cwd, workbench_root="/Users/me")
+        self.assertEqual(out[0].stage, "other")
+
+    def test_prefix_accumulators_grow_monotonically(self):
+        """Pass-2 A3. prefix_* fields on each CorrelatedTurn carry the full
+        session-prefix bodies up to and including that turn."""
+        path = self.tmp / "t.jsonl"
+        _write_jsonl(path, [
+            _make_user_command("/build", "2026-05-22T10:00:00.000Z", self.cwd),
+            _make_assistant("2026-05-22T10:00:01.000Z", self.cwd, input_tokens=1, uuid="a1"),
+            _make_user_text("follow-up 1", "2026-05-22T10:00:02.000Z", self.cwd, uuid="u2"),
+            _make_assistant("2026-05-22T10:00:03.000Z", self.cwd, input_tokens=2, uuid="a2"),
+            _make_user_text("follow-up 2", "2026-05-22T10:00:04.000Z", self.cwd, uuid="u3"),
+            _make_assistant("2026-05-22T10:00:05.000Z", self.cwd, input_tokens=3, uuid="a3"),
+        ])
+        out = trans.correlate([path], run_cwd=self.cwd)
+        self.assertEqual(len(out), 3)
+        self.assertLessEqual(len(out[0].prefix_user_messages), len(out[1].prefix_user_messages))
+        self.assertLessEqual(len(out[1].prefix_user_messages), len(out[2].prefix_user_messages))
+        # A3 includes a slash-command marker on the first turn.
+        joined = "\n".join(out[2].prefix_user_messages)
+        self.assertIn("follow-up 1", joined)
+        self.assertIn("follow-up 2", joined)
+
 
 if __name__ == "__main__":
     unittest.main()
