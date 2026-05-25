@@ -8,6 +8,7 @@
 - ✅ **Token Efficiency tracking — pass 1** (2026-05-22, merge commit `271ab58`; covered the original TODO §3). Per-run token + cost + acceptance tracking, measurement-only. Shipped 8 metrics modules under `lib/metrics/` (`transcript`/`buckets`/`prices`/`writer`/`lines`/`summary`/`rollup`/`__init__`), `cmd_metrics` CLI with three forms (`<id>`, `--all`, `--rebuild`), hooks at every validate/complete/abandon/followups transition, `metrics/prices.yaml` per-model rate table, board-card metrics band, HUMAN_REVIEW.md `## Token efficiency` block, and 51 tests. Caveat: only `input_tokens` get bucketed — `cache_read` (98.7% of cost on the dogfood run) and `cache_creation` land in `other`, and the slash-command correlator drops every turn into `stage=other` on long sessions. Both are §2 (formerly §4) "pass 2" gaps, not bugs in the pass-1 deliverable. Authored on `agent/token-efficiency-tracking` (commits `9a5a50a`+`d57869e`+`b6178c0`) during run `2026-05-22-token-efficiency-tracking`.
 - ✅ **Merge orphan worktree branches** (2026-05-24, merge commits `c635745`+`a02dd16`+`271ab58`; was TODO §1). Closed out the three `status: done` runs whose worktree branches had never been integrated into `202605_agent_workbench_v2` because `cmd_complete` only records a `completion_ref` label, not a merge SHA. Three branches merged in dependency order; the underlying lifecycle gap that allowed this is now TODO §1 (was §2). `agent/poker` deferred — separate-project decision.
 - ✅ **Lifecycle gap: `human_review → done` does not merge the worktree branch** (2026-05-24, merge commit `0069070`; was TODO §1, Option A from the choices). `agent-workbench complete` now performs `git merge --no-ff` of the worktree branch into the parent branch as part of the transition; success records `completion_ref: merge:<full-sha>` and emits a new `WorktreeMerged` event; conflict aborts cleanly, emits `MergeConflict`, and leaves the run in `human_review`. Dirty worktree refuses; bad `base_ref` refuses. Backfilled all four pre-existing `local-branch:` runs (the original three orphans plus this run itself, which ran its own first `complete` on the legacy code path because the new code wasn't live yet — full SHAs in `tools/backfill_completion_refs.py`). The board surfaces `⚠ unmerged` on any `done` run whose `completion_ref` still starts with `local-branch:`. Shipped on `agent/auto-merge-on-complete` (commit `5adca50`) during run `2026-05-24-auto-merge-on-complete`; +15 new repos unit tests, +3 new merge E2E tests (dirty-worktree refusal, conflict abort + `MergeConflict` event, `--no-merge` escape hatch), +3 new badge tests; full suite 233/235 (the 2 failures are pre-existing date-baked snapshot drift on master).
+- ✅ **CLI stop banner on agent-stopping transitions** (2026-05-24, merge commit `9eda554`; was TODO §2). New `lib/cli/_stop_banner.py` exports a single `print_stop_banner(landing_state, run_id)` that prints a bordered 60-col ASCII `STOP.` banner to stdout for the four agent-stopping states (`ready`, `human_review`, `done`, `abandoned`). Wired into the five success paths that land at those states: `cmd_plan.py` (default, not `--init`), `cmd_validate.py` (flat-layout only, NOT the staged `validating -> followups` path), `cmd_followups.py` (default, not `--init`), `cmd_complete.py` (after the actual `done` transition; failure paths exit earlier and cannot reach the banner), `cmd_abandon.py` (any source state). `AGENTS.md` gained one sentence under "How to drive the workbench" telling the agent what to do when it sees the banner. `.gitignore` re-include for `lib/` extended to the v3 sibling (was v2-only). Tests: `tests/test_stop_banner.py` (11 tests: per-state structural assertions, invalid-state ValueError, border-width pin, four exact-format snapshot fixtures); `tests/test_e2e.py` extended with positive STOP assertions after `plan` / `followups` / `complete` / `abandon` and negative assertions after `shape` / `plan --init` / `start` / `validate --init` / staged `validate` finalize. Suite 244/246 (same 2 pre-existing date-baked snapshot drift failures as the previous run). Authored on `agent/cli-stop-banner-on-agent-stopping-transitions` (commit `6a29192`) during run `2026-05-24-cli-stop-banner-on-agent-stopping-transitions`; merged manually via `--no-merge` + `git merge --no-ff` per the §1 dogfood self-merge constraint.
 
 ---
 
@@ -128,75 +129,7 @@ What pass 2 still doesn't solve and would need future runs:
 
 ---
 
-## 2. CLI stop banner on agent-stopping transitions
-
-Discovered 2026-05-24 during the auto-merge-on-complete run's retro. The workbench's lifecycle has two stages where the agent does no work — `human_review` (human inspects + decides) and `ready` (human approves the plan) — plus the terminal states `done` and `abandoned`. Today there is no per-state directive file telling the agent "stop here." The agent is expected to read `docs/lifecycle.md` and self-police; the only stop signal in-band is a sentence at the bottom of the *exiting* slash command (e.g. `followups.md` line 73: "Tell the user: the run is in `human_review`."). On the auto-merge dogfood run, the agent (me) drove straight through `human_review` into `complete` without pausing, exactly because nothing in the agent's immediate tool output said "stop." The structural gap is that agent-stopping transitions land silently — the CLI prints `<id>: followups -> human_review` and a path to `HUMAN_REVIEW.md`, but nothing that flags this as a hard handoff.
-
-### Chosen direction
-
-Land a stop banner in the CLI's stdout for any transition that lands in a state the agent does not drive. The banner is printed by the command that performs the transition, immediately after the existing transition line. Implemented in a small new helper (`lib/cli/_stop_banner.py`) so the format stays consistent across commands.
-
-The states this fires for:
-
-| Landing state | Reason | Banner action |
-|---|---|---|
-| `ready` | Human approves the plan via `/start`. | STOP. Wait for human to `/start`. |
-| `human_review` | Human inspects + decides via `/complete`, `/bounce`, `/abandon`. | STOP. Wait for human. |
-| `done` | Terminal. | STOP. Run accepted. |
-| `abandoned` | Terminal. | STOP. Run abandoned. |
-
-### Design principles
-
-- **The signal lands in the agent's most recent tool output.** That is where the agent's attention is. Docs the agent might have read earlier in the session are unreliable; the banner is unmissable because it's the very last thing printed.
-- **Convention over enforcement.** This is a *nudge*, not a hard block. An agent in auto mode that's been explicitly told to drive a run end-to-end can still proceed past it — but the banner makes that an active choice, not an oversight. Hard enforcement (Option 4 / Option 6 from the brainstorm) was rejected as too heavyweight and runtime-coupled.
-- **One source of truth for the banner format.** Every command that triggers an agent-stopping transition calls the same helper; the wording stays in sync.
-- **Bordered + visually distinct.** Block of `=` characters and the literal word `STOP` so it doesn't blend with normal log lines.
-
-### Tasks
-
-- [ ] **Add `lib/cli/_stop_banner.py`.** One function: `print_stop_banner(landing_state: str, run_id: str, *, next_commands: list[str] | None = None) -> None`. Internal table mapping each of the four landing states to a (reason, next-step text) pair. Format:
-  ```
-  ============================================================
-  STOP. State: <landing_state> (<owner>-owned).
-  <one-line explanation>.
-
-  Next moves (<owner>-triggered):
-    agent-workbench <cmd> <run_id>    — <one-line description>
-    ...
-  ============================================================
-  ```
-  Width capped at 60 columns (matches the existing CLI output style).
-- [ ] **Wire the banner into the four commands that perform agent-stopping transitions.** Call `print_stop_banner(landing_state=..., run_id=...)` immediately after the existing transition-success print:
-  - `lib/cli/cmd_plan.py` — landing state `ready` (the `planning -> ready` transition).
-  - `lib/cli/cmd_validate.py` — landing state `human_review` (the flat-layout `validating -> human_review` path).
-  - `lib/cli/cmd_followups.py` — landing state `human_review` (the staged `followups -> human_review` path).
-  - `lib/cli/cmd_complete.py` — landing state `done`.
-  - `lib/cli/cmd_abandon.py` — landing state `abandoned`.
-- [ ] **`AGENTS.md` cross-reference.** Add one sentence in `agent-workbench-live/AGENTS.md` under "How to drive the workbench" pointing at the banner: "When you see a `STOP.` banner in CLI output, your session ends. Do not invoke the listed next commands — those are the human's call."
-- [ ] **Tests.**
-  - Unit test for `_stop_banner.print_stop_banner`: four states × asserts on the banner text + the next-command list. Use `capsys` / `io.StringIO`.
-  - E2E test extension: `TestE2EHappyPath.test_happy_path` already drives through every agent-stopping transition; assert `STOP.` appears in stdout after the `followups` and `complete` calls.
-  - Snapshot test for the banner's exact format (one fixture per landing state) so wording drift is caught in PRs.
-
-### Acceptance
-
-- Running `/plan <id>` (when it lands at `ready`), `/validate <id>` (flat-layout), `/followups <id>`, `/complete <id>`, and `/abandon <id>` each prints a STOP banner as the last thing in stdout.
-- The banner names the landing state, says who owns it, and lists the exact next commands the human (or no one, for terminals) would invoke.
-- The banner is consistent across all four call sites (driven by `_stop_banner.print_stop_banner`).
-- `AGENTS.md` cross-references the banner once.
-- Tests pin both the trigger points and the exact format.
-
-### Non-goals
-
-Hard enforcement (the agent can still run past the banner — by design, see Design principles above). Hooks-based call interception (out of scope for this task; the workbench is meant to be runtime-agnostic). Banners for transitions that the agent itself drives (`draft -> shaping`, `shaping -> planning`, `ready -> building`, `building -> validating`, `validating -> followups`) — those are agent continuations, not stops, and adding banners there would dilute the signal. Per-state contract files in `docs/states/<state>.md` (a separate idea that was considered and rejected for this task — `docs/lifecycle.md` already carries the state contracts; this task is purely about runtime visibility, not docs reorg).
-
-### Origin
-
-Discovered 2026-05-24 during the retro of run `2026-05-24-auto-merge-on-complete`. The agent driving that run did not stop at `human_review`; it continued straight into `/complete` because nothing in the CLI's most recent stdout marked `human_review` as a hand-off. The user's question — "is there a markdown file for human_review?" — surfaced the asymmetry: every *transition* has a slash-command body, but states the agent doesn't drive have no agent-discoverable signal. Six options were brainstormed (stronger stop language in `followups.md`; per-state contract files in `docs/states/`; CLI stop banner; hooks-based enforcement; agent-action column in `lifecycle.md`'s state table; refuse-from-agent-actor in the transition engine). Option 3 (CLI banner) chosen for its leverage-to-effort ratio: signal lands in the agent's most recent tool output, additive to other future fixes, runtime-agnostic, small surface area.
-
----
-
-## 3. Fix generated_lines for base_ref="HEAD" runs
+## 2. Fix generated_lines for base_ref="HEAD" runs
 
 `lib/metrics/lines.py:count_generated()` runs `git log --numstat <base_ref>..HEAD` to sum `+` lines across the worktree's commit history. The workbench config defaults `base_ref: HEAD` (`agent-workbench.yaml:14`), and `metadata.target.repo.base_ref` is stored as that literal string. The dotted range `HEAD..HEAD` resolves to "no commits" — so `generated_lines` reports 0 for every run that uses the default, regardless of how many commits the builder landed.
 
@@ -233,7 +166,7 @@ Discovered during the token-efficiency pass-1 dogfood run (`runs/2026-05-22-toke
 
 ---
 
-## 4. Structured human_review handoff output
+## 3. Structured human_review handoff output
 
 Discovered 2026-05-24 while reviewing the CLI's human_review landing output. The `STOP.` banner (§2) lands the agent's attention, but the *content* the banner carries is currently inconsistent across call sites: `cmd_followups.py` prints a terse "Next moves" command list with no summary; `cmd_validate.py` (the dogfood example) prints a hand-typed multi-paragraph block with commit SHA, test counts, and per-artifact links inline. Same lifecycle event, two very different shapes. The agent — and the human reading the agent's tool output — has to re-derive what's load-bearing each time. This task pins a single structured shape.
 

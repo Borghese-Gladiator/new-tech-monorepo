@@ -29,6 +29,12 @@ BACKFILL = {
     # the legacy code path (because the new code wasn't live yet) and recorded
     # `local-branch:`; we merged by hand and now backfill the merge SHA.
     "2026-05-24-auto-merge-on-complete": "0069070afb24ff7df6b340cdc4335b52732d4a58",
+    # TODO §2 (CLI stop banner). Same chicken-and-egg: the auto-merge code is
+    # live on master but `complete`'s dirty-files pre-check refused on the
+    # `runs/<id>/.lock` file that `locks.acquire` creates just before the
+    # check runs (latent gap, tracked in this run's follow-ups). Used
+    # `--no-merge` + `git merge --no-ff` by hand; backfill the merge SHA.
+    "2026-05-24-cli-stop-banner-on-agent-stopping-transitions": "9eda554b2c5b6ea432f23b376133059925679ee9",
 }
 
 
