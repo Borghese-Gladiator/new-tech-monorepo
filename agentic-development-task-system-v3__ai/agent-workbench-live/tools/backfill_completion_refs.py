@@ -43,6 +43,11 @@ BACKFILL = {
     # rather than the worktree (the §1 orphan-runs bug — see TODO §1), so the
     # auto-merge code didn't fire. Merged by hand; backfill the merge SHA.
     "2026-05-24-fix-generated-lines-base-ref-head": "303bd408dad335d6ed1d8b5bcf91a6fae3e52ad6",
+    # TODO §2 (structured human_review handoff output). Same .lock-during-
+    # dirty-check gap + an unrelated concurrent shengji run dir in master's
+    # working tree blocked the auto-merge. Used --no-merge + manual
+    # git merge --no-ff after temporarily moving the shengji dir aside.
+    "2026-05-25-structured-human-review-handoff": "7dce6b9840a83cd75f01aff70cb9a50e3f98bbf0",
 }
 
 
