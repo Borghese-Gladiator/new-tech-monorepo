@@ -32,13 +32,20 @@ class TestPrintStopBanner(unittest.TestCase):
         self.assertIn("Next moves (human-triggered):", out)
 
     def test_human_review_banner_structure(self):
+        # No-cfg fallback: only the three slash-form Next moves lines are
+        # rendered. The full five-section body is exercised in
+        # test_stop_banner_human_review_body.py.
         out = _render("human_review")
         self.assertIn("STOP. State: human_review (human-owned).", out)
         self.assertIn(SAMPLE_RUN_ID, out)
-        self.assertIn("agent-workbench complete", out)
-        self.assertIn("agent-workbench bounce", out)
-        self.assertIn("agent-workbench abandon", out)
-        self.assertIn("Next moves (human-triggered):", out)
+        self.assertIn(f"/complete {SAMPLE_RUN_ID}", out)
+        self.assertIn(f"/bounce {SAMPLE_RUN_ID}", out)
+        self.assertIn(f"/abandon {SAMPLE_RUN_ID}", out)
+        # Slash-form replaces the shell-form (TODO §2 acceptance).
+        self.assertNotIn("agent-workbench complete", out)
+        self.assertNotIn("agent-workbench bounce", out)
+        self.assertNotIn("agent-workbench abandon", out)
+        self.assertIn("Next moves (human-triggered, type in a session):", out)
 
     def test_done_banner_structure(self):
         out = _render("done")
