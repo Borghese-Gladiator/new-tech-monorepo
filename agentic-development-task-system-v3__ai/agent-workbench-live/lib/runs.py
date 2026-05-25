@@ -54,11 +54,17 @@ class Run:
 
 
 def is_self_modifying(cfg: Config, meta: dict) -> bool:
-    """True iff cfg.root resolves inside the target repo.
+    """True iff the workbench checkout is inside the target repo.
 
-    Self-modifying runs (the workbench is inside the target repo) place their
-    run dir inside the worktree. Non-self-modifying runs keep the run dir in
-    `cfg.runs_path`.
+    Two equivalence rules:
+
+    1. Filesystem ancestry: ``cfg.root`` is a descendant of
+       ``meta.target.repo.path``. Cheap; catches the common case where the
+       CLI runs from the same main checkout as the target.
+    2. Git identity: ``cfg.root`` and ``meta.target.repo.path`` share the
+       same git common dir. Catches the case where the CLI runs from a
+       worktree of the same repo (worktrees live at a different filesystem
+       path but share ``.git/worktrees/<name>``'s parent).
     """
     repo_path_raw = (meta.get("target") or {}).get("repo", {}).get("path")
     if not repo_path_raw:
@@ -70,9 +76,37 @@ def is_self_modifying(cfg: Config, meta: dict) -> bool:
         return False
     try:
         wb_root.relative_to(repo_root)
+        return True
     except ValueError:
+        pass
+    # Worktree case: compare git common dirs.
+    wb_common = _git_common_dir(wb_root)
+    repo_common = _git_common_dir(repo_root)
+    if wb_common is None or repo_common is None:
         return False
-    return True
+    return wb_common == repo_common
+
+
+def _git_common_dir(start: pathlib.Path) -> pathlib.Path | None:
+    """Return ``git -C <start> rev-parse --git-common-dir`` resolved, or None."""
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(start), "rev-parse", "--git-common-dir"],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    raw = proc.stdout.strip()
+    if not raw:
+        return None
+    p = pathlib.Path(raw)
+    if not p.is_absolute():
+        p = (start / p).resolve()
+    else:
+        p = p.resolve()
+    return p
 
 
 def workbench_subpath(cfg: Config) -> pathlib.Path | None:
