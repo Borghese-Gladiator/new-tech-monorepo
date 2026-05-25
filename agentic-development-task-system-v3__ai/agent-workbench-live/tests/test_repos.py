@@ -102,6 +102,26 @@ class TestResolveParentBranch(_RepoTestCase):
             repos.resolve_parent_branch(self.tmp, "no-such-branch")
 
 
+class TestResolveRefToSha(_RepoTestCase):
+    """resolve_ref_to_sha: HEAD / branch-name / missing-ref."""
+
+    def test_head_resolves_to_full_sha(self) -> None:
+        _git_init(self.tmp)
+        sha = _commit(self.tmp, "a.txt", "hello\n", "init")
+        self.assertEqual(repos.resolve_ref_to_sha(self.tmp, "HEAD"), sha)
+
+    def test_branch_name_resolves_to_full_sha(self) -> None:
+        _git_init(self.tmp)
+        sha = _commit(self.tmp, "a.txt", "hello\n", "init")
+        self.assertEqual(repos.resolve_ref_to_sha(self.tmp, "main"), sha)
+
+    def test_missing_ref_raises(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        with self.assertRaises(repos.RepoError):
+            repos.resolve_ref_to_sha(self.tmp, "no-such-ref-xyz")
+
+
 class TestCurrentBranch(_RepoTestCase):
     def test_returns_branch_name(self) -> None:
         _git_init(self.tmp)

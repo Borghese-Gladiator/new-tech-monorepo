@@ -50,6 +50,17 @@ def ref_exists(repo_path: pathlib.Path, ref: str) -> bool:
     return r.returncode == 0
 
 
+def resolve_ref_to_sha(repo_path: pathlib.Path | str, ref: str) -> str:
+    """Resolve a symbolic ref (HEAD, branch name, short sha) to a full 40-char SHA.
+
+    Raises ``RepoError`` if the ref cannot be resolved.
+    """
+    sha = _git_strict(repo_path, "rev-parse", "--verify", ref).strip()
+    if not sha or len(sha) < 7:
+        raise RepoError(f"unexpected rev-parse output for {ref!r}: {sha!r}")
+    return sha
+
+
 def branch_exists(repo_path: pathlib.Path, branch: str) -> bool:
     r = _git(repo_path, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}")
     return r.returncode == 0

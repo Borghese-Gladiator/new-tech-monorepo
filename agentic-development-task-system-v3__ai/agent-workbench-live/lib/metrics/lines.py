@@ -31,12 +31,18 @@ def count_generated(
     worktree_path: str | None,
     base_ref: str,
     events_path: pathlib.Path | None,
+    base_ref_sha: str | None = None,
 ) -> int:
     """Total ``+`` lines authored during the run.
 
     Worktree contribution: sum of ``+`` lines per commit in
-    ``git log --numstat <base_ref>..HEAD``. (Note: this is the dotted form,
-    ``base..HEAD``, so commits already in base are excluded.)
+    ``git log --numstat <effective_ref>..HEAD``. (Note: this is the dotted
+    form, ``base..HEAD``, so commits already in base are excluded.)
+
+    ``effective_ref`` prefers ``base_ref_sha`` (captured at ``/start`` time).
+    For runs that predate that field, we lazily resolve ``base_ref`` to a SHA
+    via ``git rev-parse`` inside the worktree; if that fails, we fall back to
+    the symbolic ``base_ref`` (today's behavior — no regression).
 
     Artifact contribution: if ``events_path`` is given, sum
     ``ArtifactWritten.payload.content_length_lines`` for events that carry
@@ -44,10 +50,29 @@ def count_generated(
     """
     total = 0
     if worktree_path:
-        total += _worktree_log_added(worktree_path, base_ref)
+        ref = _effective_ref(worktree_path, base_ref, base_ref_sha)
+        total += _worktree_log_added(worktree_path, ref)
     if events_path and events_path.exists():
         total += _events_artifact_lines(events_path)
     return total
+
+
+def _effective_ref(worktree_path: str, base_ref: str, base_ref_sha: str | None) -> str:
+    """Prefer the resolved SHA; lazily resolve in the worktree; else symbolic."""
+    if base_ref_sha:
+        return base_ref_sha
+    try:
+        proc = subprocess.run(
+            ["git", "-C", worktree_path, "rev-parse", "--verify", base_ref],
+            capture_output=True, text=True, check=False,
+        )
+    except FileNotFoundError:
+        return base_ref
+    if proc.returncode == 0:
+        sha = proc.stdout.strip()
+        if sha:
+            return sha
+    return base_ref
 
 
 def _worktree_log_added(worktree_path: str, base_ref: str) -> int:
@@ -102,23 +127,28 @@ def count_accepted(
     worktree_path: str | None,
     base_ref: str,
     completion_ref: str | None,
+    base_ref_sha: str | None = None,
 ) -> tuple[int, str | None]:
     """Returns ``(accepted_lines, merge_sha_or_None)``.
 
     ``completion_ref`` is expected to be either a hex SHA, a string of the
     form ``"local-branch:<branch>"`` (no merge — accepted = 0), or any other
     free-form string. We look for a hex pattern; if found, we run
-    ``git diff --numstat <base_ref>...<sha>`` to get the merged ``+`` line
+    ``git diff --numstat <effective_ref>...<sha>`` to get the merged ``+`` line
     count. Otherwise return ``(0, None)``.
+
+    ``effective_ref`` follows the same prefer-SHA / lazy-resolve / fall-back
+    logic as ``count_generated``; see ``_effective_ref``.
     """
     if not completion_ref or not worktree_path:
         return (0, None)
     sha = _extract_sha(completion_ref)
     if not sha:
         return (0, None)
+    ref = _effective_ref(worktree_path, base_ref, base_ref_sha)
     try:
         proc = subprocess.run(
-            ["git", "-C", worktree_path, "diff", "--numstat", f"{base_ref}...{sha}"],
+            ["git", "-C", worktree_path, "diff", "--numstat", f"{ref}...{sha}"],
             capture_output=True, text=True, check=False,
         )
     except FileNotFoundError:
