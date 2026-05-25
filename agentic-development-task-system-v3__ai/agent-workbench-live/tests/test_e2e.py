@@ -156,26 +156,36 @@ class TestE2EHappyPath(E2ECase):
         r = cli(self.tmp, "shape", run_id, stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("shaping -> planning", r.stdout)
+        # TODO §2: shape lands at planning, an agent-driven state. No banner.
+        self.assertNotIn("STOP.", r.stdout)
 
         # plan --init + finalize.
         r = cli(self.tmp, "plan", run_id, "--init", stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("Hello command", (run_dir / "plan.md").read_text())
+        # plan --init does not transition; no banner.
+        self.assertNotIn("STOP.", r.stdout)
 
         r = cli(self.tmp, "plan", run_id, stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("planning -> ready", r.stdout)
+        # TODO §2: planning -> ready is agent-stopping. STOP banner expected.
+        self.assertIn("STOP. State: ready (human-owned).", r.stdout)
 
         # start (no LLM).
         r = cli(self.tmp, "start", run_id, "--approved-by", "e2e-tester",
                 stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("ready -> building", r.stdout)
+        # start lands at building, agent-driven. No banner.
+        self.assertNotIn("STOP.", r.stdout)
 
         # validate --init: materializes build.md + validating fixtures.
         r = cli(self.tmp, "validate", run_id, "--init", stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("building -> validating", r.stdout)
+        # validate --init lands at validating, agent-driven. No banner.
+        self.assertNotIn("STOP.", r.stdout)
         # build.md got moved into stages/4_building/ by the transition engine.
         self.assertTrue((run_dir / "stages" / "4_building" / "build.md").exists())
         # validating-stage templates were overwritten by the fixtures.
@@ -187,6 +197,8 @@ class TestE2EHappyPath(E2ECase):
                 stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("validating -> followups", r.stdout)
+        # validate (staged) lands at followups, still agent-driven. No banner.
+        self.assertNotIn("STOP.", r.stdout)
         self.assertTrue((run_dir / "audit.md").exists())
 
         # followups default mode: materializes follow-ups.md + transitions.
@@ -196,6 +208,8 @@ class TestE2EHappyPath(E2ECase):
         # TODO §2 AC2: the absolute path to HUMAN_REVIEW.md must appear in
         # stdout so the reviewer can click it from the terminal.
         self.assertIn(str(run_dir / "HUMAN_REVIEW.md"), r.stdout)
+        # TODO §2: followups -> human_review is agent-stopping. STOP banner expected.
+        self.assertIn("STOP. State: human_review (human-owned).", r.stdout)
 
         # Make a real commit on the worktree branch so the merge has something
         # to integrate. The fixture-driven happy path doesn't otherwise touch
@@ -216,6 +230,8 @@ class TestE2EHappyPath(E2ECase):
         r = cli(self.tmp, "complete", run_id, "--accepted-by", "e2e-tester")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("human_review -> done", r.stdout)
+        # TODO §2: human_review -> done is terminal. STOP banner expected.
+        self.assertIn("STOP. State: done (terminal).", r.stdout)
         # Auto-merge: completion_ref is now a real SHA, not a label.
         import re
         m = re.search(r"completion_ref:\s+merge:([0-9a-f]{40})", r.stdout)
@@ -347,6 +363,8 @@ class TestE2EAbandon(E2ECase):
         r = cli(self.tmp, "abandon", run_id,
                 "--reason", "scope shrank", "--abandoned-by", "tester")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
+        # TODO §2: -> abandoned is terminal. STOP banner expected.
+        self.assertIn("STOP. State: abandoned (terminal).", r.stdout)
 
         r = cli(self.tmp, "show", run_id)
         self.assertIn("status:     abandoned", r.stdout)

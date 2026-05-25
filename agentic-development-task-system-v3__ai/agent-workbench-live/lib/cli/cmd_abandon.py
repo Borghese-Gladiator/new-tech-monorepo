@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from lib import metadata, transitions, locks
 from lib.cli._common import actor_from_env, fail, load_config
+from lib.cli._stop_banner import print_stop_banner
 from lib.metrics import writer as metrics_writer
 
 
@@ -54,4 +55,5 @@ def run(args) -> int:
 
     print(f"{run_id}: -> abandoned")
     print(f"reason: {args.reason}")
+    print_stop_banner("abandoned", run_id)
     return 0

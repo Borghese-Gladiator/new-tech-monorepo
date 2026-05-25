@@ -9,6 +9,7 @@ import pathlib
 
 from lib import metadata, transitions, locks, repos, events as events_mod
 from lib.cli._common import actor_from_env, fail, load_config
+from lib.cli._stop_banner import print_stop_banner
 from lib.metrics import writer as metrics_writer
 
 
@@ -138,6 +139,7 @@ def run(args) -> int:
     print(f"completion_ref: {completion_ref}")
     if merge_sha and parent_branch:
         print(f"merged {branch_name} into {parent_branch} ({merge_sha[:12]})")
+    print_stop_banner("done", run_id)
     return 0
 
 

@@ -12,6 +12,7 @@ import re
 
 from lib import metadata, events, transitions, locks, lifecycle, stub_llm
 from lib.cli._common import actor_from_env, fail, load_config
+from lib.cli._stop_banner import print_stop_banner
 
 
 HELP = "Stage planning templates (--init) or finalize the plan (default)."
@@ -262,4 +263,5 @@ def run(args) -> int:
         return fail(str(e), 4)
 
     print(f"{run_id}: planning -> ready")
+    print_stop_banner("ready", run_id)
     return 0
