@@ -19,6 +19,7 @@ import subprocess
 
 from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims, scope_check, stub_llm
 from lib.cli._common import actor_from_env, fail, load_config
+from lib.cli._stop_banner import print_stop_banner
 from lib.metrics import writer as metrics_writer
 
 
@@ -445,4 +446,5 @@ def run(args) -> int:
     print(f"branch:   {meta['target']['worktree']['branch_name']}")
     print(f"worktree: {meta['target']['worktree']['path']}")
     print(f"audit:    {audit_path}")
+    print_stop_banner("human_review", run_id)
     return 0

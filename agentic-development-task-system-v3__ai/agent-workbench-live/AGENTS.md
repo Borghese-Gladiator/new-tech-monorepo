@@ -38,6 +38,8 @@ Any non-terminal state can also go to `abandoned`. `human_review` can bounce bac
 
 ## How to drive the workbench
 
+When you see a `STOP.` banner in CLI stdout, your session ends — the run has landed in a state the agent does not drive (`ready`, `human_review`, or terminal). Do not invoke the listed next commands; those are the human's call.
+
 Run the CLI:
 
 ```bash

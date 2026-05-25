@@ -23,6 +23,7 @@ from lib import (
     followups as followups_mod, human_review,
 )
 from lib.cli._common import actor_from_env, fail, load_config
+from lib.cli._stop_banner import print_stop_banner
 from lib.metrics import summary as metrics_summary
 from lib.metrics import writer as metrics_writer
 
@@ -190,6 +191,7 @@ def run(args) -> int:
     print(f"{run_id}: followups -> human_review")
     print(f"entries:  {len(entries)} ({', '.join(cats) or 'none'})")
     print(f"review:   {handoff_path}")
+    print_stop_banner("human_review", run_id)
     return 0
 
 
