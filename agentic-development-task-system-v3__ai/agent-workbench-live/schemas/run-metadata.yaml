@@ -56,6 +56,11 @@ target:
       base_ref:
         type: string
         default: HEAD
+      base_ref_sha:
+        type:
+          - string
+          - null
+        description: 40-char SHA the symbolic base_ref resolved to at /start time. Optional for backward compatibility — older runs use a lazy resolver in lib/metrics/lines.py.
       fingerprint:
         type:
           - string
@@ -186,6 +191,7 @@ template:
       path: /Users/me/code/random-existing-repo
       name: random-existing-repo
       base_ref: HEAD
+      base_ref_sha: null
       fingerprint: null
       created_by_run: null
     worktree:

@@ -219,10 +219,12 @@ def record_run_metrics(cfg, run_id: str) -> pathlib.Path:
     wt = (meta.get("target") or {}).get("worktree") or {}
     repo = (meta.get("target") or {}).get("repo") or {}
     base_ref = repo.get("base_ref") or "HEAD"
+    base_ref_sha = repo.get("base_ref_sha")
     gen = lines_mod.count_generated(
         worktree_path=wt.get("path"),
         base_ref=base_ref,
         events_path=events_path,
+        base_ref_sha=base_ref_sha,
     )
     rows.append({
         "schema_version": SCHEMA_VERSION,
@@ -237,6 +239,7 @@ def record_run_metrics(cfg, run_id: str) -> pathlib.Path:
         worktree_path=wt.get("path"),
         base_ref=base_ref,
         completion_ref=completion_ref,
+        base_ref_sha=base_ref_sha,
     )
     row = {
         "schema_version": SCHEMA_VERSION,
