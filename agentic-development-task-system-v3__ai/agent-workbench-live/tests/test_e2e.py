@@ -210,6 +210,29 @@ class TestE2EHappyPath(E2ECase):
         self.assertIn(str(run_dir / "HUMAN_REVIEW.md"), r.stdout)
         # TODO §2: followups -> human_review is agent-stopping. STOP banner expected.
         self.assertIn("STOP. State: human_review (human-owned).", r.stdout)
+        # TODO §2: structured five-section body must be present and ordered.
+        for section in (
+            "Review:",
+            "Summary of changes",
+            "Summary of testing",
+            "Diffstat:",
+            "Next moves (human-triggered, type in a session):",
+        ):
+            self.assertIn(section, r.stdout, msg=f"missing section: {section}")
+        positions = [r.stdout.index(s) for s in (
+            "Review:", "Summary of changes", "Summary of testing",
+            "Diffstat:", "Next moves (human-triggered, type in a session):",
+        )]
+        self.assertEqual(positions, sorted(positions),
+                         msg=f"banner sections out of order: {positions}")
+        # Three slash-form Next moves lines.
+        self.assertIn(f"/complete {run_id}", r.stdout)
+        self.assertIn(f"/bounce {run_id}", r.stdout)
+        self.assertIn(f"/abandon {run_id}", r.stdout)
+        # Shell-form must be gone from the banner.
+        self.assertNotIn("agent-workbench complete", r.stdout)
+        self.assertNotIn("agent-workbench bounce", r.stdout)
+        self.assertNotIn("agent-workbench abandon", r.stdout)
 
         # Make a real commit on the worktree branch so the merge has something
         # to integrate. The fixture-driven happy path doesn't otherwise touch
@@ -330,6 +353,24 @@ class TestE2EBounceLoop(E2ECase):
         # TODO §2 AC2: stdout from the post-bounce followups call carries
         # the absolute HUMAN_REVIEW.md path too.
         self.assertIn(str(run_dir / "HUMAN_REVIEW.md"), r.stdout)
+        # TODO §2: structured five-section body present on the bounce-pass2
+        # landing too — the banner builder is shared across both call sites.
+        for section in (
+            "Review:",
+            "Summary of changes",
+            "Summary of testing",
+            "Diffstat:",
+            "Next moves (human-triggered, type in a session):",
+        ):
+            self.assertIn(section, r.stdout, msg=f"missing section: {section}")
+        # Three slash-form Next moves lines.
+        self.assertIn(f"/complete {run_id}", r.stdout)
+        self.assertIn(f"/bounce {run_id}", r.stdout)
+        self.assertIn(f"/abandon {run_id}", r.stdout)
+        # Shell-form must be gone.
+        self.assertNotIn("agent-workbench complete", r.stdout)
+        self.assertNotIn("agent-workbench bounce", r.stdout)
+        self.assertNotIn("agent-workbench abandon", r.stdout)
 
         # human_review -> done.
         r = cli(self.tmp, "complete", run_id, "--accepted-by", "tester")
