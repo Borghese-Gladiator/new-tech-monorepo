@@ -30,12 +30,15 @@ def build(
     qa_report_path: pathlib.Path,
     worktree_path: str,
     base_ref: str,
+    base_ref_sha: str | None = None,
 ) -> str:
     """Return the rendered validate-context.md body."""
     brief = _read(brief_path)
     plan = _read(plan_path)
     build_md = _read(build_md_path)
     qa = _read(qa_report_path)
+
+    effective_ref = _effective_ref(worktree_path, base_ref, base_ref_sha)
 
     sections: list[str] = []
     sections.append("# validate-context.md\n")
@@ -58,10 +61,10 @@ def build(
     sections.append(_filtered_plan_blocks(plan, build_md))
 
     sections.append("\n## Final diff\n")
-    sections.append(_render_diff(worktree_path, base_ref))
+    sections.append(_render_diff(worktree_path, effective_ref))
 
     sections.append("\n## Files changed\n")
-    sections.append(_render_name_status(worktree_path, base_ref))
+    sections.append(_render_name_status(worktree_path, effective_ref))
 
     sections.append("\n## Commands run\n")
     sections.append(_section(build_md, "Commands run") or "(none recorded in build.md)\n")
@@ -244,6 +247,32 @@ def _git(worktree_path: str, *args: str) -> str | None:
     return proc.stdout
 
 
+def _effective_ref(worktree_path: str, base_ref: str, base_ref_sha: str | None) -> str:
+    """Prefer the resolved SHA; lazily resolve in the worktree; else symbolic.
+
+    Mirrors ``lib/metrics/lines.py:_effective_ref``. Kept local to avoid a
+    cross-module dependency for a six-line utility (DR-001). Deviates from
+    the metrics version by adding an early-return guard for a missing
+    worktree path — harmless extra defense; harmonize at promotion time.
+    """
+    if base_ref_sha:
+        return base_ref_sha
+    if not worktree_path or not pathlib.Path(worktree_path).exists():
+        return base_ref
+    try:
+        proc = subprocess.run(
+            ["git", "-C", worktree_path, "rev-parse", "--verify", base_ref],
+            capture_output=True, text=True, check=False,
+        )
+    except FileNotFoundError:
+        return base_ref
+    if proc.returncode == 0:
+        sha = proc.stdout.strip()
+        if sha:
+            return sha
+    return base_ref
+
+
 # ----- Blast radius (B4) ------------------------------------------------------
 
 _DIFF_HUNK_RE = re.compile(r"^@@.*@@", re.MULTILINE)
@@ -253,11 +282,17 @@ _PY_SYMBOL_RE = re.compile(
 )
 
 
-def build_blast_radius(*, worktree_path: str, base_ref: str) -> str:
+def build_blast_radius(
+    *,
+    worktree_path: str,
+    base_ref: str,
+    base_ref_sha: str | None = None,
+) -> str:
     """Compute the depth-1/2/3 caller tree as a small text file."""
     if not worktree_path or not pathlib.Path(worktree_path).exists():
         return "(worktree not available)\n"
-    name_only = _git(worktree_path, "diff", "--name-only", f"{base_ref}...HEAD")
+    effective_ref = _effective_ref(worktree_path, base_ref, base_ref_sha)
+    name_only = _git(worktree_path, "diff", "--name-only", f"{effective_ref}...HEAD")
     if name_only is None:
         return "(git diff --name-only failed)\n"
     files = [ln for ln in name_only.splitlines() if ln.strip()]
@@ -279,7 +314,7 @@ def build_blast_radius(*, worktree_path: str, base_ref: str) -> str:
     out_lines.append("depth 2 (callers of changed symbols):")
     depth2_files: set[str] = set()
     for f in files:
-        diff_for_file = _git(worktree_path, "diff", f"{base_ref}...HEAD", "--", f)
+        diff_for_file = _git(worktree_path, "diff", f"{effective_ref}...HEAD", "--", f)
         if not diff_for_file:
             continue
         symbols = set()

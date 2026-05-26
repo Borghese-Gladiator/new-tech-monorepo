@@ -180,6 +180,23 @@ class TestE2EHappyPath(E2ECase):
         # start lands at building, agent-driven. No banner.
         self.assertNotIn("STOP.", r.stdout)
 
+        # 2d: /start should have emitted exactly one BaseRefResolved event,
+        # with the SHA matching the value just written to metadata, and it
+        # should sit before the ready->building transition in the audit log.
+        evs = read_events(run_dir)
+        base_ref_events = [e for e in evs if e["type"] == "BaseRefResolved"]
+        self.assertEqual(len(base_ref_events), 1, [e["type"] for e in evs])
+        meta = _meta(run_dir)
+        recorded_sha = meta["target"]["repo"]["base_ref_sha"]
+        recorded_symbolic = meta["target"]["repo"]["base_ref"]
+        self.assertEqual(base_ref_events[0]["payload"]["base_ref_sha"], recorded_sha)
+        self.assertEqual(base_ref_events[0]["payload"]["symbolic_ref"], recorded_symbolic)
+        # Sequence ordering: BaseRefResolved comes before ready->building.
+        trans = [e for e in evs if e["type"] == "TransitionApplied"
+                 and e.get("from") == "ready" and e.get("to") == "building"]
+        self.assertTrue(trans, "expected ready->building transition event")
+        self.assertLess(base_ref_events[0]["seq"], trans[0]["seq"])
+
         # validate --init: materializes build.md + validating fixtures.
         r = cli(self.tmp, "validate", run_id, "--init", stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
@@ -200,6 +217,13 @@ class TestE2EHappyPath(E2ECase):
         # validate (staged) lands at followups, still agent-driven. No banner.
         self.assertNotIn("STOP.", r.stdout)
         self.assertTrue((run_dir / "audit.md").exists())
+        # 2d: audit.md should surface the BaseRefResolved event so line counts
+        # can be re-derived from the audit log alone.
+        audit_text = (run_dir / "audit.md").read_text()
+        self.assertIn("BaseRefResolved", audit_text)
+        # The summary line includes the symbolic ref → 12-char sha prefix.
+        recorded_sha_prefix = _meta(run_dir)["target"]["repo"]["base_ref_sha"][:12]
+        self.assertIn(recorded_sha_prefix, audit_text)
 
         # followups default mode: materializes follow-ups.md + transitions.
         r = cli(self.tmp, "followups", run_id, stub_fixture=fixture)

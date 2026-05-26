@@ -158,6 +158,12 @@ def run(args) -> int:
         },
         actor=actor,
     )
+    # Note: self-modifying runs resolve the symbolic base_ref to a concrete
+    # SHA above (worktree created here at draft time) and persist it in
+    # metadata. The audit-trail `BaseRefResolved` event is emitted later by
+    # `cmd_start.py` regardless of where the resolve happened, so the audit
+    # narrative consistently shows the SHA at the ready->building boundary
+    # (per AC 6).
     if initial_sha:
         events.append(
             cfg, run_id, "ArtifactWritten",

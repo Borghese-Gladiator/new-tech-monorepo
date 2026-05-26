@@ -101,7 +101,7 @@ Root `.gitignore` is currently just `tmp/`; the entry has to be added.
 
 ---
 
-## 3. `base_ref_sha` plumbing — three remaining consumers + audit trail + backfill
+## 3. `base_ref_sha` plumbing — three remaining consumers + audit trail + backfill ✅ shipped 2026-05-26 (run `2026-05-25-base-ref-sha-plumbing-across-remaining-con`)
 
 `303bd40` added `target.repo.base_ref_sha` to `metadata.yaml` and threaded the prefer-SHA / lazy-resolve / fallback pattern into `lib/metrics/lines.py`. Three other consumers still take a symbolic `base_ref` and produce wrong or empty output when the recorded value is `"HEAD"`; a backfill tool for pre-fix runs is also unwritten, and the audit log doesn't record the resolved SHA at all.
 

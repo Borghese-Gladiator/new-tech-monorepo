@@ -126,6 +126,7 @@ def render(cfg: Config, run_id: str) -> pathlib.Path:
             "AssumptionRecorded",
             "DecisionRecorded",
             "WorktreeCreated",
+            "BaseRefResolved",
             "ReviewCompleted",
             "QACompleted",
             "BounceRequested",
@@ -167,6 +168,9 @@ def _payload_summary(event_type: str, payload: dict) -> str:
         return f"`{payload.get('decision_id','?')}` — {payload.get('decision','')[:160]}"
     if event_type == "WorktreeCreated":
         return f"branch `{payload.get('branch_name')}` at `{payload.get('worktree_path')}`"
+    if event_type == "BaseRefResolved":
+        sha = payload.get("base_ref_sha") or ""
+        return f"`{payload.get('symbolic_ref','?')}` -> `{sha[:12]}`"
     if event_type == "ReviewCompleted":
         return f"decision={payload.get('review_decision')} report={payload.get('review_report_path')}"
     if event_type == "QACompleted":

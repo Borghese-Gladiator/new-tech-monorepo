@@ -53,6 +53,7 @@ def _write_validate_context_artifacts(cfg, run_id, rd, staged: bool, meta: dict)
         worktree_path = worktree.get("path") or ""
         repo = (meta.get("target") or {}).get("repo") or {}
         base_ref = repo.get("base_ref") or "HEAD"
+        base_ref_sha = repo.get("base_ref_sha")
 
         if staged:
             brief_path = lifecycle.stage_dir(cfg, run_id, "shaping") / "brief.md"
@@ -71,12 +72,14 @@ def _write_validate_context_artifacts(cfg, run_id, rd, staged: bool, meta: dict)
             qa_report_path=qa_path,
             worktree_path=worktree_path,
             base_ref=base_ref,
+            base_ref_sha=base_ref_sha,
         )
         validate_context.write(target_dir / "validate-context.md", body)
 
         br_text = validate_context.build_blast_radius(
             worktree_path=worktree_path,
             base_ref=base_ref,
+            base_ref_sha=base_ref_sha,
         )
         (target_dir / "blast-radius.txt").write_text(br_text, encoding="utf-8")
     except Exception:
@@ -144,9 +147,11 @@ def _check_scope_creep_staged(cfg, run_id, rd, meta, actor) -> None:
 
     worktree_path = meta["target"]["worktree"]["path"]
     base_ref = meta["target"]["repo"]["base_ref"]
+    base_ref_sha = meta["target"]["repo"].get("base_ref_sha")
+    effective_ref = base_ref_sha or base_ref
     try:
         proc = subprocess.run(
-            ["git", "-C", str(worktree_path), "diff", "--name-only", f"{base_ref}...HEAD"],
+            ["git", "-C", str(worktree_path), "diff", "--name-only", f"{effective_ref}...HEAD"],
             capture_output=True, text=True, check=False,
         )
     except FileNotFoundError:
@@ -179,6 +184,8 @@ def _check_scope_creep_staged(cfg, run_id, rd, meta, actor) -> None:
             "actual": actual,
             "creep": creep,
             "base_ref": base_ref,
+            "base_ref_sha": base_ref_sha,
+            "effective_ref": effective_ref,
             "worktree_path": worktree_path,
         },
         actor=actor,
@@ -205,7 +212,8 @@ def _verify_doc_claims_staged(cfg, run_id, rd, meta, actor) -> None:
         return
     worktree_path = meta["target"]["worktree"]["path"]
     base_ref = meta["target"]["repo"]["base_ref"]
-    unverified = doc_claims.verify(claimed, worktree_path, base_ref)
+    base_ref_sha = meta["target"]["repo"].get("base_ref_sha")
+    unverified = doc_claims.verify(claimed, worktree_path, base_ref, base_ref_sha=base_ref_sha)
     if unverified:
         review = rd / "review.md"
         with open(review, "a") as f:
