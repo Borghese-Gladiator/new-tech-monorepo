@@ -139,7 +139,11 @@ def run(args) -> int:
     print(f"completion_ref: {completion_ref}")
     if merge_sha and parent_branch:
         print(f"merged {branch_name} into {parent_branch} ({merge_sha[:12]})")
-    print_stop_banner("done", run_id)
+    try:
+        banner_path = metadata.run_dir(cfg, run_id) / "stop-banner.txt"
+    except Exception:
+        banner_path = None
+    print_stop_banner("done", run_id, write_to=banner_path)
     return 0
 
 

@@ -76,8 +76,8 @@ _SPECS: dict[str, _BannerSpec] = {
 }
 
 
-def print_stop_banner(landing_state: str, run_id: str, cfg=None) -> None:
-    """Print the STOP banner for ``landing_state`` to stdout.
+def render_stop_banner(landing_state: str, run_id: str, cfg=None) -> str:
+    """Return the STOP banner text for ``landing_state`` (no trailing newline).
 
     Raises ``ValueError`` if ``landing_state`` is not one of the four
     agent-stopping states.
@@ -106,7 +106,36 @@ def print_stop_banner(landing_state: str, run_id: str, cfg=None) -> None:
         lines.append(spec.terminal_line)
 
     lines.append(BORDER)
-    print("\n".join(lines))
+    return "\n".join(lines)
+
+
+def print_stop_banner(
+    landing_state: str,
+    run_id: str,
+    cfg=None,
+    write_to: pathlib.Path | None = None,
+) -> None:
+    """Print the STOP banner for ``landing_state`` to stdout.
+
+    When ``write_to`` is supplied, also persist the rendered banner to that
+    path (creating parent dirs as needed). The on-disk copy gives the
+    slash-command layer a durable artifact to point at, instead of relying
+    on Claude to relay stdout verbatim.
+
+    Raises ``ValueError`` if ``landing_state`` is not one of the four
+    agent-stopping states.
+    """
+    text = render_stop_banner(landing_state, run_id, cfg=cfg)
+    print(text)
+    if write_to is not None:
+        try:
+            write_to.parent.mkdir(parents=True, exist_ok=True)
+            write_to.write_text(text + "\n")
+        except OSError:
+            # Convenience artifact — never block the transition on a write
+            # failure. Mirrors cmd_validate's swallow-on-exception pattern
+            # for stage-entry context files.
+            pass
 
 
 # ---------- human_review body builder ----------

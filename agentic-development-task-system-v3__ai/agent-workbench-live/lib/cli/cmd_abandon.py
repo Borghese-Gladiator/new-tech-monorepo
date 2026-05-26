@@ -118,6 +118,9 @@ def run(args) -> int:
     # status=abandoned. The archive-to-master step is only meaningful when
     # the workbench is inside the target repo (i.e. self-modifying).
 
+    # No write_to for abandoned: the run dir has typically just been
+    # archived/moved by the block above, so a write here would either fail
+    # or land in a stale location. Banner is stdout-only.
     print_stop_banner("abandoned", run_id)
     return 0
 

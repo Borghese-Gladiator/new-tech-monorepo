@@ -263,5 +263,6 @@ def run(args) -> int:
         return fail(str(e), 4)
 
     print(f"{run_id}: planning -> ready")
-    print_stop_banner("ready", run_id)
+    banner_path = lifecycle.stage_dir(cfg, run_id, "planning") / "stop-banner.txt"
+    print_stop_banner("ready", run_id, write_to=banner_path)
     return 0

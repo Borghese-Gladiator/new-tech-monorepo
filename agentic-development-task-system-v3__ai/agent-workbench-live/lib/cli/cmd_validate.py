@@ -554,5 +554,6 @@ def run(args) -> int:
     print(f"branch:   {meta['target']['worktree']['branch_name']}")
     print(f"worktree: {meta['target']['worktree']['path']}")
     print(f"audit:    {audit_path}")
-    print_stop_banner("human_review", run_id, cfg=cfg)
+    banner_path = lifecycle.stage_dir(cfg, run_id, "validating") / "stop-banner.txt"
+    print_stop_banner("human_review", run_id, cfg=cfg, write_to=banner_path)
     return 0
