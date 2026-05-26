@@ -12,6 +12,8 @@ This project was built to address these:
 - opinionated development workflow
   - See [docs/lifecycle.md](docs/lifecycle.md)
 
+Architecture shape at a glance: see [architecture.md § Classification](architecture.md#classification).
+
 See [docs/README.md](docs/README.md) for more info
 
 

@@ -24,6 +24,31 @@ It coordinates artifacts, state transitions, local git worktrees, validation, an
 - No background jobs that promise later delivery.
 - No complex agent marketplace or routing system.
 
+## Classification
+
+Classified against the five-axis multi-agent taxonomy from [Wang et al., *agents are stateful operating systems, not just prompts* (arXiv:2604.18071)](https://arxiv.org/abs/2604.18071).
+
+| Axis | Picked | Not picked |
+| --- | --- | --- |
+| **Subagent architecture** | orchestrator-worker; role-specialized agents | single agent; tool-mediated pseudo-subagents; recursive hierarchy; peer/swarm |
+| **Context — storage** | file-persistent memory | context-window only; session-only; database-backed; vector/RAG |
+| **Context — compression** | event/task summaries; hierarchical summaries | none; rolling summary; extractive |
+| **Context — retrieval** | explicit file reads; grep / lexical; git-aware | recent turns; symbol index / repo map; embedding search |
+| **Context — budgeting** | hard caps per source | fixed truncation; priority buckets; dynamic budgeting |
+| **Context — reintroduction** | on-demand context; path-scoped inject | always inject; retrieval-based inject; user-pinned |
+| **Tools — registration** | hard-coded; MCP / protocol-based (delegated to host) | decorator/function registry; manifest-based; plugin system |
+| **Tools — discovery** | static tool list | capability-scoped; contextual; tool search |
+| **Tools — invocation** | plan-then-call; harness-mediated; deterministic hooks | direct model tool call |
+| **Tools — bounding** | workspace-only filesystem; read/write separation; timeout/output caps | no bounds; shell allowlist/denylist; network restrictions; capability tokens |
+| **Tools — extension** | local project tools; MCP servers (via host) | built-ins only; user-installed plugins; org-managed plugins |
+| **Safety — approval** | policy-based approval; human-in-the-loop checkpoints | no approval; approve all; risk-tiered; mode-based |
+| **Safety — isolation** | workspace path restriction | no isolation; process-level; container; VM/microVM; network sandbox; secrets isolation |
+| **Safety — audit** | structured event log; diff-based audit; replayable trace | none; basic logs; tamper-evident |
+| **Safety — additional** | write boundary; dependency boundary; final diff review | prompt-injection handling; dangerous command classifier |
+| **Orchestration** | state machine; plan-act-review; human checkpoint orchestration | simple request-response; ReAct loop; plan-and-execute; declarative workflow; event-driven; hierarchical planning; autonomous bounded loop |
+
+Implementation pointers: lifecycle FSM in [`agent-workbench-live/schemas/transitions.yaml`](agent-workbench-live/schemas/transitions.yaml); transition engine in [`agent-workbench-live/lib/transitions.py`](agent-workbench-live/lib/transitions.py); event log schema in [`agent-workbench-live/schemas/events.jsonl`](agent-workbench-live/schemas/events.jsonl); subagent + session discipline in [`agent-workbench-live/AGENTS.md`](agent-workbench-live/AGENTS.md).
+
 ## Why orchestration is centralized
 
 Most AI-coding setups scatter planning artifacts across the product repos themselves: a `/specs` folder here, an `/ai/notes` folder there, decision docs buried in random PR descriptions. Three problems follow:
