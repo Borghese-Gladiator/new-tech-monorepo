@@ -506,7 +506,88 @@ Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. Toda
 
 ---
 
-## 9. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
+## 9. Board snapshot is O(N²) and re-parses every metadata.yaml 3–4× per tick
+
+### Symptom
+
+`bin/agent-workbench board --static` on the workbench's own runs/ (15 runs, ~30 events each, no live worktrees) takes **~4.1 s wall** (`/usr/bin/time -p` median over 3 runs). The live TUI runs `snapshot.build` at 1 Hz on the main Textual thread; on this dataset every tick blocks the UI for the same ~1.3 s (the static path also pays renderer cost), and any watchdog-driven `RunsChanged` re-enters `_refresh` with no debounce. Worktree-heavy workbenches will get markedly worse.
+
+cProfile of 3 `snapshot.build` calls in-process (`python3 -c "from lib.board import snapshot as s; s.build(cfg)"` under `cProfile.Profile()`):
+
+```
+108,735,248 function calls in 19.902 s   # 3 builds, ~6.6 s/build in profile (no I/O cache effects)
+
+cumtime  pct of profile  func
+17.85s   ~90%   metadata.run_dir         (54 / build — should be ~15)
+16.16s   ~81%   yaml_io.loads            (823 / build — should be ~15)
+15.55s   ~78%   runs._walk_all           (190 / build — should be 1)
+13.99s   ~70%   runs.find_run / _collect_hits (each call re-walks every run)
+12.46s   ~63%   runs._walk_worktrees     (40 / build — should be ≤ 1)
+11.26s   ~57%   yaml_io._strip_comment_outside_quotes (266k calls; >50 M len/append)
+ 6.32s   ~32%   metadata.load            (54 / build — should be 15)
+ 5.93s   ~30%   lifecycle.stage_dir / _run_root  (re-enters metadata.run_dir again)
+ 2.92s   ~15%   subprocess.run           (~48 / build — `git rev-parse --git-common-dir` per run)
+```
+
+### Confirmed root causes
+
+1. **Quadratic `metadata.run_dir` recursion via `find_run`.** `metadata.run_dir` checks for `metadata.yaml` at `cfg.runs_path/<id>`; when that file doesn't exist (every worktree-only run, including this repo's live runs) it falls through to `runs.find_run` → `_collect_hits` → `_walk_all` which walks master + every worktree from scratch (`lib/metadata.py:60-90`, `lib/runs.py:155-208`). One snapshot build calls `metadata.run_dir` 54 times (≈ `load_run_snapshot` × 3-ish: `metadata.load` + `rd =` line + `lifecycle.stage_dir`); each call is O(N). Net cost is O(N²) in the worktree-only-run count. Profile evidence: `_walk_all` ran **570 times for 3 builds** instead of 3.
+
+2. **Hand-rolled YAML parser, character-by-character.** `yaml_io._strip_comment_outside_quotes` does `out.append(c)` in a per-character Python loop (`lib/yaml_io.py:146-174`); it dominates `tottime` at 11.3 s with >50 M underlying `len`/`append` calls. Each `metadata.yaml` is parsed ~3–4 times per run snapshot because both `metadata.run_dir` and `metadata.load` independently read+parse the file (and `lifecycle._run_root` re-enters `run_dir`). 15 runs × ~3.7 parses × 3 builds ≈ 823 `yaml_io.loads` calls in the profile.
+
+3. **`git rev-parse --git-common-dir` shelled out per `is_self_modifying` check.** `runs._git_common_dir` runs a subprocess with no cache (`lib/runs.py:90-109`); each `_try_build_run` triggers `is_self_modifying` indirectly via `resolve_run_dir_for_meta`. Profile shows 145 `subprocess.run` calls in 3 builds (~48 per snapshot, ~2.5 s total). Result is stable for the process — pure cache miss.
+
+4. **No debounce on the watchdog handler.** `_Handler.on_any_event` posts one `RunsChanged` per FS event with only a `.tmp` filter (`lib/board/app.py:498-510`). A build burst writing 10 files in 200 ms triggers 10 full `_refresh` calls **on top of** the 1 Hz timer.
+
+5. **Synchronous `_refresh` on the Textual UI thread.** `snapshot.build` is the work, and it runs inline in `on_mount` / `on_runs_changed` / the 1 Hz timer (`lib/board/app.py:561-606`). Input handling (e.g. `q` to quit) blocks for the duration of a rebuild.
+
+6. **`events.jsonl` walked ~6 times per run with no early exit.** `load_run_snapshot` runs separate loops over `events` for time-in-stage, bounce count, recent-error flag, recent N events, plus `_avg_iteration_seconds`, `_followups_categories`, `_last_qa_completed_age`. Cheap per loop but cumulatively wasteful; one fused pass would suffice.
+
+### Relationship to §6
+
+§6 ("Board freshness across worktrees") names two of the same culprits — the watchdog scope and `_WORKTREE_CACHE`'s lack of TTL — through the lens of *staleness*, not *cost*. This TODO is the missing cost frame: even after §6 fixes freshness, the per-tick rebuild is too expensive. The two are independent: the §6 watchdog/cache changes don't shrink `snapshot.build`; the changes below don't fix the new-worktree-mid-session blind spot. Land both. Where they touch the same line (e.g. `_WORKTREE_CACHE`), the §6 fix is the right place to add a TTL; this TODO's cache work targets `metadata.yaml` parses and `is_self_modifying` instead.
+
+### Confirmation steps (run before landing each fix)
+
+Establish the baseline once, on master:
+
+```sh
+/usr/bin/time -p ./bin/agent-workbench board --static > /dev/null
+# Record real / user / sys. Expect ~4 s real on this repo's 15 runs.
+```
+
+Then for each proposed fix, repeat the timing and the cProfile. The acceptance bar is below.
+
+### Tasks
+
+- [ ] **Single-walk run discovery, threaded through `load_run_snapshot`.** Have `snapshot.build` call `runs.iter_all_runs(cfg)` *once*, collect `{run_id: Run}` (Run already carries `run_dir`, `metadata`, `source`), and pass the resolved `Run` into `load_run_snapshot` instead of having the inner function re-resolve via `metadata.run_dir` + `metadata.load`. Removes the O(N²) `find_run` and the duplicate YAML parses in one stroke. New `load_run_snapshot` signature: `load_run_snapshot(cfg, run: runs_mod.Run, *, now, …)`. The single-run loader path (used by other CLIs) keeps the old `run_id`-keyed entry point as a thin shim that resolves and delegates.
+- [ ] **Cache `_git_common_dir` for the lifetime of one process.** Module-level `dict[str, pathlib.Path | None]` keyed on `str(path.resolve())`. The result is deterministic per repo. Sibling to the existing `_WORKTREE_CACHE`. Cleared by `reset_caches()` for tests.
+- [ ] **Debounce `RunsChanged`.** In `_Handler.on_any_event`, set a "pending" flag and use `App.set_timer(0.25, ...)` to coalesce events; or post one message and have `on_runs_changed` schedule the next refresh on a short timer that swallows further posts during the window. Target: at most one refresh per ~250 ms regardless of FS noise.
+- [ ] **Move `snapshot.build` off the UI thread.** Use Textual's `App.run_worker(...)` (or `asyncio.to_thread`) so `_refresh` returns immediately and the UI stays interactive. Re-render on completion via `call_from_thread`. Required before any of the above can be claimed "good enough" on slower disks.
+- [ ] **Fuse `events.jsonl` traversal.** One pass building a small `EventStats` dataclass (last-transition-to-current, bounce_count, last_error_after_transition, latest_followups_event, latest_qa_event, last-N-events, building-transition timestamps for `_avg_iteration_seconds`). Replace the six existing reversed-loop blocks with one forward pass that records as it goes. Pure refactor; no behavior change.
+- [ ] **Optional, behind a flag: swap the hand-rolled YAML for PyYAML when available.** `yaml_io` is the dominant primitive cost. Try `import yaml` lazily; fall back to the stdlib subset parser when missing. Keep the writer unchanged (the writer's not on a hot path). This is the largest absolute win after the O(N²) fix; it's optional because it adds a soft dependency on PyYAML. Defer if `metadata.yaml` is being changed to a JSON-with-comments format elsewhere.
+
+### Acceptance
+
+- `bin/agent-workbench board --static` on this repo's 15 runs returns in ≤ 1.0 s real (today: ~4.1 s). Measure with `/usr/bin/time -p`; report median of 3 warm runs.
+- cProfile of 3 `snapshot.build` calls shows `runs._walk_all` called **≤ 3 times total** (one per build, not 570).
+- cProfile shows `metadata.run_dir` called **≤ 1× per run per build** (today: 3.6×).
+- cProfile shows `subprocess.run` for `_git_common_dir` called **at most twice per process** (the workbench + first worktree).
+- The live TUI does not block keyboard input for > 100 ms during `_refresh` even with the synthetic "100 FS events in 1 s" stress (use `touch runs/<id>/events.jsonl` in a loop).
+- A build burst (`for i in $(seq 20); do touch runs/<id>/x$i; done`) results in **≤ 2** `_refresh` invocations (verified by a log probe), not 20.
+- Existing tests in `tests/test_board_*.py` (or wherever board coverage lives — confirm during the work) all pass; add a new test that calls `snapshot.build` twice in a row against a synthetic 10-run workbench and asserts `_walk_all` is called exactly once per build (mock-and-count style).
+
+### Non-goals
+
+Re-architecting `RunSnapshot` (the shape is correct; this TODO is purely about how it's populated). Replacing watchdog with a different FS-event library. Caching `RunSnapshot`s across builds — staleness is the failure mode we refuse to ship (per `snapshot.py:14-16`); the goal is to make each rebuild cheap, not to skip rebuilds. Solving the §6 "new worktree mid-session" gap (covered there). Changing the on-disk `metadata.yaml` format (a separate decision; if it lands, the PyYAML swap becomes moot).
+
+### Origin
+
+Surfaced 2026-05-25 during a board-perf audit. User asked "is the board slow?"; profiling on the live workbench (15 runs, no live worktrees) showed `snapshot.build` taking ~1.3 s wall per tick, with 90% of the cost in `metadata.run_dir`'s fallback path (`find_run` re-walking every run, every time, because the runs are worktree-only and have no master-side `metadata.yaml`). The hand-rolled YAML parser dominates the primitive count. Both are pre-existing — the per-worktree run-dir landing (the §6 origin run) made them load-bearing because every run now hits the slow fallback.
+
+---
+
+## 10. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
 
 `lib/metrics/writer.record_run_metrics` writes `metrics.jsonl` at the validate / followups / abandon boundaries. The intent is to attribute token spend to the run. The open question: when a stage spawns a Claude Code Agent-tool subagent (an `Explore` for read-heavy lookup, a `Plan` for design, a `general-purpose` for fan-out), **is the subagent's token spend captured in `metrics.jsonl`, or is only the master session's spend recorded?**
 
