@@ -1,6 +1,116 @@
 # TODO
 
-## 1. Board freshness across worktrees after the per-worktree run-dir landing
+## 1. Lifecycle papercuts: `.lock` in `.gitignore` and the `ready` banner
+
+Two unrelated one-shot fixes grouped because they're both tiny, both touch the agent-stopping handoff path, and both have a clear single-line shape. Worth landing together to avoid a near-empty section per item.
+
+### 1a. `runs/*/.lock` not gitignored — every `/complete` falls back to `--no-merge`
+
+`locks.acquire(cfg, run_id)` creates `runs/<id>/.lock` inside the run directory before `repos.merge_no_ff` runs `worktree_dirty_files(repo_path)`. The run dir is tracked in the parent repo, so the lock file appears in `git status --porcelain` and the merge refuses with `refusing to merge: <repo> has uncommitted changes: ['runs/<id>/.lock']`. Workaround so far has been `complete --no-merge` + manual `git merge --no-ff` + `tools/backfill_completion_refs.py`. Hit on at least three runs (stop-banner, token-efficiency-pass-2, structured-human-review-handoff).
+
+Root `.gitignore` is currently just `tmp/`; the entry has to be added.
+
+- [ ] Add `agentic-development-task-system-v3__ai/agent-workbench-live/runs/*/.lock` to root `.gitignore` (also add the v2 sibling path if v2 still produces lock files).
+- [ ] Verify by running `/complete` on a real run after the entry lands — the dirty-files check should pass without `--no-merge`.
+- [ ] Update `tools/backfill_completion_refs.py`'s docstring/comments to reference this fix and note that the backfill is no longer needed for new runs.
+
+### 1b. `ready` banner still uses shell-form
+
+`_SPECS["ready"]` in `lib/cli/_stop_banner.py` prints `agent-workbench start <id>` as the next move. `human_review` was migrated to slash-form (`/complete`, `/bounce`, `/abandon`) in the structured-handoff run (`a698f62`); `ready` was explicitly out-of-scope there. The inconsistency is now visible to anyone watching two banners in a row.
+
+- [ ] Change `_SPECS["ready"]` to render `/start <id>` with a one-line description (e.g. "approve the plan and create the worktree").
+- [ ] Re-baseline `tests/snapshots/stop_banner_ready.expected.txt`.
+- [ ] No new structured-body builder required — `ready` has one decision; the five-section shape isn't justified.
+
+### Acceptance
+
+- `/complete <id>` on a run that committed its run dir produces a successful `git merge --no-ff` without needing `--no-merge`.
+- `_stop_banner.py` contains no `agent-workbench start` literal; the `ready` banner snapshot reflects the slash-form.
+
+---
+
+## 2. `base_ref_sha` plumbing — three remaining consumers + audit trail + backfill
+
+`303bd40` added `target.repo.base_ref_sha` to `metadata.yaml` and threaded the prefer-SHA / lazy-resolve / fallback pattern into `lib/metrics/lines.py`. Three other consumers still take a symbolic `base_ref` and produce wrong or empty output when the recorded value is `"HEAD"`; a backfill tool for pre-fix runs is also unwritten, and the audit log doesn't record the resolved SHA at all.
+
+### 2a. `lib/validate_context.py` — empty diff against worktree branch HEAD
+
+`validate_context.build` and `build_blast_radius` take `base_ref: str` and shell out `git diff <base_ref>...HEAD` literally. With `base_ref="HEAD"`, that resolves to the worktree HEAD vs. itself — the diff is empty even when the worktree has real commits. Downstream: the reviewer's blast-radius narrative is fed an empty file list and validate-context.md's "Files changed" block reads `(no files changed yet)`.
+
+- [ ] Add a `base_ref_sha: str | None = None` kwarg to `validate_context.build` and `build_blast_radius`. Prefer the SHA when present; fall back to symbolic `base_ref` lazy-resolve when missing. Mirror `lib/metrics/lines.py:_effective_ref`.
+- [ ] Thread the SHA through `cmd_validate.py:_write_validate_context_artifacts` (read `meta["target"]["repo"]["base_ref_sha"]` alongside `base_ref`).
+- [ ] Confirm the diff target is the worktree path (it already is) and that the SHA was originally captured against the source repo (it was).
+- [ ] Unit test against a synthetic two-commit worktree — would fail today, pass after.
+
+### 2b. `lib/board/source.py:_git_shortstat` and `lib/doc_claims.py:_verify`
+
+Both still take symbolic `base_ref`. Neither is *broken* in the same observable way as 2a (the triple-dot diff produces *a* number when `base_ref="HEAD"`), but the type signature has drifted: `lines.py` knows about `base_ref_sha`, these two don't. Pure type-symmetry / consistency play.
+
+- [ ] Add `base_ref_sha` kwarg to `_git_shortstat` and `verify`; lazy-fallback chain identical to `lines.py:_effective_ref`.
+- [ ] Update call sites (`board/source.py:566` and the `doc_claims.verify` call in `cmd_validate.py`).
+- [ ] Parallel unit tests in `tests/test_board_snapshot.py` and `tests/test_doc_claims.py`.
+
+### 2c. Backfill tool for pre-`303bd40` runs
+
+`tools/backfill_completion_refs.py` exists for merge SHAs; no equivalent for `base_ref_sha`. Runs like `2026-05-22-token-efficiency-tracking` whose `base_ref: "HEAD"` was captured before this run still report `generated_lines: 0` even after a `metrics --rebuild` (the lazy resolver inside the worktree can't recover the original fork point once HEAD has advanced).
+
+- [ ] Write `tools/backfill_base_ref_sha.py`. Walk `runs/*/metadata.yaml`. For each entry with symbolic `target.repo.base_ref` and missing `target.repo.base_ref_sha`, compute the fork point — preferred: `git merge-base <target.worktree.branch_name> <agent-workbench.yaml-default-base-ref>`; fall back to `git rev-list --max-parents=0 <branch>` when merge-base fails. Write via `metadata.update`. Idempotent. `--dry-run` flag.
+- [ ] After the script lands, run it once on this repo and verify `agent-workbench metrics --rebuild` against the pass-1 dogfood run reports non-zero `generated_lines` (TODO §3 acceptance from the prior fix-generated-lines TODO).
+
+### 2d. `BaseRefResolved` event
+
+The resolved SHA only lives in `metadata.yaml`. The audit trail (`events.jsonl`) records the transition with `base_ref: "HEAD"` symbolic and nothing else. Two consequences: (1) line counts can't be re-derived from the audit log alone, (2) drift between `metadata.yaml` and the original resolved SHA is undetectable.
+
+- [ ] Add `BaseRefResolved` to `schemas/events.jsonl` with payload `{symbolic_ref, sha, source_repo_path}`.
+- [ ] Emit from `cmd_start.py` immediately after `repos.resolve_ref_to_sha` succeeds, before the `building` transition.
+- [ ] Surface in `lib/audit.py`'s `audit.md` render.
+- [ ] Forward-only. Don't synthesize events for old runs — pair with the backfill tool (2c), which writes metadata only.
+
+### Acceptance
+
+- `validate-context.md` "Files changed" block lists real worktree-branch commits for any run whose metadata carries `base_ref_sha`.
+- `agent-workbench metrics --rebuild` against `2026-05-22-token-efficiency-tracking` reports a non-zero `generated_lines` after the backfill script runs.
+- `events.jsonl` for new runs contains a `BaseRefResolved` event between the `planning → ready` and `ready → building` transitions.
+- Grep for `base_ref:` in `lib/board/source.py` + `lib/doc_claims.py` finds calls that also accept `base_ref_sha`.
+
+---
+
+## 3. Schema-level validation for `metadata.yaml` on load
+
+`lib/metadata.py:_validate` enforces top-level keys + the status enum only. `schemas/run-metadata.yaml` is descriptive — `metadata.load()` doesn't read it. Typos like `bse_ref` instead of `base_ref` load silently, surface later as missing-field crashes or wrong-data renders. As fields proliferate (`base_ref_sha`, `target.worktree.branch_name`, the `build:` block, the new `completion:` shape), the surface area for silent drift grows.
+
+- [ ] Add a lightweight YAML-schema validator (or hand-roll typed accessors that raise on missing-or-mistyped) that walks `target.repo`, `target.worktree`, `validation`, `completion`, `build` and enforces field types + enum values on load.
+- [ ] Surface mismatches as warnings by default; error behind a strict mode toggled in `agent-workbench.yaml`'s policies block.
+- [ ] Keep `artifacts` and `scope` un-validated for this pass — they're free-form by design.
+- [ ] Update `schemas/run-metadata.yaml` to be load-bearing rather than descriptive; document the field-type contract in `lib/metadata.py`'s module docstring.
+
+### Acceptance
+
+- A `metadata.yaml` with a typo'd top-level key under `target.repo` produces a warning at load time and an error under strict mode.
+- Existing `runs/` directories load without warnings (no false positives on real data).
+- `tests/test_metadata.py` covers at least: missing required field, mistyped scalar, enum violation, additive backward compat (unknown extra key tolerated under default mode).
+
+---
+
+## 4. Test-coverage gaps
+
+Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Grouped because they all share the same shape: a code path that's verified by code-reading or by tmp-dir structural assertions, but doesn't have a runtime drive-and-assert.
+
+- [ ] **Full self-modifying lifecycle E2E.** `tests/test_self_modifying.py` covers `new-run` only (`test_new_run_creates_worktree_and_clean_master`). Add a test that drives `shape → plan → start → validate → complete` end-to-end on a synthetic self-modifying workbench; assert master's `git status --porcelain` is clean of `runs/` entries at every step and that the final merge commit contains the run dir at the worktree-side path. Reuse `_make_self_modifying_workbench` from the existing class.
+- [ ] **Flat-layout E2E fixture.** `cmd_validate.py`'s flat path (`validating → human_review` directly) is the only one of the five banner sites without runtime coverage. Add `tests/fixtures/flat_happy/` (or similar) and a test method mirroring `test_happy_path` minus the followups stage. Asserts `STOP.` appears after `validate` and not after `validate --init`.
+- [ ] **No-banner-on-abort runtime test for `cmd_complete`.** The existing `TestE2ECompleteMerge::test_merge_conflict_aborts_and_stays_in_human_review` checks status + events but does not assert `STOP.` is absent from stdout. Add the assertion (or a sibling test) so a future refactor that moves the banner above the failure paths fails loudly.
+- [ ] **Direct unit tests for `lib/repos.py:stage_and_commit_run_dir` and `archive_tree_to_path`.** Only exercised via `cmd_complete` / `cmd_abandon` integration today. The `--strip-components` count in `archive_tree_to_path` depends on the source path's segment count and would benefit from a focused fixture (2-segment vs. 4-segment source paths).
+- [ ] **Snapshot test for the full `human_review` stop banner.** Today the structured body is checked by `TestFullBanner` structural assertions + E2E `assertIn` substring checks; wording drift in the body (e.g. "auto-merges worktree branch into parent" → "merges into parent") would pass. Reuse the `_normalize`-style helper from `tests/test_human_review.py` (collapse `<TMP>`, `<TEST_REPO>`, `<HH:MM:SS>`, `<RUN_ROOT>`) and add two fixture-driven snapshots — one for the happy path, one for bounce-pass2 — under `tests/snapshots/stop_banner_human_review_{happy,bounce_pass2}.expected.txt`.
+- [ ] **`_write_validate_context_artifacts` error-path coverage.** `cmd_validate.py:82-84` wraps the whole generator in `try: ... except Exception: pass`. The convenience-artifacts-must-not-break-the-transition intent is right, but the catch silences any bug in the generator. Add: (a) one test that monkey-patches `validate_context.build` to raise and asserts the transition still succeeds AND that the file is NOT written (proving the catch fired), (b) one test that constructs an unparseable `build.md` and asserts the generator produces a sentinel-fallback file rather than crashing. Optional: log the swallowed exception to `events.jsonl`.
+
+### Acceptance
+
+- All six gaps closed; suite count rises by the corresponding number of cases (rough estimate: +10 to +15 tests).
+- Each new test would fail under today's behavior if the relevant code were reverted (verify by spot-check).
+
+---
+
+## 5. Board freshness across worktrees after the per-worktree run-dir landing
 
 ### Why this is here
 
