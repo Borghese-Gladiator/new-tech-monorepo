@@ -313,23 +313,31 @@ def _git_shortstat(
     base_ref: str,
     *,
     cache_key: tuple[str, str],
+    base_ref_sha: str | None = None,
 ) -> tuple[int | None, int | None, int | None]:
     """Return ``(added, removed, files)`` from ``git diff --shortstat``.
 
-    Cached on ``cache_key = (run_id, updated_at)`` so repeated refreshes
-    of an unchanged run don't re-shell. Failures cache None tuples so we
-    don't retry on every tick.
+    Prefers ``base_ref_sha`` over the symbolic ``base_ref`` when present;
+    falls back to ``base_ref`` literal otherwise (no in-worktree
+    lazy-resolve — see DR-002).
+
+    Cached on ``(*cache_key, effective_ref)`` so a SHA that arrives without
+    bumping ``updated_at`` (e.g. an in-process backfill) still invalidates
+    the previous result. Failures cache None tuples so we don't retry on
+    every tick.
     """
-    cached = _DIFF_CACHE.get(cache_key)
+    effective_ref = base_ref_sha or base_ref
+    full_key = (*cache_key, effective_ref or "")
+    cached = _DIFF_CACHE.get(full_key)
     if cached is not None:
         return cached
 
     result: tuple[int | None, int | None, int | None] = (None, None, None)
     wt = pathlib.Path(worktree_path)
-    if worktree_path and base_ref and wt.exists():
+    if worktree_path and effective_ref and wt.exists():
         try:
             proc = subprocess.run(
-                ["git", "diff", "--shortstat", f"{base_ref}...HEAD"],
+                ["git", "diff", "--shortstat", f"{effective_ref}...HEAD"],
                 cwd=worktree_path,
                 capture_output=True,
                 text=True,
@@ -340,7 +348,7 @@ def _git_shortstat(
             proc = None
         if proc is not None and proc.returncode == 0:
             result = _parse_shortstat(proc.stdout)
-    _DIFF_CACHE[cache_key] = result
+    _DIFF_CACHE[full_key] = result
     return result
 
 
@@ -572,6 +580,7 @@ def load_run_snapshot(
     repo_tail = _repo_path_tail(repo_path)
     worktree_path = str(worktree.get("path") or "")
     base_ref = str(repo.get("base_ref") or "")
+    base_ref_sha = repo.get("base_ref_sha") or None
     worktree_created = worktree.get("created")
     worktree_missing = (
         worktree_created is False
@@ -584,7 +593,9 @@ def load_run_snapshot(
     diff_added = diff_removed = diff_files = None
     if worktree_path and base_ref and worktree_created:
         diff_added, diff_removed, diff_files = _git_shortstat(
-            worktree_path, base_ref, cache_key=(run_id, updated_at),
+            worktree_path, base_ref,
+            cache_key=(run_id, updated_at),
+            base_ref_sha=base_ref_sha,
         )
 
     tests_age = _last_qa_completed_age(events, now)

@@ -867,5 +867,83 @@ class TestFormatAge(unittest.TestCase):
         self.assertEqual(format_age(48 * 60 * 60), "2d")
 
 
+class TestGitShortstatPrefersSha(unittest.TestCase):
+    """2b regression: _git_shortstat must prefer base_ref_sha over the
+    symbolic base_ref so the shortstat numbers reflect the real diff range,
+    not a HEAD-vs-HEAD null."""
+
+    def setUp(self):
+        import subprocess
+        import tempfile
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="aw-shortstat-"))
+        # Build a tiny repo: initial commit, capture SHA, then add two
+        # commits with measurable line changes.
+
+        def _git(*args):
+            return subprocess.run(
+                ["git", "-C", str(self.tmp), *args],
+                capture_output=True, text=True, check=True,
+            ).stdout
+
+        _git("init", "-q")
+        _git("config", "user.email", "t@e.x")
+        _git("config", "user.name", "test")
+        (self.tmp / "README.md").write_text("# repo\n")
+        _git("add", "README.md")
+        _git("commit", "-qm", "init")
+        self.fork_sha = _git("rev-parse", "HEAD").strip()
+        # Two real commits: 3 lines added in file_a, 2 lines in file_b.
+        (self.tmp / "file_a.py").write_text("a = 1\nb = 2\nc = 3\n")
+        _git("add", "file_a.py")
+        _git("commit", "-qm", "add a")
+        (self.tmp / "file_b.py").write_text("x = 9\ny = 8\n")
+        _git("add", "file_b.py")
+        _git("commit", "-qm", "add b")
+        # Reset the module-level cache so back-to-back calls don't see stale
+        # results.
+        from lib.board import source
+        source._DIFF_CACHE.clear()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        from lib.board import source
+        source._DIFF_CACHE.clear()
+
+    def test_with_sha_reports_real_counts(self):
+        from lib.board import source
+        added, removed, files = source._git_shortstat(
+            str(self.tmp), "HEAD",
+            cache_key=("test-with-sha", "0"),
+            base_ref_sha=self.fork_sha,
+        )
+        # 5 added lines across 2 new files; 0 removed.
+        self.assertEqual(added, 5)
+        self.assertEqual(removed, 0)
+        self.assertEqual(files, 2)
+
+    def test_without_sha_is_empty(self):
+        """With base_ref='HEAD' alone the diff is HEAD...HEAD → zero counts."""
+        from lib.board import source
+        added, removed, files = source._git_shortstat(
+            str(self.tmp), "HEAD",
+            cache_key=("test-no-sha", "0"),
+        )
+        # All zero (or None — `_parse_shortstat` returns 0/0/0 for empty
+        # stdout per its first branch).
+        self.assertEqual((added, removed, files), (0, 0, 0))
+
+    def test_sha_takes_precedence_over_symbolic_branch(self):
+        """Even when base_ref points to a real ref ('HEAD'), the SHA wins."""
+        from lib.board import source
+        added_a, _, _ = source._git_shortstat(
+            str(self.tmp), "HEAD",
+            cache_key=("test-precedence", "0"),
+            base_ref_sha=self.fork_sha,
+        )
+        # Same range exercised in test_with_sha — must produce identical count.
+        self.assertEqual(added_a, 5)
+
+
 if __name__ == "__main__":
     unittest.main()

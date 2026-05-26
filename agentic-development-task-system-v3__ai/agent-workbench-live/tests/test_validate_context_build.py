@@ -177,5 +177,92 @@ class TestBlastRadiusBuild(unittest.TestCase):
         self.assertIn("not available", out)
 
 
+class TestPrefersBaseRefSha(unittest.TestCase):
+    """Regression tests for the 2a fix: when base_ref is the literal string
+    'HEAD' but base_ref_sha carries the real fork point, both `build` and
+    `build_blast_radius` must use the SHA rather than the symbolic ref."""
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="vctx-sha-"))
+        self.brief = self.tmp / "brief.md"
+        self.brief.write_text("# Brief\n\n## Goal\n\nDo work.\n")
+        self.plan = self.tmp / "plan.md"
+        self.plan.write_text("# Plan\n")
+        self.build_md = self.tmp / "build.md"
+        self.build_md.write_text("# Build\n")
+        self.qa = self.tmp / "qa-report.md"
+        self.qa.write_text("# QA\n")
+        # Two-commit worktree: one before recording the fork point, one after.
+        self.worktree = self.tmp / "wt"
+        self.fork_sha = _init_repo(self.worktree)
+        # Two real commits past the fork — the diff against the fork point
+        # should list both files.
+        (self.worktree / "added_one.py").write_text("x = 1\n")
+        _git(self.worktree, "add", "added_one.py")
+        _git(self.worktree, "commit", "-qm", "first real commit")
+        (self.worktree / "added_two.py").write_text("y = 2\n")
+        _git(self.worktree, "add", "added_two.py")
+        _git(self.worktree, "commit", "-qm", "second real commit")
+
+    def test_build_prefers_sha_over_symbolic_HEAD(self):
+        # With base_ref='HEAD' alone, `HEAD...HEAD` is empty (the original
+        # bug). With the SHA passed, the diff sees both new files.
+        body_broken = validate_context.build(
+            brief_path=self.brief,
+            plan_path=self.plan,
+            build_md_path=self.build_md,
+            qa_report_path=self.qa,
+            worktree_path=str(self.worktree),
+            base_ref="HEAD",
+        )
+        self.assertIn("no files changed yet", body_broken)
+        self.assertNotIn("added_one.py", body_broken)
+
+        body_fixed = validate_context.build(
+            brief_path=self.brief,
+            plan_path=self.plan,
+            build_md_path=self.build_md,
+            qa_report_path=self.qa,
+            worktree_path=str(self.worktree),
+            base_ref="HEAD",
+            base_ref_sha=self.fork_sha,
+        )
+        self.assertIn("added_one.py", body_fixed)
+        self.assertIn("added_two.py", body_fixed)
+
+    def test_build_blast_radius_prefers_sha(self):
+        out_broken = validate_context.build_blast_radius(
+            worktree_path=str(self.worktree),
+            base_ref="HEAD",
+        )
+        self.assertIn("no files changed", out_broken)
+
+        out_fixed = validate_context.build_blast_radius(
+            worktree_path=str(self.worktree),
+            base_ref="HEAD",
+            base_ref_sha=self.fork_sha,
+        )
+        self.assertIn("depth 1 (changed files):", out_fixed)
+        self.assertIn("added_one.py", out_fixed)
+        self.assertIn("added_two.py", out_fixed)
+
+    def test_falls_back_to_symbolic_when_sha_missing(self):
+        # When base_ref names a real symbolic ref, the SHA-less call path
+        # must lazily rev-parse it inside the worktree. Tag the fork point
+        # so we have a non-SHA name to resolve.
+        _git(self.worktree, "tag", "fork-point", self.fork_sha)
+        body = validate_context.build(
+            brief_path=self.brief,
+            plan_path=self.plan,
+            build_md_path=self.build_md,
+            qa_report_path=self.qa,
+            worktree_path=str(self.worktree),
+            base_ref="fork-point",
+            base_ref_sha=None,
+        )
+        self.assertIn("added_one.py", body)
+        self.assertIn("added_two.py", body)
+
+
 if __name__ == "__main__":
     unittest.main()
