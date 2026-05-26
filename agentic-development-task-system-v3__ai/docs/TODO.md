@@ -72,7 +72,7 @@ Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a prop
 
 ---
 
-## 2. Lifecycle papercuts: `.lock` in `.gitignore` and the `ready` banner
+## 2. Lifecycle papercuts: `.lock` in `.gitignore` and the `ready` banner ✅ shipped 2026-05-26 (run `2026-05-25-lifecycle-papercuts-lock-ready-banner`)
 
 Two unrelated one-shot fixes grouped because they're both tiny, both touch the agent-stopping handoff path, and both have a clear single-line shape. Worth landing together to avoid a near-empty section per item.
 
@@ -82,17 +82,17 @@ Two unrelated one-shot fixes grouped because they're both tiny, both touch the a
 
 Root `.gitignore` is currently just `tmp/`; the entry has to be added.
 
-- [ ] Add `agentic-development-task-system-v3__ai/agent-workbench-live/runs/*/.lock` to root `.gitignore` (also add the v2 sibling path if v2 still produces lock files).
-- [ ] Verify by running `/complete` on a real run after the entry lands — the dirty-files check should pass without `--no-merge`.
-- [ ] Update `tools/backfill_completion_refs.py`'s docstring/comments to reference this fix and note that the backfill is no longer needed for new runs.
+- [x] Add `agentic-development-task-system-v3__ai/agent-workbench-live/runs/*/.lock` to root `.gitignore` (also add the v2 sibling path if v2 still produces lock files).
+- [x] Verify by running `/complete` on a real run after the entry lands — the dirty-files check should pass without `--no-merge`.
+- [x] Update `tools/backfill_completion_refs.py`'s docstring/comments to reference this fix and note that the backfill is no longer needed for new runs.
 
 ### 1b. `ready` banner still uses shell-form
 
 `_SPECS["ready"]` in `lib/cli/_stop_banner.py` prints `agent-workbench start <id>` as the next move. `human_review` was migrated to slash-form (`/complete`, `/bounce`, `/abandon`) in the structured-handoff run (`a698f62`); `ready` was explicitly out-of-scope there. The inconsistency is now visible to anyone watching two banners in a row.
 
-- [ ] Change `_SPECS["ready"]` to render `/start <id>` with a one-line description (e.g. "approve the plan and create the worktree").
-- [ ] Re-baseline `tests/snapshots/stop_banner_ready.expected.txt`.
-- [ ] No new structured-body builder required — `ready` has one decision; the five-section shape isn't justified.
+- [x] Change `_SPECS["ready"]` to render `/start <id>` with a one-line description (e.g. "approve the plan and create the worktree").
+- [x] Re-baseline `tests/snapshots/stop_banner_ready.expected.txt`.
+- [x] No new structured-body builder required — `ready` has one decision; the five-section shape isn't justified.
 
 ### Acceptance
 

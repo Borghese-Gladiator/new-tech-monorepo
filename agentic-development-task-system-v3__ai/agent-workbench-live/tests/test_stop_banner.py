@@ -29,8 +29,20 @@ class TestPrintStopBanner(unittest.TestCase):
         self.assertTrue(out.rstrip("\n").endswith(BORDER))
         self.assertIn("STOP. State: ready (human-owned).", out)
         self.assertIn(SAMPLE_RUN_ID, out)
-        self.assertIn("agent-workbench start", out)
-        self.assertIn("Next moves (human-triggered):", out)
+        self.assertIn(f"/start {SAMPLE_RUN_ID}", out)
+        # Slash-form replaces the shell-form.
+        self.assertNotIn("agent-workbench start", out)
+        self.assertIn("Next moves (human-triggered, type in a session):", out)
+
+    def test_no_shell_form_in_any_banner(self):
+        """Cross-state pin: no banner renders the shell-form `agent-workbench` literal."""
+        for state in ("ready", "human_review", "done", "abandoned"):
+            out = _render(state)
+            self.assertNotIn(
+                "agent-workbench ",
+                out,
+                f"shell-form leaked into {state} banner",
+            )
 
     def test_human_review_banner_structure(self):
         # No-cfg fallback: only the three slash-form Next moves lines are

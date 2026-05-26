@@ -99,9 +99,11 @@ def render_stop_banner(landing_state: str, run_id: str, cfg=None) -> str:
     if landing_state == "human_review":
         lines.extend(_build_human_review_body(cfg, run_id))
     elif spec.next_moves:
-        lines.append("Next moves (human-triggered):")
+        lines.append("Next moves (human-triggered, type in a session):")
+        pad = max(len(f"/{cmd} {run_id}") for cmd, _ in spec.next_moves)
         for cmd, desc in spec.next_moves:
-            lines.append(f"  agent-workbench {cmd} {run_id}  - {desc}")
+            cmd_text = f"/{cmd} {run_id}"
+            lines.append(f"  {cmd_text:<{pad}}  — {desc}")
     else:
         lines.append(spec.terminal_line)
 
