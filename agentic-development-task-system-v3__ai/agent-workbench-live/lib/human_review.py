@@ -476,16 +476,16 @@ def render(cfg: Config, run_id: str) -> pathlib.Path:
     title_summary = (meta.get("scope") or {}).get("summary") or run_id
     lines: list[str] = [f"# Human review — {run_id}", ""]
 
-    # ## Files — one-line-per-artifact list. The absolute path is the only
-    # path; relative paths aren't useful to a reader who only has this file
-    # open. The self-reference row is omitted (the reader already has it).
+    # ## Files — one-line-per-artifact list. The link text is the bare file
+    # name (e.g. `brief.md`); the link target is the absolute path so a reader
+    # can click through. The self-reference row is omitted.
     lines.append("## Files")
     lines.append("")
     for label, relpath in FILE_TABLE_CANDIDATES:
         abspath = rd / relpath
         if not abspath.exists():
             continue
-        lines.append(f"- **{label}** — `{abspath}`")
+        lines.append(f"- **{label}** — [{abspath.name}]({abspath})")
     lines.append("")
 
     # ## Summary of changes — pre-formatted markdown lines from the extractor.
