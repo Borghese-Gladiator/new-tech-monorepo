@@ -153,6 +153,15 @@ Bounce-back flow:
 human_review -> building
 ```
 
+### Slash-command auto-chain
+
+The Claude slash commands auto-chain `/new-run → /shape → /plan` so the agent only stops at the two real human gates:
+
+1. `ready` — the user must run `/start` to supply `--approved-by` evidence.
+2. `human_review` — the user picks `/complete`, `/bounce`, or `/abandon`.
+
+`draft` may still pause to ask clarifying questions (per the `draft` stage rules); that pause is a question, not an approval gate. The state machine itself is unchanged — this is a convention enforced at the slash-command layer only.
+
 Abandon flow (wildcard):
 
 ```text
