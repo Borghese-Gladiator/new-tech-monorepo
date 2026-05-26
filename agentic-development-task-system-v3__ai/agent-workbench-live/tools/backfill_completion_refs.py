@@ -6,6 +6,14 @@ still carries the legacy `local-branch:<branch>` label. The merges happened by
 hand against the v3 monorepo's `master`. This script rewrites the label to
 `merge:<full-sha>` using the known SHAs from `docs/TODO.md` § "Completed work".
 
+The dirty-tree refusal that forced several later runs into the manual-merge
+path was the runs/<id>/.lock file showing up in `git status --porcelain`.
+That root cause was fixed on 2026-05-25 by adding a workbench-scoped entry
+to the root .gitignore (see docs/LOG.md). From that point on, `/complete`
+merges without --no-merge and no new entries should be added to BACKFILL.
+This script is legacy: keep it around for the existing rows, but new runs
+should not require it.
+
 Idempotent: re-running on already-backfilled metadata is a no-op.
 
 Run from anywhere; pass the workbench root via --root, default is

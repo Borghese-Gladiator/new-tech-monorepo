@@ -81,6 +81,32 @@ class TestWorktreeDirtyHelpers(_RepoTestCase):
         dirty = repos.worktree_dirty_files(self.tmp)
         self.assertIn("b.txt", dirty)
 
+    def test_run_lock_file_is_gitignored(self) -> None:
+        """Per-run .lock files inside the workbench runs/ tree must not show
+        up as dirty — that was the bug `/complete` kept hitting before the
+        root .gitignore gained the workbench-scoped pattern.
+        """
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        gitignore_path = self.tmp / ".gitignore"
+        gitignore_path.write_text(
+            "agentic-development-task-system-v3__ai/"
+            "agent-workbench-live/runs/*/.lock\n"
+        )
+        _run(self.tmp, "add", ".gitignore")
+        _run(self.tmp, "commit", "-q", "-m", "ignore lock")
+        run_dir = (
+            self.tmp
+            / "agentic-development-task-system-v3__ai"
+            / "agent-workbench-live"
+            / "runs"
+            / "2026-05-25-fixture"
+        )
+        run_dir.mkdir(parents=True)
+        (run_dir / ".lock").write_text("")
+        self.assertEqual(repos.worktree_dirty_files(self.tmp), [])
+        self.assertTrue(repos.worktree_is_clean(self.tmp))
+
 
 class TestResolveParentBranch(_RepoTestCase):
     def test_head_resolves_to_current_branch(self) -> None:

@@ -308,3 +308,12 @@ dist
 
 # Beads issue tracker (used in subprojects, not at monorepo root)
 .beads/
+
+#=====================
+#  AGENT WORKBENCH
+#=====================
+# Per-run lock file written by lib/locks.acquire. Tracked-dir-resident inside
+# each run directory; without this entry, every /complete sees it as dirty and
+# refuses to merge.
+agentic-development-task-system-v3__ai/agent-workbench-live/runs/*/.lock
+agentic-development-task-system-v2__ai/agent-workbench-live/runs/*/.lock

@@ -7,7 +7,7 @@ Today `validate-context.md` is the only stage-boundary curated entry point — i
 The leverage is twofold:
 
 1. **Cache footprint.** File reads in the master session stick in the prefix forever. Today the builder typically reads `brief.md` + `plan.md` + occasional `decisions.md` lookups; the reviewer (without the curated context) would read all of those plus the QA report plus the build summary. Each is a permanent prefix cost. One curated file per stage collapses that into a single read.
-2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§7 `publishing` stage) depends on this — `validate-context.md` is already shaped right, but `build-context.md` and `plan-context.md` would need to exist before the subagent pattern can extend to those stages.
+2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§6 `publishing` stage) depends on this — `validate-context.md` is already shaped right, but `build-context.md` and `plan-context.md` would need to exist before the subagent pattern can extend to those stages.
 
 ### What each file contains
 
@@ -72,36 +72,7 @@ Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a prop
 
 ---
 
-## 2. Lifecycle papercuts: `.lock` in `.gitignore` and the `ready` banner
-
-Two unrelated one-shot fixes grouped because they're both tiny, both touch the agent-stopping handoff path, and both have a clear single-line shape. Worth landing together to avoid a near-empty section per item.
-
-### 1a. `runs/*/.lock` not gitignored — every `/complete` falls back to `--no-merge`
-
-`locks.acquire(cfg, run_id)` creates `runs/<id>/.lock` inside the run directory before `repos.merge_no_ff` runs `worktree_dirty_files(repo_path)`. The run dir is tracked in the parent repo, so the lock file appears in `git status --porcelain` and the merge refuses with `refusing to merge: <repo> has uncommitted changes: ['runs/<id>/.lock']`. Workaround so far has been `complete --no-merge` + manual `git merge --no-ff` + `tools/backfill_completion_refs.py`. Hit on at least three runs (stop-banner, token-efficiency-pass-2, structured-human-review-handoff).
-
-Root `.gitignore` is currently just `tmp/`; the entry has to be added.
-
-- [ ] Add `agentic-development-task-system-v3__ai/agent-workbench-live/runs/*/.lock` to root `.gitignore` (also add the v2 sibling path if v2 still produces lock files).
-- [ ] Verify by running `/complete` on a real run after the entry lands — the dirty-files check should pass without `--no-merge`.
-- [ ] Update `tools/backfill_completion_refs.py`'s docstring/comments to reference this fix and note that the backfill is no longer needed for new runs.
-
-### 1b. `ready` banner still uses shell-form
-
-`_SPECS["ready"]` in `lib/cli/_stop_banner.py` prints `agent-workbench start <id>` as the next move. `human_review` was migrated to slash-form (`/complete`, `/bounce`, `/abandon`) in the structured-handoff run (`a698f62`); `ready` was explicitly out-of-scope there. The inconsistency is now visible to anyone watching two banners in a row.
-
-- [ ] Change `_SPECS["ready"]` to render `/start <id>` with a one-line description (e.g. "approve the plan and create the worktree").
-- [ ] Re-baseline `tests/snapshots/stop_banner_ready.expected.txt`.
-- [ ] No new structured-body builder required — `ready` has one decision; the five-section shape isn't justified.
-
-### Acceptance
-
-- `/complete <id>` on a run that committed its run dir produces a successful `git merge --no-ff` without needing `--no-merge`.
-- `_stop_banner.py` contains no `agent-workbench start` literal; the `ready` banner snapshot reflects the slash-form.
-
----
-
-## 3. `base_ref_sha` plumbing — three remaining consumers + audit trail + backfill
+## 2. `base_ref_sha` plumbing — three remaining consumers + audit trail + backfill
 
 `303bd40` added `target.repo.base_ref_sha` to `metadata.yaml` and threaded the prefer-SHA / lazy-resolve / fallback pattern into `lib/metrics/lines.py`. Three other consumers still take a symbolic `base_ref` and produce wrong or empty output when the recorded value is `"HEAD"`; a backfill tool for pre-fix runs is also unwritten, and the audit log doesn't record the resolved SHA at all.
 
@@ -147,7 +118,7 @@ The resolved SHA only lives in `metadata.yaml`. The audit trail (`events.jsonl`)
 
 ---
 
-## 4. Schema-level validation for `metadata.yaml` on load
+## 3. Schema-level validation for `metadata.yaml` on load
 
 `lib/metadata.py:_validate` enforces top-level keys + the status enum only. `schemas/run-metadata.yaml` is descriptive — `metadata.load()` doesn't read it. Typos like `bse_ref` instead of `base_ref` load silently, surface later as missing-field crashes or wrong-data renders. As fields proliferate (`base_ref_sha`, `target.worktree.branch_name`, the `build:` block, the new `completion:` shape), the surface area for silent drift grows.
 
@@ -164,7 +135,7 @@ The resolved SHA only lives in `metadata.yaml`. The audit trail (`events.jsonl`)
 
 ---
 
-## 5. Test-coverage gaps
+## 4. Test-coverage gaps
 
 Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Grouped because they all share the same shape: a code path that's verified by code-reading or by tmp-dir structural assertions, but doesn't have a runtime drive-and-assert.
 
@@ -182,7 +153,7 @@ Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Gr
 
 ---
 
-## 6. Board freshness across worktrees after the per-worktree run-dir landing
+## 5. Board freshness across worktrees after the per-worktree run-dir landing
 
 ### Why this is here
 
@@ -242,7 +213,7 @@ Surfaced 2026-05-25 in a session debugging why this run (`2026-05-25-each-worktr
 
 ---
 
-## 7. Team-review delivery mode: GitHub PR creation lifecycle
+## 6. Team-review delivery mode: GitHub PR creation lifecycle
 
 Today the workbench is built for personal-repo, single-author work. `done` means "human accepted + locally merged to parent branch" — `cmd_complete` checks out the parent and runs `git merge --no-ff` directly. That model collapses two things that are separate in a team workflow: author sign-off and team sign-off. For team work the workbench needs to model the PR-review world as first-class lifecycle states, not a slash-command bolt-on after `done`.
 
@@ -371,7 +342,7 @@ Lean A1. Keep the workbench's "we don't talk to remotes" stance intact. The huma
 This is large enough that landing it as one TODO is a fiction; it'll be a sub-project across many runs. Listing the unit-of-work breakdown so future runs can pick discrete pieces:
 
 - [ ] Decide between Option A (forked lifecycle, new states) vs. Option B (re-entrant `human_review` with no new states). The conversation that produced this TODO leaned A; revisit before committing because it's the largest schema change to the workbench since pass-1.
-- [ ] Add `target.delivery` and `target.delivery_config` fields to `schemas/run-metadata.yaml`. Update the metadata loader (TODO §4 schema validation should land first or co-land to catch typos).
+- [ ] Add `target.delivery` and `target.delivery_config` fields to `schemas/run-metadata.yaml`. Update the metadata loader (TODO §3 schema validation should land first or co-land to catch typos).
 - [ ] Update `schemas/transitions.yaml` with the new states (`publishing`, `in_pr_review`, `changes_requested`, `closed`) and their transition evidence requirements. Decide what evidence each transition needs (e.g. `publishing → in_pr_review` needs `pr_number`, `pr_url`, `branch_pushed_sha`).
 - [ ] Build `cmd_publish_pr.py` — the slash command that takes a `publishing`-state run, validates `pr-draft.md` exists and is non-empty, pushes the branch, calls `gh pr create --body-file pr-draft.md --title "$(head -1 pr-draft.md)"`, captures the returned PR number/URL, and transitions to `in_pr_review`. Lots of edge cases (auth, branch already exists on remote, force-push policy).
 - [ ] Build `cmd_pr_sync.py` — polls `gh pr view --json` for the current state, emits the right events, transitions if state changed. Idempotent.
@@ -411,11 +382,11 @@ Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash com
 
 ---
 
-## 8. Per-run tool-policy allowlist (only relevant once §7 ships)
+## 7. Per-run tool-policy allowlist (only relevant once §6 ships)
 
 Today the workbench's safety story is filesystem-via-worktrees + evidence-gated transitions. There's no per-run tool bounding because there's no need — `local_only: true` in `agent-workbench.yaml` means no remote calls, the worktree confines git operations to one branch, and the agent's shell tool is the agent's-harness problem.
 
-§7 changes the threat model. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false. The blast radius grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
+§6 changes the threat model. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false. The blast radius grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
 
 The architectural concern: today, an agent inside a `building` stage that decides on its own to run `gh pr create` would succeed (the harness allows `gh`; the workbench doesn't know to stop it). That's wrong even in the `local-merge` world; it becomes a real problem in the `pull-request` world because the agent now has examples of when `gh` calls are valid (during `publishing`) and might generalize.
 
@@ -454,7 +425,7 @@ stage_policies:
       - playwright
     network: allow_for_qa
 
-  # NEW for §7
+  # NEW for §6
   publishing:
     shell_allowlist:
       - gh pr view
@@ -483,16 +454,16 @@ This is **not** capability tokens (cryptographically signed, expirable). The men
 
 ### Tasks
 
-- [ ] **Do nothing until §7 actually starts.** This is a sequential dependency: tool-policy is only meaningful when remote-calling commands enter the workbench's surface. Pre-§7, the only commands the workbench cares about are `git` (worktree-bounded) and `Read`/`Edit`/`Write` (filesystem-bounded). Adding policy infrastructure now would be premature.
-- [ ] **When §7 starts: spec `schemas/tool-policy.yaml`.** Define the stage_policies block above, including the `publishing`/`in_pr_review` entries. Decide whether `gh_repo_scope: per_run` is enforceable via `gh`'s native repo-scoping (`gh repo set-default`) or needs a wrapper.
+- [ ] **Do nothing until §6 actually starts.** This is a sequential dependency: tool-policy is only meaningful when remote-calling commands enter the workbench's surface. Pre-§6, the only commands the workbench cares about are `git` (worktree-bounded) and `Read`/`Edit`/`Write` (filesystem-bounded). Adding policy infrastructure now would be premature.
+- [ ] **When §6 starts: spec `schemas/tool-policy.yaml`.** Define the stage_policies block above, including the `publishing`/`in_pr_review` entries. Decide whether `gh_repo_scope: per_run` is enforceable via `gh`'s native repo-scoping (`gh repo set-default`) or needs a wrapper.
 - [ ] **Decide the enforcement path.** Harness-mediated (path 1) vs. wrapper scripts (path 2). Spike both on a single command (`gh pr view`) before committing to the broader rollout. Document the choice in `architecture.md`.
 - [ ] **Add `cmd_doctor.py` checks for policy violations.** `agent-workbench doctor` already validates run integrity; extend it to check whether the events log shows any commands run outside that run's policy. Retrospective audit, not preventative; complements whichever enforcement path is chosen.
 - [ ] **Document the contract in `agent-workbench-live/AGENTS.md`.** The agent needs to know "I am in stage X and may only run commands in this allowlist." Make it part of the per-stage rules section in lifecycle.md.
 
 ### Acceptance
 
-- §7's `publishing` stage cannot run `gh pr merge` (only allowed commands are `gh pr view`, `gh pr create`, scoped `gh api …`).
-- §7's `building` stage (re-entered after a `changes_requested` bounce) cannot push, cannot create a new PR, cannot close the existing one — the publishing-stage policy is not in effect during building.
+- §6's `publishing` stage cannot run `gh pr merge` (only allowed commands are `gh pr view`, `gh pr create`, scoped `gh api …`).
+- §6's `building` stage (re-entered after a `changes_requested` bounce) cannot push, cannot create a new PR, cannot close the existing one — the publishing-stage policy is not in effect during building.
 - A run whose policy file is missing or malformed refuses to start (`doctor` flags it; `transitions.transition` rejects).
 - `local-merge` runs continue to work without any policy file (default-allow for that delivery mode, since there's no remote attack surface).
 
@@ -502,11 +473,11 @@ Capability tokens (no crypto, no expiry, no issuance). Sandboxing the agent's sh
 
 ### Origin
 
-Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. Today's bounding is filesystem-via-worktrees + state-machine evidence gates; both work because the workbench is local-only. §7 (PR-flow lifecycle) explicitly punctures the local-only stance by adding `gh`-calling commands. This TODO is the matching safety primitive — a per-run, per-stage allowlist that lets the workbench say "even though the agent could call X, in this stage of this run it cannot."
+Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. Today's bounding is filesystem-via-worktrees + state-machine evidence gates; both work because the workbench is local-only. §6 (PR-flow lifecycle) explicitly punctures the local-only stance by adding `gh`-calling commands. This TODO is the matching safety primitive — a per-run, per-stage allowlist that lets the workbench say "even though the agent could call X, in this stage of this run it cannot."
 
 ---
 
-## 9. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
+## 8. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
 
 `lib/metrics/writer.record_run_metrics` writes `metrics.jsonl` at the validate / followups / abandon boundaries. The intent is to attribute token spend to the run. The open question: when a stage spawns a Claude Code Agent-tool subagent (an `Explore` for read-heavy lookup, a `Plan` for design, a `general-purpose` for fan-out), **is the subagent's token spend captured in `metrics.jsonl`, or is only the master session's spend recorded?**
 
