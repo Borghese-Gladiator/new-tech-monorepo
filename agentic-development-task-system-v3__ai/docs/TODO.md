@@ -165,7 +165,7 @@ Surfaced 2026-05-25 in a session debugging why this run (`2026-05-25-each-worktr
 
 ---
 
-## 7. Team-review delivery mode: GitHub PR creation lifecycle
+## 7. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
 
 Today the workbench is built for personal-repo, single-author work. `done` means "human accepted + locally merged to parent branch" — `cmd_complete` checks out the parent and runs `git merge --no-ff` directly. That model collapses two things that are separate in a team workflow: author sign-off and team sign-off. For team work the workbench needs to model the PR-review world as first-class lifecycle states, not a slash-command bolt-on after `done`.
 
@@ -173,76 +173,74 @@ The user-stated workflow:
 
 > I give a Linear ticket so things are implemented → Human Review → approved means PR is created and run is marked as Done. If PR gets comments, it can get reopened somehow.
 
-The key requirement: **the human must see and approve the PR draft before anything gets pushed**. PR descriptions are not a fire-and-forget concern — they're a structured artifact with its own review step. And `done` for team work cannot mean "auto-merged into master" — it should mean "PR exists, in team review, or merged."
+The key requirement: **the human must see and approve the PR description before anything gets pushed**. PR descriptions are not a fire-and-forget concern — they are an LLM-bearing artifact with its own drafting stage. And `done` for team work cannot mean "auto-merged into master" — it means "PR merged on GitHub."
 
-### Design — Option A: per-run `delivery` mode with branched lifecycle
+### Design — minimal fork at `human_review`
 
-Add a per-run `target.delivery` field at `new-run` time:
-
-```yaml
-target:
-  delivery: local-merge      # today's behavior, default for personal repos
-  # or
-  delivery: pull-request
-  delivery_config:
-    base_branch: main
-    remote: origin
-    auto_assign_reviewers: false
-    update_strategy: append   # append | force_push
-```
-
-The state machine forks after `human_review` based on `delivery`:
+The delivery choice is **not** declared at `new-run` time. Forcing it that early couples a run's identity to a decision the author hasn't made yet — often you don't know if a change is PR-worthy until you've built it. Instead, the fork happens at the `human_review` terminal boundary, by which slash command the author invokes:
 
 ```text
-# delivery: local-merge (unchanged)
-human_review -> done            (complete = local merge)
-human_review -> building         (bounce)
-human_review -> abandoned
+human_review --(/complete)----> done             # local merge (today's behavior, unchanged)
+human_review --(/publish-pr)--> publishing       # PR-flow entry
+human_review --(/bounce)------> building         # rebuild (unchanged)
+human_review --(/abandon)-----> abandoned        # (unchanged)
 
-# delivery: pull-request (new)
-human_review     -> publishing         (author approves → draft PR)
-publishing       -> in_pr_review       (after explicit /publish-pr — pushes + opens PR)
-publishing       -> human_review       (bounce — draft rejected, doesn't push)
-in_pr_review     -> changes_requested  (CI failure or reviewer comments)
-in_pr_review     -> done               (PR merged)
-in_pr_review     -> closed             (NEW terminal — PR closed without merge)
-changes_requested -> building          (rebuild against curated change-request.md)
-any non-terminal -> abandoned
+# PR-flow continuation:
+publishing       --(/publish-pr)--> in_pr_review  # human-confirmed; pushes + opens PR
+publishing       --(/bounce)------> human_review  # draft rejected; nothing pushed
+in_pr_review     --(/complete)----> done          # one-shot `gh pr view` confirms PRMerged
+in_pr_review     --(/bounce)------> building      # human-invoked; pulls comments to change-request.md
+in_pr_review     --(/abandon)-----> abandoned     # local abandon; PR is orphaned (see hard parts)
+in_pr_review     --(/closed)------> closed        # human marks PR was closed on GitHub
+any non-terminal --(/abandon)-----> abandoned
 ```
+
+`completion.delivery` (`local-merge` | `github-pr`) is set by whichever terminal command runs — it is recorded, not declared. Metadata grows `completion.pr_number` + `completion.pr_url` once `/publish-pr` succeeds.
 
 ### The new stages
 
-**`publishing` — LLM-bearing, drafts the PR but does NOT push**
+**`publishing` — LLM-bearing, drafts the PR description**
 
-Reads `HUMAN_REVIEW.md`, `brief.md`, `review.md`, the diff, the Linear ticket if linked.
-Writes `stages/7_publishing/pr-draft.md` (title + body) and `stages/7_publishing/pr-meta.yaml` (base branch, suggested reviewers, labels, linked tickets).
-Also writes `stages/7_publishing/adversarial-review.md` — see sub-step below.
-Stops with a STOP banner. The agent does not run `gh pr create`. The human reviews `pr-draft.md` + `adversarial-review.md`, edits the draft if needed, then runs `/publish-pr` to actually push the branch and create the PR — or bounces back to `human_review` if the draft or adversarial findings warrant it.
+The single purpose of this stage is to produce a high-quality PR description before anything is pushed. It is the GitHub-shaped sibling of `/handoff`. Reuses TODO §1's curated-context pattern: `publishing --init` writes `publishing-context.md` deterministically from prior artifacts; the LLM session reads only that file.
 
-The draft is the artifact you said you need: "I want and need to see exactly what's going to get pushed." `pr-draft.md` is what gets pushed. Editing it before `/publish-pr` is the editing path; bouncing back to `human_review` is the redo path.
+Reads (via `publishing-context.md`):
+- `brief.md` — original intent, acceptance criteria, non-goals
+- `plan.md` — decisions, files-changed, test plan
+- `build.md` — what got built, deviations from plan
+- `validate-context.md` — already curated for review purposes; reused here
+- `review.md` — reviewer's findings + decision
+- `HUMAN_REVIEW.md` — author's sign-off notes
+- The diff (`git diff <base_ref_sha>..HEAD`)
+- Linked Linear ticket if `target.linear_ticket` is set (via Linear MCP)
 
-*Pre-PR adversarial review sub-step.* Before drafting the PR body, `publishing` dispatches an Agent-tool subagent (`general-purpose` or `Explore` with a tight allowlist) fed only `validate-context.md` + the diff. The subagent comes in cold — no builder chain-of-thought, no rationalizations from the implementing session — and returns a structured findings dict (Decision + list of `{section, severity, body}`). The master writes `adversarial-review.md` from the returned findings. This is distinct from `/validate`'s standard review (which is *not* adversarial and runs in the master session); the adversarial pass exists specifically because shipping to a team via PR is a higher bar than local human-review acceptance. The `/pr-review` skill's `adversarial` mode is the closest existing analog and can be reused or adapted. If findings include any `severity: blocker`, `publishing` refuses to write `pr-draft.md` and forces a bounce.
+Writes:
+- `stages/7_publishing/pr-draft.md` — title (line 1) + body (rest). This file becomes the PR description verbatim.
+- `stages/7_publishing/pr-meta.yaml` — base branch, suggested reviewers, labels, linked Linear ticket URL, draft-vs-ready flag.
 
-**`in_pr_review` — passive wait state**
+STOPs with a banner instructing the human to review `pr-draft.md`, edit it directly if needed, then run `/publish-pr` to push — or `/bounce` if the draft reveals the implementation itself is wrong.
 
-No agent activity. The board shows `PR #1234 — N approvals, M comments, CI: passing/failing`.
+The draft is the artifact you said you need: "I want and need to see exactly what's going to get pushed." `pr-draft.md` is what gets pushed.
 
-State flips on external signal. Two trigger mechanisms (pick one or both):
-- `agent-workbench pr-sync <run_id>` — polls `gh pr view --json state,reviews,comments,checksStatus` and emits the right events. Manual or cron.
-- `gh` webhook → workbench-side listener — out of scope for V1, listed only so the architecture leaves room.
+**`/publish-pr` — the human-gated push**
 
-Events emitted by `pr-sync`:
-- `PRApproved` — all required reviews pass + CI green → ready for human to merge
-- `PRChangesRequested` — review left as changes-requested OR CI failed
-- `PRMerged` → transitions to `done`
-- `PRClosed` → transitions to `closed`
-- `PRCommentsAdded` — non-blocking comments; no state change but events logged
+A thin command, not a stage. Validates `pr-draft.md` is non-empty, then forks on `completion.pr_number`:
+- **Not set (first publish):** pushes the branch, runs `gh pr create --title "$(head -1 pr-draft.md)" --body-file <(tail -n +2 pr-draft.md)`, captures the returned PR number/URL into `completion.pr_number` + `completion.pr_url`, transitions `publishing → in_pr_review`.
+- **Already set (re-publish, body changed):** runs `gh pr edit <pr_number> --title ... --body-file ...`. No `gh pr create`.
+- **Already set, body unchanged:** `git push` only. PR auto-updates via the new commits.
 
-Note: `PRApproved` does NOT auto-transition to `done`. The human runs `/complete` (or `/merge-pr`) to actually merge the PR. The workbench does not auto-merge team PRs even when CI + reviews are green — too many edge cases (squash vs merge vs rebase, branch protection rules, "wait for X to land first").
+`gh` failures (auth expired, branch protection forbids, network) keep the run in `publishing`, emit a structured error event, and the STOP banner reprints with the specific failure + remediation. Human fixes the cause, reruns `/publish-pr`. No partial state — either the PR exists and we transition, or it doesn't and we don't.
 
-**`changes_requested` — bounce-with-curated-context**
+**`in_pr_review` — passive holding state, no polling**
 
-Behaves like `human_review → building` bounce today (worktree preserved, prior stages archived under `archive/`), but with a critical difference: **`change-request.md` is pre-populated** from PR state by `pr-sync` before the bounce. Shape:
+No background process. No agent activity. No `pr-sync` command. The board shows `PR #1234 (link)` and the row sits until the human invokes one of:
+- `/complete <run_id>` — does a one-shot `gh pr view --json state,mergeCommitOid`. Asserts `state == MERGED`. Records `completion.merge_sha` from `mergeCommitOid`. Transitions to `done`. Refuses if not yet merged.
+- `/bounce <run_id>` — pulls open PR comments at invocation time (single `gh api repos/<owner>/<repo>/pulls/<n>/comments`), populates `change-request.md` from the response, transitions to `building`. No background sync — comments are fetched on demand only.
+- `/closed <run_id>` — human marks "team closed this PR without merging." Transitions to `closed`.
+- `/abandon <run_id>` — author's call; transitions to `abandoned`. Leaves PR open on GitHub untouched (see hard parts).
+
+**Re-entering `building` from `in_pr_review` (`change-request.md`)**
+
+When `/bounce` pulls PR comments, it writes `change-request.md` to the new building stage's directory. This is the curated entry point (analog of `*-context.md` from TODO §1). Shape:
 
 ```markdown
 # Change request — PR #1234 (round N)
@@ -256,81 +254,70 @@ Behaves like `human_review → building` bounce today (worktree preserved, prior
 
 ## CI failures (if any)
 - buildkite job xyz: pytest tests/test_exports.py::test_archived_filter — assertion failed (link)
-
-## Untouched from prior build
-- brief.md acceptance criteria (unchanged unless reviewer comments suggest replanning)
-- plan.md (ditto)
 ```
 
-The builder, on re-entering `building`, reads `change-request.md` first — it's the curated entry point (analog of `*-context.md` from TODO §1). The brief and plan are still available at their stage paths if the agent decides comments warrant replanning, but `change-request.md` is the default reading list.
-
-A `changes_requested` bounce does **not** require re-running `/validate` from scratch the same way as today's `human_review → building` bounce does. Or maybe it does — open design question; see below.
+The builder reads `change-request.md` first; `brief.md` and `plan.md` remain available if the comments warrant replanning. After `building`, the run flows back through `validating → human_review → /publish-pr` as normal — re-validate is the existing invariant, not optional. Because `/publish-pr` is deterministic on `pr_number`, the same PR gets updated (no new PR created).
 
 **`closed` — new terminal state**
 
-PR was closed without merge (declined, superseded, abandoned by team). Terminal. Distinct from `abandoned` because `abandoned` was the author's call; `closed` was the team's. Both preserve artifacts.
+PR was closed without merge (declined, superseded, abandoned by team). Terminal. Distinct from `abandoned` because `abandoned` was the author's call; `closed` was the team's. Both preserve artifacts. Reached only by explicit human `/closed` invocation — the workbench never closes PRs itself.
 
-### What `/complete` does in `pull-request` mode
+### What `/complete` does in `github-pr` mode
 
-Today `cmd_complete` does `git merge --no-ff` into the parent branch locally. For `pull-request` runs, that's wrong — the merge happens on GitHub via the PR. Two options:
+`/complete` in `in_pr_review` is a verification-only command, not a merge. It runs `gh pr view --json state,mergeCommitOid` once, asserts `state == MERGED`, and records the SHA. No `git merge`, no `gh pr merge`. The human does the actual merge via GitHub UI or `gh pr merge` themselves; `/complete` just acknowledges it landed.
 
-- **Option A1: `/complete` only valid in `in_pr_review` and only after `PRMerged` event landed.** It becomes a no-op transition (`in_pr_review → done`) that records `completion_ref: merge:<github-sha>` from the PR's `mergeCommitOid`. No local merge.
-- **Option A2: `/complete` is renamed `/merge-pr` in `pull-request` mode and actually calls `gh pr merge`.** Workbench triggers the merge on GitHub. Higher control, higher blast radius (now the workbench is talking to remote APIs, which the architecture explicitly disclaims).
-
-Lean A1. Keep the workbench's "we don't talk to remotes" stance intact. The human merges via the GitHub UI or `gh pr merge`; `/complete` just records the SHA and flips to `done`.
+This preserves the workbench's "we don't talk to remotes for write operations on behalf of the agent" stance. The only `gh` writes anywhere in the lifecycle are `gh pr create` and `gh pr edit --body/--title`, both gated behind explicit human `/publish-pr` invocation.
 
 ### Hard parts worth flagging
 
-1. **Force-push vs. append on PR updates.** When the agent addresses comments and pushes again, force-push gives a clean diff but loses GitHub's comment-to-line anchoring; append keeps anchors but makes the PR a mess after 3 rounds. Configurable per-run via `delivery_config.update_strategy`. Default: `append` (safer, anchors preserved). Strong opinions differ team-to-team.
-2. **CI failures vs. reviewer comments are different change types.** Both produce `changes_requested`, but CI failures are deterministic and the agent can act autonomously; reviewer comments often need judgment. Tag `change-request.md`'s top-level type (`ci_only`, `reviewer_only`, `mixed`) so a future automation can auto-bounce on CI-only failures without human intervention. V1: tag the field, don't act on it.
-3. **Stale PR state on `/abandon`.** Abandoning a run with an open PR orphans the PR. `/abandon` for a `pull-request` run should default-prompt "Close PR #1234 too? [Y/n]" and call `gh pr close` if yes. Emit `PRClosed` event regardless of how the close happened.
-4. **PR re-publishing after bounce from author-`human_review`.** If the author bounces from `human_review` (not from PR comments — there's no PR yet) and the worktree gets rebuilt, the next `publishing` stage drafts a fresh PR. If there's a *prior* PR draft from a previous loop, the `publishing` agent should diff its new draft against the prior one and surface the delta, not silently overwrite.
-5. **Branch-name stability across bounces.** PRs anchor on branch names. Today the branch (`agent/<slug>`) stays stable across `human_review → building` bounces, so this is already safe — just calling it out so it doesn't regress.
-6. **What `/validate` reruns mean after a `changes_requested` bounce.** If the change is small (typo, missing test), running the full validate stage feels like overkill. But the contract today is that any state advance through `validating` writes fresh `review.md` + `qa/report.md`. Should we allow a `--skip-validate` path on small changes, or require full re-validate every cycle? Lean toward requiring full re-validate but making it cheap — the curated `validate-context.md` (TODO §1) means the reviewer is reading one file, not five.
-7. **Multi-round comment thread state.** PR comments accumulate across rounds. After 3 rebuild cycles, `change-request.md` shouldn't be "all comments ever" — it should be "unresolved comments + new comments since last push." `pr-sync` needs to track which comments were addressed (heuristic: comments marked resolved in GitHub, or comments on lines that no longer exist in the new diff) vs. which are still open.
+1. **CI failures vs. reviewer comments are different change types.** Both end up in `change-request.md` when the human bounces, but CI failures are deterministic and a future automation could act on them autonomously; reviewer comments often need judgment. Tag `change-request.md`'s top-level type (`ci_only`, `reviewer_only`, `mixed`) so future automation has a hook. V1: tag the field, don't act on it.
+2. **Stale PR state on `/abandon`.** Abandoning a run with an open PR orphans the PR on GitHub. The workbench does **not** close it — that would be an unsolicited write. `/abandon` records the orphan in metadata (`completion.pr_orphaned: true` plus the URL); the human decides whether to close it on GitHub themselves. The STOP banner surfaces the PR URL and reminds the human it's still open.
+3. **Branch-name stability across bounces.** PRs anchor on branch names. Today the branch (`agent/<slug>`) stays stable across `human_review → building` bounces; the same invariant must hold across `in_pr_review → building` bounces or PR updates will fail.
+4. **Multi-round comment state.** PR comments accumulate across rounds. `/bounce` pulling at invocation time gets the *current* snapshot from GitHub, including comments marked resolved. The `gh api` query should filter to unresolved threads (or annotate resolved ones) so the builder doesn't re-address already-resolved feedback. Heuristic: `is_resolved == false` from GraphQL `pullRequestReviewThreads`. V1 may take the simpler "all comments since last push timestamp" approach; revisit if it produces noisy `change-request.md` files.
+5. **Re-publish body diffing.** When `publishing` re-runs after a CR cycle, the new `pr-draft.md` may be substantially different from the previous one (different rationale, different test coverage). The human is reading `pr-draft.md` fresh each cycle — the previous draft is archived under `archive/`. No automatic diffing; the human reads the current draft as they would the first one.
 
 ### Tasks
 
-This is large enough that landing it as one TODO is a fiction; it'll be a sub-project across many runs. Listing the unit-of-work breakdown so future runs can pick discrete pieces:
+This will land across several runs. Discrete unit-of-work breakdown:
 
-- [ ] Decide between Option A (forked lifecycle, new states) vs. Option B (re-entrant `human_review` with no new states). The conversation that produced this TODO leaned A; revisit before committing because it's the largest schema change to the workbench since pass-1.
-- [ ] Add `target.delivery` and `target.delivery_config` fields to `schemas/run-metadata.yaml`. Update the metadata loader (TODO §4 schema validation should land first or co-land to catch typos).
-- [ ] Update `schemas/transitions.yaml` with the new states (`publishing`, `in_pr_review`, `changes_requested`, `closed`) and their transition evidence requirements. Decide what evidence each transition needs (e.g. `publishing → in_pr_review` needs `pr_number`, `pr_url`, `branch_pushed_sha`).
-- [ ] Build `cmd_publish_pr.py` — the slash command that takes a `publishing`-state run, validates `pr-draft.md` exists and is non-empty, pushes the branch, calls `gh pr create --body-file pr-draft.md --title "$(head -1 pr-draft.md)"`, captures the returned PR number/URL, and transitions to `in_pr_review`. Lots of edge cases (auth, branch already exists on remote, force-push policy).
-- [ ] Build `cmd_pr_sync.py` — polls `gh pr view --json` for the current state, emits the right events, transitions if state changed. Idempotent.
-- [ ] Build a `publishing`-stage LLM-bearing slash command (`/draft-pr` or extend `/handoff` for `pull-request` runs). Drafts `pr-draft.md` from `HUMAN_REVIEW.md` + brief + review + diff + linked Linear ticket (Linear MCP integration for the ticket fetch).
-- [ ] Add the pre-PR adversarial-review sub-step to the `publishing` slash command. Dispatches an Agent-tool subagent (`general-purpose` or `Explore`) fed `validate-context.md` + the diff; subagent returns structured findings; master serializes `adversarial-review.md`. Decide whether to reuse the `/pr-review` skill's `adversarial` mode or fork its prompt into a workbench-owned subagent contract. If any finding is `severity: blocker`, refuse to write `pr-draft.md` and force a bounce to `human_review`.
-- [ ] Update `cmd_complete.py` to detect `delivery: pull-request` and take the A1 path (no local merge; just record `merge:<sha>` from the PRMerged event). Make sure the merge-into-master semantics for `local-merge` runs are preserved unchanged.
-- [ ] Update `cmd_abandon.py` to prompt about closing an open PR if one exists.
-- [ ] Update `cmd_bounce.py` (or add a new bounce path) so PR-comment-driven bounces pre-populate `change-request.md` from PR state — currently `change-request.md` is human-authored. Decide whether `pr-sync` does the population at the event time or whether the bounce command pulls fresh.
-- [ ] Board changes — surface PR state (`PR #1234`, approvals count, CI status, last comment time) in `in_pr_review` rows. The board's RunSnapshot model needs new fields; the renderer needs new columns or a status pill.
-- [ ] Audit + `HUMAN_REVIEW.md` rendering — `lib.human_review.render` doesn't know about PR state today. Add a `## Pull request` section that renders when `pr_meta` is present.
-- [ ] Documentation — `architecture.md` § "Non-goals for V1" currently says "No PR creation." That non-goal moves; document the new non-goals (no auto-merge, no auto-resolve-comments, no auto-assignment of reviewers from CODEOWNERS unless `auto_assign_reviewers` is set).
-- [ ] Tests — full E2E coverage for the `pull-request` lifecycle: happy path (draft → publish → approve → merge → done), CR path (publish → CR → rebuild → republish), abandon path (publish → close → closed).
+- [ ] Update `schemas/transitions.yaml` with the new states (`publishing`, `in_pr_review`, `closed`) and their transition evidence requirements. `publishing → in_pr_review` needs `pr_number`, `pr_url`, `branch_pushed_sha`. `in_pr_review → done` needs `merge_sha`. `in_pr_review → closed` needs `closed_by`.
+- [ ] Add `completion.delivery`, `completion.pr_number`, `completion.pr_url`, `completion.merge_sha`, `completion.pr_orphaned` to `schemas/run-metadata.yaml`. (TODO §4 schema validation should land first or co-land to catch typos.) No new fields under `target` — the choice is made at terminal-command time.
+- [ ] Build the `publishing` LLM-bearing slash command. `publishing --init` writes `publishing-context.md` deterministically from brief + plan + build + validate-context + review + HUMAN_REVIEW + diff + linked Linear ticket. The LLM session reads only `publishing-context.md` and writes `pr-draft.md` + `pr-meta.yaml`.
+- [ ] Build `cmd_publish_pr.py` — validates `pr-draft.md` non-empty; forks on `completion.pr_number` (create vs. edit vs. push-only). Captures `pr_number`/`pr_url` on creation. On `gh` failure, keeps run in `publishing` and emits structured error event for the STOP banner.
+- [ ] Update `cmd_complete.py` for `in_pr_review`-state runs: one-shot `gh pr view --json state,mergeCommitOid`, assert merged, record `merge_sha`, transition to `done`. Local-merge path (called from `human_review`) preserved unchanged.
+- [ ] Update `cmd_bounce.py` to handle the `in_pr_review → building` path: pulls open PR comments via `gh api repos/<owner>/<repo>/pulls/<n>/comments`, writes `change-request.md` to the new building stage, with `change_request_type: ci_only | reviewer_only | mixed` annotation.
+- [ ] Add `cmd_closed.py` — small command for human-invoked `in_pr_review → closed` transition.
+- [ ] Update `cmd_abandon.py` to detect an open PR and record `completion.pr_orphaned: true` + URL in metadata. Does **not** call `gh pr close`. STOP banner mentions the orphaned PR.
+- [ ] Board changes — surface `completion.pr_number` + URL on `publishing` / `in_pr_review` / `closed` rows. No CI/approval status (those are read on GitHub directly).
+- [ ] Documentation — `architecture.md` § "Non-goals for V1" currently says "No PR creation." Update with the new contract: `gh pr create` + `gh pr edit --body/--title` are the only writes; everything else is read-only `gh pr view` / `gh api`. Update `docs/lifecycle.md` with the new states and the `human_review` fork.
+- [ ] Tests — E2E coverage for happy path (`human_review → publishing → in_pr_review → done` via simulated `gh` binary), CR path (`in_pr_review → /bounce → building → ... → publishing` with `change-request.md` populated from fake `gh api` output), closed path, abandon-with-open-PR path. `local-merge` regression suite stays untouched.
 
 ### Acceptance
 
-- A run with `target.delivery: pull-request` flows `... → human_review → publishing → in_pr_review → done` against a real GitHub repo, with the PR created from `pr-draft.md` and `done` triggered by `PRMerged`.
-- A reviewer comment on the PR, followed by `pr-sync`, triggers `in_pr_review → changes_requested → building` with `change-request.md` pre-populated from the comment.
-- A PR closed without merge transitions to `closed` (new terminal), not `abandoned`.
-- The `publishing` stage produces `adversarial-review.md` from a fresh subagent (master session does not Read the diff or prior artifacts during the adversarial pass), and a `severity: blocker` finding blocks `pr-draft.md` from being written.
-- `local-merge` runs continue to work exactly as today — no regression in the personal-repo path.
-- The board shows distinct rows for `publishing`, `in_pr_review`, `changes_requested`, `closed`.
-- `architecture.md` and `docs/lifecycle.md` document the new states and the delivery-mode fork.
+- From `human_review`, `/publish-pr` drafts `pr-draft.md`, STOPs; a second `/publish-pr` (after human review) pushes and creates the PR via `gh pr create`, transitions to `in_pr_review` with `completion.pr_number` + `completion.pr_url` recorded.
+- `pr-draft.md`'s body cites: acceptance criteria from `brief.md`, the actual diff (files + LOC), the test plan from `plan.md`, and any deviations from `build.md`. Title is one line, ≤72 chars, imperative mood.
+- After the PR is merged on GitHub, `/complete` does a one-shot `gh pr view`, records the merge SHA, and transitions to `done`. No `git merge` runs locally.
+- `/bounce` from `in_pr_review` pulls open PR comments via `gh api`, writes a populated `change-request.md` with `change_request_type` tag, transitions to `building`. A subsequent `/publish-pr` updates the existing PR (via `gh pr edit`), does not create a new one.
+- `/abandon` from `in_pr_review` records `completion.pr_orphaned: true` in metadata, leaves the PR open on GitHub, and the STOP banner surfaces the PR URL.
+- The workbench never calls `gh pr comment`, `gh pr review`, `gh pr merge`, `gh pr close`, `gh pr edit --add-reviewer`. Only `gh pr create`, `gh pr edit --title/--body`, `gh pr view`, `gh api .../comments` (read-only).
+- `local-merge` runs continue to work exactly as today — no regression in the `/complete`-from-`human_review` path.
+- The board shows distinct rows for `publishing`, `in_pr_review`, `closed`.
+- `architecture.md` and `docs/lifecycle.md` document the new states and the `human_review` fork.
 
-### Non-goals (for this TODO; reconsider later)
+### Non-goals
 
-- Auto-merging PRs even when CI + reviews are green (human runs `/complete` or merges via GitHub UI).
-- Auto-resolving review comments (the agent rebuilds against `change-request.md`; resolving the threads on GitHub is the human's call).
-- Real-time PR state via webhooks (poll-based `pr-sync` is V1; webhooks are V2).
-- Auto-assigning reviewers from CODEOWNERS (opt-in via `delivery_config.auto_assign_reviewers`, off by default).
-- Multi-PR runs (one run still maps to one branch maps to one PR).
-- Cross-repo PRs / monorepo PR splits — out of scope until the multi-repo run model lands.
-- Merge-strategy configurability (squash/rebase/merge) — V1 lets the GitHub repo's settings decide; `gh pr merge` honors them.
+- **No PR comment writes by the workbench.** The agent never posts comments, never resolves threads, never requests reviewers. The human does all of those via GitHub UI or `gh` themselves.
+- **No auto-merge.** Even when CI + reviews are green, the human runs `gh pr merge` or clicks the GitHub button. `/complete` only verifies and records.
+- **No auto-close on `/abandon`.** Orphaned PRs are recorded but left open; the human decides their fate.
+- **No background polling.** No `pr-sync`, no cron, no webhooks. State changes happen only when the human invokes a command.
+- **No auto-assigning reviewers from CODEOWNERS.** `pr-meta.yaml` may *suggest* reviewers in the draft for human review, but `gh pr create` is invoked without `--reviewer` flags. Reviewers are added on GitHub manually.
+- **Multi-PR runs.** One run still maps to one branch maps to one PR.
+- **Cross-repo PRs / monorepo PR splits.** Out of scope until the multi-repo run model lands.
+- **Merge-strategy configurability (squash/rebase/merge).** Whatever the GitHub repo's settings allow is what happens; the workbench is uninvolved.
 
 ### Origin
 
-Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash command in a prior turn. The user pushed back: PR descriptions are not fire-and-forget, the human must see and approve what gets pushed, `done` cannot mean "auto-merged to master" for team work, and the change-request-comments-arrive-later loop needs a real state, not a re-entry into `human_review`. This TODO is the larger redesign that the original sketch glossed over.
+Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash command in a prior turn. Refined 2026-05-26: the original §7 had a per-run `target.delivery` field set at `new-run` time, an automated `pr-sync` poller, an adversarial-review subagent inside `publishing`, and `/abandon` prompting to close PRs. All four were cut. The delivery choice belongs at the terminal boundary, not the run's identity. There is no polling because re-reading the PR on GitHub is the human's job; the workbench only fetches comments when the human explicitly bounces. The adversarial pass was redundant with `/validate`'s standard review. And the workbench never writes PR state it wasn't explicitly asked to write — closing a PR on the user's behalf is exactly the kind of unsolicited remote action the architecture refuses.
 
 ---
 
