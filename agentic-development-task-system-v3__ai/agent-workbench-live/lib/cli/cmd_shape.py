@@ -12,7 +12,7 @@ clarifications in answers.md or explicitly skipped) before the brief is authored
 """
 from __future__ import annotations
 
-from lib import metadata, events, transitions, locks, stub_llm
+from lib import metadata, events, transitions, locks, stub_llm, lifecycle, shape_context
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -54,6 +54,10 @@ def run(args) -> int:
         def _m(d):
             d["artifacts"]["brief"] = "brief.md"
         metadata.update(cfg, run_id, _m)
+        # Write shape-context.md (TODO §5: curated stage-entry context for the
+        # shaping stage; mirrors build-context.md / validate-context.md).
+        # Convenience artifact — failures must not block --init.
+        _write_shape_context_artifacts(cfg, run_id, rd)
         # Stub-LLM mode (TODO §1 E2E): if the env var is set, overwrite the
         # template with the fixture's canned brief.md.
         try:
@@ -82,3 +86,24 @@ def run(args) -> int:
         return fail(str(e), 4)
     print(f"{run_id}: shaping -> planning")
     return 0
+
+
+def _write_shape_context_artifacts(cfg, run_id: str, rd) -> None:
+    """Render `shape-context.md` for the shaping stage. Idempotent. Errors are
+    swallowed — this is a convenience artifact; its absence shouldn't block
+    `shape --init`. Mirrors `cmd_start._write_build_context_artifacts`.
+    """
+    try:
+        raw_idea_path = rd / "raw-idea.md"
+        answers_path = rd / "answers.md" if (rd / "answers.md").exists() else None
+        brief_template_path = cfg.root / "templates" / "brief.md"
+        staged = lifecycle.is_staged_run(cfg, run_id)
+        target_dir = lifecycle.stage_dir(cfg, run_id, "shaping") if staged else rd
+        body = shape_context.build(
+            raw_idea_path=raw_idea_path,
+            answers_path=answers_path,
+            brief_template_path=brief_template_path,
+        )
+        shape_context.write(target_dir / "shape-context.md", body)
+    except Exception:
+        pass

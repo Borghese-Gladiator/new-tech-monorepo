@@ -12,11 +12,19 @@ LLM-bearing. Reads `brief.md` and the target repo, writes the four planning arti
 agent-workbench plan "$RUN_ID" --init
 ```
 
-That copies `templates/{plan,preflight,assumptions,decisions}.md` into the run dir if missing.
+That:
+- copies `templates/{plan,preflight,assumptions,decisions}.md` into the run dir if missing (staged runs get a single merged `plan.md`)
+- writes `runs/$RUN_ID/stages/3_planning/plan-context.md` — the curated entry point for this stage (TODO §5)
 
-## Step 2 — inspect the target repo
+## Step 2 — read the curated context
 
-Read `runs/$RUN_ID/brief.md` and the **target repo** identified in `runs/$RUN_ID/metadata.yaml` at `target.repo.path`.
+Read `runs/$RUN_ID/stages/3_planning/plan-context.md`. That file carries the full `brief.md`, a deterministic repo-map block (top-level dirs, detected languages, build/test commands inferred from target-repo manifests), the brief's "Files likely to change" section, the worktree metadata, and the `plan.md` template skeleton — all built without an LLM call.
+
+**Do NOT re-read** `brief.md` or `templates/plan.md` separately if `plan-context.md` already covers what you need. The cache cost of those reads sticks in the session prefix forever.
+
+You still need to read code in the worktree — that's where the planner's leverage lives. Use the repo-map in `plan-context.md` as a starting point.
+
+## Step 3 — inspect the target repo
 
 You may spawn `Explore` subagents to map the repo:
 
@@ -26,7 +34,7 @@ You may spawn `Explore` subagents to map the repo:
 
 The master session collates their findings into `plan.md`. Subagents must not write to the run directory directly.
 
-## Step 3 — write the four artifacts
+## Step 4 — write the four artifacts
 
 ### `plan.md`
 - Current repo understanding
@@ -53,7 +61,7 @@ Every design / implementation decision. Use IDs `DR-001`, `DR-002`, … Each nee
 - **Do NOT ask the user questions.** If something is ambiguous, record it as an assumption and choose the safest small implementation.
 - If the task is too broad, reduce scope. Note in the plan what was deferred.
 
-## Step 4 — finalize the transition
+## Step 5 — finalize the transition
 
 ```bash
 agent-workbench plan "$RUN_ID"

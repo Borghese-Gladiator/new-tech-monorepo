@@ -16,18 +16,22 @@ If `agent-workbench show "$RUN_ID"` reports status `validating`:
 agent-workbench followups "$RUN_ID" --init
 ```
 
-That transitions `validating -> followups` and stages `follow-ups.md` at the run root. Skip if status is already `followups` (the template lives at `runs/$RUN_ID/follow-ups.md` from a prior `/validate` step's `--init` shortcut, or from a previous `/followups` attempt).
+That:
+- transitions `validating -> followups` and stages `follow-ups.md` at the run root
+- writes `runs/$RUN_ID/stages/6_followups/followups-context.md` — the curated entry point for this stage (TODO §5)
 
-## Step 2 — read the run's outputs
+Skip if status is already `followups` (the template lives at `runs/$RUN_ID/follow-ups.md` from a prior `/validate` step's `--init` shortcut, or from a previous `/followups` attempt).
 
-Read (in this order; stop reading once you have enough signal):
+## Step 2 — read the curated context
 
-1. `runs/$RUN_ID/stages/4_building/build.md` — what was built. Especially the `Known issues`, `Deviations from plan`, and `Files changed` sections.
-2. `runs/$RUN_ID/stages/5_validating/review.md` — what the reviewer flagged. Especially blocking findings, scope-creep notes, and (if present) the `Documentation claims` section.
-3. `runs/$RUN_ID/stages/5_validating/qa/` — known failures, untested surfaces.
-4. `runs/$RUN_ID/stages/3_planning/plan.md` — what was originally scoped, what was deferred.
-5. `runs/$RUN_ID/events.jsonl` filtered to `BounceRequested` — items the human explicitly removed from scope via `/bounce`. These are prime candidates for the `deferred_from_bounce` category.
-6. `runs/$RUN_ID/archive/2_shaping/brief-v*.md` and `archive/3_planning/plan-v*.md` (if any exist) — earlier versions superseded by a bounce. Items present in v1 but missing from the current canonical files are deferred-from-bounce.
+Read `runs/$RUN_ID/stages/6_followups/followups-context.md`. That file carries brief's Non-goals, plan's Risks, review's Decision + findings, qa report's Known issues, build's Deviations from plan, and the `follow-ups.md` schema — all built deterministically from the prior artifacts.
+
+**Do NOT re-read** `brief.md`, `plan.md`, `build.md`, `review.md`, or `qa/report.md` separately if `followups-context.md` already covers what you need. Reach directly for the source artifacts only when the curated sections are insufficient (e.g. you need to scan a full `Files changed` list, or correlate a finding with a specific file the reviewer flagged).
+
+For bounce-deferred candidates and the events-log filter, the curated context can't help yet — read those directly:
+
+1. `runs/$RUN_ID/events.jsonl` filtered to `BounceRequested` — items the human explicitly removed from scope via `/bounce`. These are prime candidates for the `deferred_from_bounce` category.
+2. `runs/$RUN_ID/archive/2_shaping/brief-v*.md` and `archive/3_planning/plan-v*.md` (if any exist) — earlier versions superseded by a bounce. Items present in v1 but missing from the current canonical files are deferred-from-bounce.
 
 ## Step 3 — write follow-ups.md
 

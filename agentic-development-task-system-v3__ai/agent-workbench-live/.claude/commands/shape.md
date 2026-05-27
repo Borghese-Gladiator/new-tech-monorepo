@@ -17,17 +17,20 @@ agent-workbench shape "$RUN_ID" --init
 That:
 - transitions `draft -> shaping`
 - copies `templates/brief.md` into `runs/$RUN_ID/brief.md`
+- writes `runs/$RUN_ID/stages/2_shaping/shape-context.md` — the curated entry point for this stage (TODO §5)
 - prints the path you need to edit
 
 If it fails (e.g. status is wrong), stop and tell the user. Do not edit metadata.yaml directly.
 
-## Step 2 — write the brief
+## Step 2 — read the curated context
 
-Read:
-- `runs/$RUN_ID/raw-idea.md`
-- `runs/$RUN_ID/answers.md` if present
+Read `runs/$RUN_ID/stages/2_shaping/shape-context.md`. That file carries the raw idea verbatim, any clarifying answers from `/draft`, the brief.md template skeleton, and the two shaping rules — all built deterministically from the existing artifacts.
 
-Then write a complete brief to `runs/$RUN_ID/brief.md`. Use the section headers already in the template:
+**Do NOT re-read** `raw-idea.md`, `answers.md`, or `templates/brief.md` separately if `shape-context.md` already covers what you need. The cache cost of those reads sticks in the session prefix forever.
+
+## Step 3 — write the brief
+
+Write a complete brief to `runs/$RUN_ID/brief.md`. Use the section headers already in the template:
 
 - Goal
 - User-facing behavior
@@ -45,7 +48,7 @@ Then write a complete brief to `runs/$RUN_ID/brief.md`. Use the section headers 
 - **Do NOT ask the user questions.** Only `draft` may. If something is ambiguous, write it as an assumption in the brief.
 - Be specific. Bad examples and non-goals are as important as the goal.
 
-## Step 3 — finalize the transition
+## Step 4 — finalize the transition
 
 When `brief.md` is complete:
 
