@@ -241,5 +241,51 @@ class TestMergeNoFf(_RepoTestCase):
         self.assertEqual(repos.current_branch(self.tmp), "main")
 
 
+class TestRemoveWorktree(_RepoTestCase):
+    """remove_worktree drops the worktree dir and its git registration."""
+
+    def _setup_with_worktree(self) -> tuple[pathlib.Path, pathlib.Path, str]:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        wt = self.tmp.parent / (self.tmp.name + "-wt")
+        repos.create_worktree(self.tmp, "feature", wt, "main")
+        return self.tmp, wt, "feature"
+
+    def test_remove_worktree_cleans_up_path(self) -> None:
+        repo, wt, _branch = self._setup_with_worktree()
+        self.assertTrue(wt.exists())
+        repos.remove_worktree(repo, wt, force=True)
+        self.assertFalse(wt.exists())
+        # `git worktree list` no longer shows the path.
+        listing = _run(repo, "worktree", "list", "--porcelain")
+        self.assertNotIn(str(wt), listing)
+
+    def test_remove_worktree_missing_path_raises(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        bogus = self.tmp.parent / "not-a-worktree"
+        with self.assertRaises(repos.RepoError):
+            repos.remove_worktree(self.tmp, bogus, force=True)
+
+
+class TestDeleteBranch(_RepoTestCase):
+    """delete_branch removes the local ref."""
+
+    def test_delete_branch_removes_ref(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        _run(self.tmp, "branch", "scratch")
+        # Sanity: branch is there.
+        self.assertTrue(repos.branch_exists(self.tmp, "scratch"))
+        repos.delete_branch(self.tmp, "scratch")
+        self.assertFalse(repos.branch_exists(self.tmp, "scratch"))
+
+    def test_delete_missing_branch_raises(self) -> None:
+        _git_init(self.tmp)
+        _commit(self.tmp, "a.txt", "hello\n", "init")
+        with self.assertRaises(repos.RepoError):
+            repos.delete_branch(self.tmp, "no-such-branch")
+
+
 if __name__ == "__main__":
     unittest.main()

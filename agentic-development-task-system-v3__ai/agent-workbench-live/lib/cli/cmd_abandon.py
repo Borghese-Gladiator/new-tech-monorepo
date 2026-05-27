@@ -111,6 +111,7 @@ def run(args) -> int:
                 except repos.RepoError:
                     # Non-fatal: branch may already be gone or held elsewhere.
                     pass
+            runs_mod.reset_caches()
             print(f"archived run dir to {archive_path}")
         except repos.RepoError as e:
             print(f"WARN: archive step failed; manual cleanup may be required: {e}")

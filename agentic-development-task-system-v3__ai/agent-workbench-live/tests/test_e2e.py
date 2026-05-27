@@ -355,6 +355,27 @@ class TestE2EHappyPath(E2ECase):
         )
         self.assertEqual(in_main.returncode, 0)
 
+        # Worktree + branch cleaned up by /complete after successful merge.
+        self.assertFalse(wt_path.exists(),
+                         msg=f"worktree still exists at {wt_path}")
+        branch_name = _meta(run_dir)["target"]["worktree"]["branch_name"]
+        branch_ref = subprocess.run(
+            ["git", "-C", str(repo),
+             "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+            capture_output=True,
+        )
+        self.assertNotEqual(branch_ref.returncode, 0,
+                            msg=f"branch {branch_name} still exists after complete")
+        # `git worktree list` should not mention the removed path.
+        wt_listing = subprocess.run(
+            ["git", "-C", str(repo), "worktree", "list", "--porcelain"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        self.assertNotIn(str(wt_path), wt_listing)
+        # Confirmation line shows up in stdout.
+        self.assertIn(f"removed worktree {wt_path} and branch {branch_name}",
+                      r.stdout)
+
         # Final state: every stage-promoted artifact is in place.
         self.assertTrue((run_dir / "stages" / "2_shaping" / "brief.md").exists())
         self.assertTrue((run_dir / "stages" / "3_planning" / "plan.md").exists())
@@ -620,6 +641,8 @@ class TestE2ECompleteMerge(E2ECase):
     def test_no_merge_flag_records_local_branch_label(self) -> None:
         """`--no-merge` keeps the old behavior so legacy/edge paths stay open."""
         run_id, run_dir, repo = self._drive_to_human_review("no-merge")
+        wt_path = pathlib.Path(_meta(run_dir)["target"]["worktree"]["path"])
+        branch_name = _meta(run_dir)["target"]["worktree"]["branch_name"]
 
         r = cli(
             self.tmp, "complete", run_id,
@@ -639,6 +662,20 @@ class TestE2ECompleteMerge(E2ECase):
         evs = read_events(run_dir)
         # No WorktreeMerged event when --no-merge was used.
         self.assertNotIn("WorktreeMerged", event_types(evs))
+
+        # --no-merge must preserve the worktree + branch — the human is opting
+        # out of the merge precisely so they can do something manual with them.
+        self.assertTrue(wt_path.exists(),
+                        msg=f"--no-merge unexpectedly removed worktree {wt_path}")
+        branch_ref = subprocess.run(
+            ["git", "-C", str(repo),
+             "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+            capture_output=True,
+        )
+        self.assertEqual(branch_ref.returncode, 0,
+                         msg=f"--no-merge unexpectedly deleted branch {branch_name}")
+        # No removal confirmation in stdout.
+        self.assertNotIn("removed worktree", r.stdout)
 
 
 if __name__ == "__main__":

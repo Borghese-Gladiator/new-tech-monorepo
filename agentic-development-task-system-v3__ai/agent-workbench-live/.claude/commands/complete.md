@@ -1,10 +1,10 @@
 ---
-description: Accept an Agent Workbench run in human_review and mark it done. Auto-merges the run's worktree branch into the parent branch as part of the transition.
+description: Accept an Agent Workbench run in human_review and mark it done. Auto-merges the run's worktree branch into the parent branch and removes the worktree.
 ---
 
 # /complete
 
-Thin wrapper around `agent-workbench complete`. Transitions `human_review -> done` AND merges the worktree branch into the parent branch (`--no-ff`).
+Thin wrapper around `agent-workbench complete`. Transitions `human_review -> done`, merges the worktree branch into the parent branch (`--no-ff`), and removes the worktree + branch on success.
 
 ## Pre-flight (tell the user before invoking)
 
@@ -21,7 +21,7 @@ Thin wrapper around `agent-workbench complete`. Transitions `human_review -> don
 agent-workbench complete <run_id> --accepted-by "$USER"
 ```
 
-On success the CLI prints three lines: the transition (`human_review -> done`), the new `completion_ref` (formatted `merge:<sha>`), and a `merged <branch> into <parent_branch> (<sha-short>)` confirmation.
+On success the CLI prints four lines: the transition (`human_review -> done`), the new `completion_ref` (formatted `merge:<sha>`), a `merged <branch> into <parent_branch> (<sha-short>)` confirmation, and a `removed worktree <path> and branch <branch>` confirmation. If removal fails, a `WARN: worktree removal failed; clean up by hand: <reason>` line goes to stderr and the command still exits 0 — the merge already landed.
 
 ## Failure modes
 
@@ -31,8 +31,8 @@ On success the CLI prints three lines: the transition (`human_review -> done`), 
 
 ## Escape hatches
 
-- `--no-merge` — skip the merge and record `completion_ref: local-branch:<branch_name>` instead. The board will surface the run as `⚠ unmerged` until the merge happens by hand. Use only when the target-repo state makes auto-merging unsafe.
-- `--completion-ref <value>` — explicit override; the CLI records the string verbatim and skips the merge.
+- `--no-merge` — skip the merge and record `completion_ref: local-branch:<branch_name>` instead. The board will surface the run as `⚠ unmerged` until the merge happens by hand. Use only when the target-repo state makes auto-merging unsafe. **Also skips worktree removal** — the worktree and branch are preserved when the merge is skipped.
+- `--completion-ref <value>` — explicit override; the CLI records the string verbatim and skips the merge. Like `--no-merge`, this also skips worktree removal.
 
 ## Reference
 

@@ -6,6 +6,7 @@ the transition. See TODO §1 / `docs/lifecycle.md` § `done`.
 from __future__ import annotations
 
 import pathlib
+import sys
 
 from lib import metadata, transitions, locks, repos, events as events_mod, runs as runs_mod
 from lib.cli._common import actor_from_env, fail, load_config
@@ -128,6 +129,31 @@ def run(args) -> int:
         d["completion"]["completed_at"] = metadata.now_iso()
     metadata.update(cfg, run_id, _m)
 
+    # Clean up the worktree + branch after a successful merge. Skipped on
+    # --no-merge / explicit --completion-ref so the caller can still cd into
+    # the unmerged work. Failure is non-fatal: the run is already in `done`
+    # and the merge has already landed, so a removal warning is enough.
+    removed_worktree = False
+    if merge_sha and repo_path and worktree_path and branch_name:
+        try:
+            repos.remove_worktree(
+                pathlib.Path(repo_path),
+                pathlib.Path(worktree_path),
+                force=True,
+            )
+            removed_worktree = True
+            try:
+                repos.delete_branch(repo_path, branch_name)
+            except repos.RepoError:
+                # Non-fatal: branch may already be gone or held elsewhere.
+                pass
+            runs_mod.reset_caches()
+        except repos.RepoError as e:
+            print(
+                f"WARN: worktree removal failed; clean up by hand: {e}",
+                file=sys.stderr,
+            )
+
     # Token-efficiency tracking: refresh metrics.jsonl at terminal boundary.
     # Best-effort — never raises into the caller.
     try:
@@ -139,6 +165,8 @@ def run(args) -> int:
     print(f"completion_ref: {completion_ref}")
     if merge_sha and parent_branch:
         print(f"merged {branch_name} into {parent_branch} ({merge_sha[:12]})")
+    if removed_worktree:
+        print(f"removed worktree {worktree_path} and branch {branch_name}")
     try:
         banner_path = metadata.run_dir(cfg, run_id) / "stop-banner.txt"
     except Exception:
