@@ -180,7 +180,7 @@ class TestE2EHappyPath(E2ECase):
                         msg=f"expected banner file at {planning_banner}")
         banner_text = planning_banner.read_text()
         self.assertIn("STOP. State: ready (human-owned).", banner_text)
-        self.assertIn(f"agent-workbench start {run_id}", banner_text)
+        self.assertIn(f"/start {run_id}", banner_text)
 
         # start (no LLM).
         r = cli(self.tmp, "start", run_id, "--approved-by", "e2e-tester",
@@ -189,6 +189,22 @@ class TestE2EHappyPath(E2ECase):
         self.assertIn("ready -> building", r.stdout)
         # start lands at building, agent-driven. No banner.
         self.assertNotIn("STOP.", r.stdout)
+        # TODO §1: /start writes build-context.md to stages/4_building/ as the
+        # curated entry point for the building agent. The file must exist and
+        # carry the load-bearing section headings; absent or empty is a regression.
+        build_ctx = run_dir / "stages" / "4_building" / "build-context.md"
+        self.assertTrue(build_ctx.exists(),
+                        f"build-context.md not written at {build_ctx}")
+        ctx_body = build_ctx.read_text()
+        for header in (
+            "# build-context.md",
+            "## Acceptance criteria",
+            "## Non-goals",
+            "## Worktree",
+            "## Rules",
+        ):
+            self.assertIn(header, ctx_body,
+                          f"build-context.md missing section: {header}")
 
         # 2d: /start should have emitted exactly one BaseRefResolved event,
         # with the SHA matching the value just written to metadata, and it
@@ -215,6 +231,20 @@ class TestE2EHappyPath(E2ECase):
         self.assertNotIn("STOP.", r.stdout)
         # build.md got moved into stages/4_building/ by the transition engine.
         self.assertTrue((run_dir / "stages" / "4_building" / "build.md").exists())
+        # TODO §1 cross-stage contract: build-context.md written by /start
+        # must survive the building -> validating transition, AND validate
+        # --init must write validate-context.md as the next stage's curated
+        # entry. Both curated files must coexist in their respective stage dirs.
+        self.assertTrue(
+            (run_dir / "stages" / "4_building" / "build-context.md").exists(),
+            "build-context.md disappeared from stages/4_building/ across the "
+            "building -> validating transition",
+        )
+        self.assertTrue(
+            (run_dir / "stages" / "5_validating" / "validate-context.md").exists(),
+            "validate-context.md not written to stages/5_validating/ by "
+            "validate --init",
+        )
         # validating-stage templates were overwritten by the fixtures.
         self.assertIn("approve", (run_dir / "review.md").read_text().lower())
 

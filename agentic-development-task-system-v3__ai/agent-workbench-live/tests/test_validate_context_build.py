@@ -122,6 +122,39 @@ class TestValidateContextBuild(unittest.TestCase):
         # Diff stat output mentions the new file.
         self.assertIn("feature.py", body)
 
+    def test_diff_section_with_symbolic_head_and_sha(self):
+        """TODO §3 item 2a: when base_ref is symbolic 'HEAD', a passed
+        base_ref_sha must be preferred so the diff is non-empty."""
+        body = validate_context.build(
+            brief_path=self.brief,
+            plan_path=self.plan,
+            build_md_path=self.build_md,
+            qa_report_path=self.qa,
+            worktree_path=str(self.worktree),
+            base_ref="HEAD",  # symbolic — would diff against itself
+            base_ref_sha=self.base_ref,  # the SHA captured at /start time
+        )
+        # Diff is non-empty because we resolved to the captured SHA.
+        self.assertIn("feature.py", body)
+        self.assertNotIn("(no files changed yet)", body)
+
+    def test_diff_section_with_symbolic_head_no_sha_falls_back(self):
+        """Without base_ref_sha, the symbolic 'HEAD' resolves to the
+        worktree's own HEAD via lazy resolution; diff against itself is
+        empty. This documents the legacy behavior — runs without the SHA
+        captured at /start time still produce a degraded curated file."""
+        body = validate_context.build(
+            brief_path=self.brief,
+            plan_path=self.plan,
+            build_md_path=self.build_md,
+            qa_report_path=self.qa,
+            worktree_path=str(self.worktree),
+            base_ref="HEAD",
+            base_ref_sha=None,
+        )
+        # Lazy resolution: rev-parse HEAD == worktree HEAD == diff is empty.
+        self.assertIn("(no files changed yet)", body)
+
     def test_handles_missing_inputs(self):
         body = validate_context.build(
             brief_path=self.tmp / "no-brief.md",
@@ -140,6 +173,41 @@ class TestValidateContextBuild(unittest.TestCase):
         validate_context.write(target, "hello\n")
         self.assertTrue(target.exists())
         self.assertEqual(target.read_text(), "hello\n")
+
+    def test_uncommitted_changes_appear_in_files_changed(self):
+        """Uncommitted (staged but not committed) edits must show up under
+        the Uncommitted section of `Files changed`. Validation typically
+        runs before the builder has committed, so committed-only diffs
+        render an empty section in the common case.
+        """
+        (self.worktree / "feature2.py").write_text("def alpha():\n    return 1\n")
+        _git(self.worktree, "add", "feature2.py")
+        # NOTE: deliberately NOT committing — we want to see the uncommitted
+        # case in the rendered output.
+        body = validate_context.build(
+            brief_path=self.brief,
+            plan_path=self.plan,
+            build_md_path=self.build_md,
+            qa_report_path=self.qa,
+            worktree_path=str(self.worktree),
+            base_ref=self.base_ref,
+        )
+        self.assertIn("Uncommitted", body)
+        self.assertIn("feature2.py", body)
+
+    def test_untracked_files_appear_in_files_changed(self):
+        """Untracked files must show up under the Untracked section."""
+        (self.worktree / "untracked.py").write_text("# new file\n")
+        body = validate_context.build(
+            brief_path=self.brief,
+            plan_path=self.plan,
+            build_md_path=self.build_md,
+            qa_report_path=self.qa,
+            worktree_path=str(self.worktree),
+            base_ref=self.base_ref,
+        )
+        self.assertIn("Untracked", body)
+        self.assertIn("untracked.py", body)
 
 
 class TestBlastRadiusBuild(unittest.TestCase):
@@ -168,6 +236,24 @@ class TestBlastRadiusBuild(unittest.TestCase):
         )
         self.assertIn("depth 1 (changed files):", out)
         self.assertIn("feature.py", out)
+
+    def test_blast_radius_with_symbolic_head_and_sha(self):
+        """TODO §3 item 2a: blast_radius must honor base_ref_sha when
+        base_ref is symbolic 'HEAD', otherwise it reads against the
+        post-commit HEAD and finds no changes."""
+        (self.worktree / "feature.py").write_text(
+            "def alpha():\n    return 1\n"
+        )
+        _git(self.worktree, "add", "feature.py")
+        _git(self.worktree, "commit", "-qm", "add")
+        out = validate_context.build_blast_radius(
+            worktree_path=str(self.worktree),
+            base_ref="HEAD",  # symbolic — would diff against current HEAD
+            base_ref_sha=self.base_ref,  # the SHA captured at /start time
+        )
+        self.assertIn("depth 1 (changed files):", out)
+        self.assertIn("feature.py", out)
+        self.assertNotIn("(no files changed yet)", out)
 
     def test_missing_worktree(self):
         out = validate_context.build_blast_radius(

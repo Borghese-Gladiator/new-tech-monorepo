@@ -32,7 +32,16 @@ def build(
     base_ref: str,
     base_ref_sha: str | None = None,
 ) -> str:
-    """Return the rendered validate-context.md body."""
+    """Return the rendered validate-context.md body.
+
+    ``base_ref_sha`` is the resolved 40-char SHA captured at ``/start`` time
+    (TODO §3 item 2a). When present, diff ranges use the SHA rather than the
+    symbolic ``base_ref`` — this is what makes ``git diff <ref>...HEAD``
+    produce a non-empty diff for runs whose ``base_ref`` is the symbolic
+    ``"HEAD"`` (which would otherwise diff the worktree against itself).
+    Falls back to lazy resolution in the worktree, then to symbolic, matching
+    ``lib/metrics/lines.py:_effective_ref``.
+    """
     brief = _read(brief_path)
     plan = _read(plan_path)
     build_md = _read(build_md_path)
@@ -191,31 +200,79 @@ def _collect_id_blocks(plan: str) -> dict[str, str]:
 def _render_diff(worktree_path: str, base_ref: str) -> str:
     """Always include `git diff --stat`. Include full `git diff` only if it
     fits in `_FULL_DIFF_LINE_CAP`; otherwise include `--name-status` plus
-    per-file line counts and a note."""
+    per-file line counts and a note.
+
+    Covers BOTH committed and uncommitted changes (TODO §3 item 2a follow-on):
+    the committed range ``<base_ref>...HEAD`` plus the uncommitted delta
+    ``HEAD``. Validation typically runs before the builder has committed —
+    showing only committed changes would render an empty diff for the
+    common case where the work is staged or unstaged in the worktree but
+    not yet committed.
+    """
+    parts: list[str] = []
+
     stat = _git(worktree_path, "diff", "--stat", f"{base_ref}...HEAD")
     if stat is None:
         return "(git diff --stat failed; see worktree directly)\n"
+    parts.append(f"```\n{stat}```\n")
     full = _git(worktree_path, "diff", f"{base_ref}...HEAD")
-    parts = [f"```\n{stat}```\n"]
-    if full is not None:
+    if full is not None and full.strip():
         line_count = full.count("\n")
         if line_count <= _FULL_DIFF_LINE_CAP:
             parts.append(f"\n```diff\n{full}```\n")
         else:
             parts.append(
-                f"\n(full diff is {line_count} lines; exceeds {_FULL_DIFF_LINE_CAP}-line cap. "
+                f"\n(full committed diff is {line_count} lines; exceeds {_FULL_DIFF_LINE_CAP}-line cap. "
                 "See `Files changed` below for per-file line counts.)\n"
             )
+
+    # Uncommitted changes (staged + unstaged, including untracked via name-status).
+    uncommitted_stat = _git(worktree_path, "diff", "HEAD", "--stat")
+    if uncommitted_stat and uncommitted_stat.strip():
+        parts.append("\n### Uncommitted (worktree vs HEAD)\n")
+        parts.append(f"```\n{uncommitted_stat}```\n")
+        uncommitted_full = _git(worktree_path, "diff", "HEAD")
+        if uncommitted_full is not None and uncommitted_full.strip():
+            line_count = uncommitted_full.count("\n")
+            if line_count <= _FULL_DIFF_LINE_CAP:
+                parts.append(f"\n```diff\n{uncommitted_full}```\n")
+            else:
+                parts.append(
+                    f"\n(full uncommitted diff is {line_count} lines; exceeds {_FULL_DIFF_LINE_CAP}-line cap. "
+                    "See `Files changed` below.)\n"
+                )
+
     return "".join(parts)
 
 
 def _render_name_status(worktree_path: str, base_ref: str) -> str:
-    ns = _git(worktree_path, "diff", "--name-status", f"{base_ref}...HEAD")
-    if ns is None:
-        return "(git diff --name-status failed)\n"
-    if not ns.strip():
+    """Files changed: committed (<base>...HEAD) plus uncommitted (HEAD vs worktree)
+    plus untracked. Concatenated with section sub-headings when any class is present.
+    """
+    committed = _git(worktree_path, "diff", "--name-status", f"{base_ref}...HEAD")
+    uncommitted = _git(worktree_path, "diff", "--name-status", "HEAD")
+    untracked = _git(worktree_path, "ls-files", "--others", "--exclude-standard")
+
+    have_committed = committed is not None and committed.strip()
+    have_uncommitted = uncommitted is not None and uncommitted.strip()
+    have_untracked = untracked is not None and untracked.strip()
+
+    if not (have_committed or have_uncommitted or have_untracked):
+        if committed is None and uncommitted is None:
+            return "(git diff --name-status failed)\n"
         return "(no files changed yet)\n"
-    return f"```\n{ns}```\n"
+
+    parts: list[str] = []
+    if have_committed:
+        parts.append("**Committed** (`<base_ref>...HEAD`):\n")
+        parts.append(f"```\n{committed}```\n")
+    if have_uncommitted:
+        parts.append("\n**Uncommitted** (worktree vs `HEAD`):\n")
+        parts.append(f"```\n{uncommitted}```\n")
+    if have_untracked:
+        parts.append("\n**Untracked** (not yet `git add`-ed):\n")
+        parts.append(f"```\n{untracked}```\n")
+    return "".join(parts)
 
 
 def _default_reading_order() -> str:
@@ -288,14 +345,22 @@ def build_blast_radius(
     base_ref: str,
     base_ref_sha: str | None = None,
 ) -> str:
-    """Compute the depth-1/2/3 caller tree as a small text file."""
+    """Compute the depth-1/2/3 caller tree as a small text file.
+
+    Covers committed + uncommitted + untracked changes. Validation often runs
+    before the builder has committed, so committed-only diffs render empty
+    in the common case. Same rationale as ``_render_diff``.
+    """
     if not worktree_path or not pathlib.Path(worktree_path).exists():
         return "(worktree not available)\n"
     effective_ref = _effective_ref(worktree_path, base_ref, base_ref_sha)
-    name_only = _git(worktree_path, "diff", "--name-only", f"{effective_ref}...HEAD")
-    if name_only is None:
-        return "(git diff --name-only failed)\n"
-    files = [ln for ln in name_only.splitlines() if ln.strip()]
+    committed = _git(worktree_path, "diff", "--name-only", f"{effective_ref}...HEAD") or ""
+    uncommitted = _git(worktree_path, "diff", "--name-only", "HEAD") or ""
+    untracked = _git(worktree_path, "ls-files", "--others", "--exclude-standard") or ""
+    files = sorted({
+        ln for ln in (committed + "\n" + uncommitted + "\n" + untracked).splitlines()
+        if ln.strip()
+    })
     if not files:
         return "(no files changed yet)\n"
     if len(files) > _BLAST_RADIUS_FILE_CAP:
@@ -314,7 +379,21 @@ def build_blast_radius(
     out_lines.append("depth 2 (callers of changed symbols):")
     depth2_files: set[str] = set()
     for f in files:
-        diff_for_file = _git(worktree_path, "diff", f"{effective_ref}...HEAD", "--", f)
+        # Try committed range first; fall back to uncommitted (HEAD vs worktree)
+        # for files only in the uncommitted/untracked sets.
+        diff_for_file = (
+            _git(worktree_path, "diff", f"{effective_ref}...HEAD", "--", f)
+            or _git(worktree_path, "diff", "HEAD", "--", f)
+            or ""
+        )
+        if not diff_for_file.strip():
+            # Untracked file — read it directly so symbol extraction still works.
+            try:
+                diff_for_file = (pathlib.Path(worktree_path) / f).read_text(
+                    encoding="utf-8", errors="ignore",
+                )
+            except OSError:
+                continue
         if not diff_for_file:
             continue
         symbols = set()
