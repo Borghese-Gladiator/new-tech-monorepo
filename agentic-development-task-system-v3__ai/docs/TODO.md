@@ -321,98 +321,85 @@ Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash com
 
 ---
 
-## 8. Per-run tool-policy allowlist (only relevant once §7 ships)
+## 8. Restrictive tool policy for the `publishing` stage only (relevant once §7 ships)
 
 Today the workbench's safety story is filesystem-via-worktrees + evidence-gated transitions. There's no per-run tool bounding because there's no need — `local_only: true` in `agent-workbench.yaml` means no remote calls, the worktree confines git operations to one branch, and the agent's shell tool is the agent's-harness problem.
 
-§7 changes the threat model. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false. The blast radius grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
+§7 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
 
-The architectural concern: today, an agent inside a `building` stage that decides on its own to run `gh pr create` would succeed (the harness allows `gh`; the workbench doesn't know to stop it). That's wrong even in the `local-merge` world; it becomes a real problem in the `pull-request` world because the agent now has examples of when `gh` calls are valid (during `publishing`) and might generalize.
+The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh repo delete`, `gh api` against an unrelated repo, or `git push --force` to an unrelated branch. Restricting that one stage is sufficient. Every other stage stays safe under the user's default Claude Code allowlist — `git` is worktree-bounded, test runners and file I/O are filesystem-bounded, none touch remotes, and the default allowlist doesn't include `gh` for them to misuse.
 
-### Proposed shape
+### Design — one stage, one policy
 
-A per-stage tool-policy file declares which commands are allowed during which lifecycle states. Stored alongside the lifecycle schema:
+**`publishing`** runs under a restrictive allowlist written per run. Every other stage (`shaping`, `planning`, `building`, `validating`, `followups`) inherits the user's default Claude allowlist with no per-run override and no per-run policy file.
+
+Why this works:
+
+- **The threat surface is exactly one stage.** `publishing` is the only stage that legitimately needs `gh`. There's nothing for a per-stage policy to add for the others that the global allowlist isn't already doing — the default allowlist doesn't include `gh`, so non-publishing stages can't call it regardless.
+- **`in_pr_review` doesn't need a policy.** Per §7 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
+- **Symmetry with worktrees.** Worktrees are the filesystem bound; this is the remote bound. Both narrow and load-bearing, not blanket.
+
+### What the `publishing` policy contains
+
+A static YAML file the workbench writes per run at `publishing`-stage entry. Loaded by the harness; commands outside the list are refused.
 
 ```yaml
-# schemas/tool-policy.yaml
+# stages/7_publishing/tool-policy.yaml — written by `/publishing --init` for pull-request runs
 schema_version: 1
 kind: tool_policy
+stage: publishing
 
-stage_policies:
-  shaping:
-    shell_allowlist: []          # no shell calls at all
-    network: deny
+shell_allowlist:
+  - gh pr view                       # read PR state
+  - gh pr create                     # create the PR (the one mutating call this stage needs)
+  - gh api repos/<owner>/<repo>/*    # scoped reads against the target repo only
+  - git push origin <branch>         # push the branch this PR will open against
+  - git diff
+  - git log
+  - git status
 
-  planning:
-    shell_allowlist:
-      - git
-      - find
-      - grep
-      - rg
-    network: deny
-
-  building:
-    shell_allowlist:
-      - git
-      - "*"                       # full shell; the worktree is the bound
-    network: deny                 # except via explicit tooling (test runners may need it)
-
-  validating:
-    shell_allowlist:
-      - git
-      - "<test-runners>"
-      - playwright
-    network: allow_for_qa
-
-  # NEW for §7
-  publishing:
-    shell_allowlist:
-      - gh pr view
-      - gh pr create
-      - gh api repos/*/*/pulls/*
-    network: allow_for_github_only
-    gh_repo_scope: per_run        # see below
-
-  in_pr_review:
-    shell_allowlist:
-      - gh pr view
-      - gh api repos/*/*/pulls/*
-    network: allow_for_github_only
+shell_denylist_explicit:
+  - gh pr merge                      # workbench never auto-merges; human merges via gh / GitHub UI
+  - gh pr close                      # closing happens via /abandon, not by the publishing agent
+  - gh repo *                        # no repo-level mutations
+  - git push --force*
 ```
 
-`gh_repo_scope: per_run` means: the policy is scoped to the specific `target.repo` of this run. A run targeting `klaviyo/app` cannot use `gh` against `klaviyo/fender` even though the user's credentials cover both.
+`<owner>/<repo>` and `<branch>` are templated at policy-write time from the run's `target.repo` and worktree branch name — so a `publishing` agent for a run targeting `klaviyo/app` cannot `gh api` against `klaviyo/fender` even though the user's credentials cover both. This is the "per-run scope" piece: not a separate concept, just substitution into the allowlist patterns.
 
-Two enforcement paths:
+The explicit denylist exists for clarity even though the allowlist would already block these — `gh pr merge` and `git push --force` are foot-guns worth naming so a future loosening of the allowlist (e.g. adding `gh pr *`) can't accidentally permit them.
 
-1. **Harness-mediated.** The workbench writes a `tool-policy.yaml` per run; the agent's harness (Claude Code, Codex) reads it and refuses tool calls outside the allowlist. This is the practical V1 path — it doesn't need any new infrastructure on the workbench side beyond emitting the policy. Whether each harness honors it is a per-harness contract; Claude Code's settings.json hooks are the closest existing primitive.
-2. **Wrapper scripts.** The workbench provides a wrapped `gh` (and similar) in a stage-specific PATH; the wrapper checks the policy before forwarding. Heavier, doesn't depend on the harness, but the agent could bypass by calling `/usr/bin/gh` directly unless we also lock down PATH.
+### Enforcement path
 
-Lean toward path 1 for V1. If the harness can't be trusted, path 2 is the escalation.
+**Harness-mediated.** The workbench writes the policy file at stage entry; the Claude Code harness reads it via a settings.json hook (PreToolUse) and refuses tool calls outside the list. No new infrastructure beyond emitting the file.
 
-This is **not** capability tokens (cryptographically signed, expirable). The mental model is closer to AppArmor / firejail profiles: a static policy file per stage, loaded at stage entry, denying anything not listed. Simpler, no crypto, no token lifecycle.
+If a future harness can't honor the policy file, the escalation is a wrapped `gh` on a stage-specific PATH — but this is YAGNI until a second harness shows up. For V1, Claude Code is the harness, and its hooks are sufficient.
+
+This is **not** capability tokens (no crypto, no expiry, no issuance). Static file, loaded at stage entry, denying anything not listed. AppArmor-shaped, not OAuth-shaped.
 
 ### Tasks
 
-- [ ] **Do nothing until §7 actually starts.** This is a sequential dependency: tool-policy is only meaningful when remote-calling commands enter the workbench's surface. Pre-§7, the only commands the workbench cares about are `git` (worktree-bounded) and `Read`/`Edit`/`Write` (filesystem-bounded). Adding policy infrastructure now would be premature.
-- [ ] **When §7 starts: spec `schemas/tool-policy.yaml`.** Define the stage_policies block above, including the `publishing`/`in_pr_review` entries. Decide whether `gh_repo_scope: per_run` is enforceable via `gh`'s native repo-scoping (`gh repo set-default`) or needs a wrapper.
-- [ ] **Decide the enforcement path.** Harness-mediated (path 1) vs. wrapper scripts (path 2). Spike both on a single command (`gh pr view`) before committing to the broader rollout. Document the choice in `architecture.md`.
-- [ ] **Add `cmd_doctor.py` checks for policy violations.** `agent-workbench doctor` already validates run integrity; extend it to check whether the events log shows any commands run outside that run's policy. Retrospective audit, not preventative; complements whichever enforcement path is chosen.
-- [ ] **Document the contract in `agent-workbench-live/AGENTS.md`.** The agent needs to know "I am in stage X and may only run commands in this allowlist." Make it part of the per-stage rules section in lifecycle.md.
+- [ ] **Do nothing until §7 actually starts.** Sequential dependency. Pre-§7, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
+- [ ] **When §7 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
+- [ ] **Wire the hook.** Claude Code's settings.json PreToolUse hook reads `stages/7_publishing/tool-policy.yaml` when the `/publishing` command starts and applies the allowlist for that session. Spike on `gh pr view` first to confirm the hook shape end-to-end before encoding the full list.
+- [ ] **Add a `doctor` check.** `agent-workbench doctor` extends to scan a run's `events.jsonl` for any tool call emitted during `publishing` that isn't in that run's policy. Retrospective audit complements the preventative hook — if the hook misfires or a future harness ignores the file, doctor catches it.
+- [ ] **Document the contract.** `agent-workbench-live/AGENTS.md` § "Publishing stage rules" names the policy and explains why this stage is special. Note in `architecture.md` that the workbench's safety bounds are now (1) worktrees for filesystem, (2) `publishing`-stage policy for remote — and that every other stage inherits the harness default.
 
 ### Acceptance
 
-- §7's `publishing` stage cannot run `gh pr merge` (only allowed commands are `gh pr view`, `gh pr create`, scoped `gh api …`).
-- §7's `building` stage (re-entered after a `changes_requested` bounce) cannot push, cannot create a new PR, cannot close the existing one — the publishing-stage policy is not in effect during building.
-- A run whose policy file is missing or malformed refuses to start (`doctor` flags it; `transitions.transition` rejects).
-- `local-merge` runs continue to work without any policy file (default-allow for that delivery mode, since there's no remote attack surface).
+- `publishing` cannot run `gh pr merge`, `gh pr close`, `gh repo delete`, `gh api` against any repo other than `target.repo`, or `git push --force`. Attempts are refused by the hook and recorded by `doctor`.
+- `publishing` CAN run `gh pr view`, `gh pr create`, scoped `gh api repos/<target.repo>/*`, and `git push origin <branch>`.
+- Every other stage (`shaping`, `planning`, `building`, `validating`, `followups`) runs with no per-run policy file and inherits the user's default Claude allowlist — verified by `doctor` not flagging anything and by the absence of a `tool-policy.yaml` under those stage directories.
+- `local-merge` runs never produce a policy file under any stage (no `publishing` stage exists for them).
+- A run's policy file missing or malformed at `publishing` entry: `transitions.transition(... → publishing)` rejects with a clear error.
 
 ### Non-goals
 
-Capability tokens (no crypto, no expiry, no issuance). Sandboxing the agent's shell tool generally (the worktree is sufficient bound today). Network egress filtering at the OS level (this is a per-command policy, not a network firewall). MCP-server-level policy (out of scope; that's the harness's problem).
+Per-stage policy for stages other than `publishing` (the default Claude allowlist already covers them; adding per-run policy elsewhere is overhead with no threat to mitigate). Capability tokens (no crypto, no expiry). Sandboxing the agent's shell tool generally (worktree is sufficient bound for filesystem; `publishing` policy is sufficient bound for remote). OS-level network egress filtering (per-command policy, not a firewall). MCP-server-level policy (harness's problem). Wrapper scripts as primary enforcement (escalation only, if a future harness can't honor the file).
 
 ### Origin
 
-Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. Today's bounding is filesystem-via-worktrees + state-machine evidence gates; both work because the workbench is local-only. §7 (PR-flow lifecycle) explicitly punctures the local-only stance by adding `gh`-calling commands. This TODO is the matching safety primitive — a per-run, per-stage allowlist that lets the workbench say "even though the agent could call X, in this stage of this run it cannot."
+Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. The first draft proposed a full per-stage allowlist for every lifecycle state. Pushed back 2026-05-26: every stage except `publishing` is already safe under the default Claude allowlist (no `gh` in it, worktree-bounded `git`, filesystem-bounded I/O). The only stage that needs a policy is the one that punctures `local_only`, so the mechanism should be scoped to it. Net: one policy file at one stage boundary, not a per-stage matrix.
 
 ---
 
