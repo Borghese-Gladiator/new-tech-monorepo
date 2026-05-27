@@ -58,6 +58,8 @@ echo "<idea text>" | agent-workbench new-run \
 
 Do not pass `--scope-kind`, `--base-ref`, or `--repo-name`. Let CLI defaults apply.
 
+Note: `repo_name` defaults to the slugified basename of the **git toplevel** (resolved via `git rev-parse --show-toplevel`), not the path you typed. So `/new-run` invoked from `~/code/monorepo/services/api` and `/new-run` invoked from `~/code/monorepo` land worktrees under the same second-level dir under `paths.worktrees_dir`. Pass `--repo-name` only if you genuinely want a second namespace for the same repo.
+
 ### 5. Report back
 
 - Print the `run_id` the CLI returned.
