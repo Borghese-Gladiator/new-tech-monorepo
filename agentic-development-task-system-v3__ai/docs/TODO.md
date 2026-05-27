@@ -243,6 +243,12 @@ These came out of the conversation that surfaced this TODO; they may or may not 
 
 3. **Stop-banner extractor drops the only level that has detail.** `_render_summary_bullets` in `lib/cli/_stop_banner.py` extracts column-0 `- ` bullets from HUMAN_REVIEW.md's `## Summary of changes`. The human_review renderer's convention for "files changed" is `- N file(s) touched:` as a parent + `  - <path>` rows as children. The banner extractor sees the parent, drops the children, and renders headers with empty colons.
 
+On a related note, this is also wrong
+```
+    7 files changed, +139 / −17 lines
+```
+It SHOULD tell me WHICH files were changed with +/- lines for every file
+
 ### Tasks (investigation only — no fixes in this TODO)
 
 - [ ] **Map all sites where text-shape parsing meets template-shaped input.** Grep for `_section`, `_bullet_items`, `## ` literal matching, anything that consumes `build.md` / `HUMAN_REVIEW.md` / `qa/report.md`. Each consumer should be examined for: does it assume content was written? Does it strip HTML comments? Does it understand the nested-bullet convention the producer uses? Write the findings as a table (file:line, what it reads, what assumption it makes, whether that assumption is safe today).
