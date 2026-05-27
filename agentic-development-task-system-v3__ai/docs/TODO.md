@@ -70,83 +70,6 @@ Changing the artifact contents themselves (brief/plan/build/review keep their cu
 
 Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a proposed planner/implementer/reviewer/PR-writer system. The proposed system's "shared durable context, not many independent workers" framing matched what `validate-context.md` already does — but agent-workbench only built that pattern for the validate boundary. Generalizing is straightforward and the cache-discipline payoff is concrete (the proposal had no analog of this; agent-workbench's existing `validate-context.md` is strictly stronger and worth replicating across stages).
 
----
-
-## 2. Lifecycle papercuts: `.lock` in `.gitignore` and the `ready` banner
-
-Two unrelated one-shot fixes grouped because they're both tiny, both touch the agent-stopping handoff path, and both have a clear single-line shape. Worth landing together to avoid a near-empty section per item.
-
-### 1a. `runs/*/.lock` not gitignored — every `/complete` falls back to `--no-merge`
-
-`locks.acquire(cfg, run_id)` creates `runs/<id>/.lock` inside the run directory before `repos.merge_no_ff` runs `worktree_dirty_files(repo_path)`. The run dir is tracked in the parent repo, so the lock file appears in `git status --porcelain` and the merge refuses with `refusing to merge: <repo> has uncommitted changes: ['runs/<id>/.lock']`. Workaround so far has been `complete --no-merge` + manual `git merge --no-ff` + `tools/backfill_completion_refs.py`. Hit on at least three runs (stop-banner, token-efficiency-pass-2, structured-human-review-handoff).
-
-Root `.gitignore` is currently just `tmp/`; the entry has to be added.
-
-- [ ] Add `agentic-development-task-system-v3__ai/agent-workbench-live/runs/*/.lock` to root `.gitignore` (also add the v2 sibling path if v2 still produces lock files).
-- [ ] Verify by running `/complete` on a real run after the entry lands — the dirty-files check should pass without `--no-merge`.
-- [ ] Update `tools/backfill_completion_refs.py`'s docstring/comments to reference this fix and note that the backfill is no longer needed for new runs.
-
-### 1b. `ready` banner still uses shell-form
-
-`_SPECS["ready"]` in `lib/cli/_stop_banner.py` prints `agent-workbench start <id>` as the next move. `human_review` was migrated to slash-form (`/complete`, `/bounce`, `/abandon`) in the structured-handoff run (`a698f62`); `ready` was explicitly out-of-scope there. The inconsistency is now visible to anyone watching two banners in a row.
-
-- [ ] Change `_SPECS["ready"]` to render `/start <id>` with a one-line description (e.g. "approve the plan and create the worktree").
-- [ ] Re-baseline `tests/snapshots/stop_banner_ready.expected.txt`.
-- [ ] No new structured-body builder required — `ready` has one decision; the five-section shape isn't justified.
-
-### Acceptance
-
-- `/complete <id>` on a run that committed its run dir produces a successful `git merge --no-ff` without needing `--no-merge`.
-- `_stop_banner.py` contains no `agent-workbench start` literal; the `ready` banner snapshot reflects the slash-form.
-
----
-
-## 3. `base_ref_sha` plumbing — three remaining consumers + audit trail + backfill
-
-`303bd40` added `target.repo.base_ref_sha` to `metadata.yaml` and threaded the prefer-SHA / lazy-resolve / fallback pattern into `lib/metrics/lines.py`. Three other consumers still take a symbolic `base_ref` and produce wrong or empty output when the recorded value is `"HEAD"`; a backfill tool for pre-fix runs is also unwritten, and the audit log doesn't record the resolved SHA at all.
-
-### 2a. `lib/validate_context.py` — empty diff against worktree branch HEAD
-
-`validate_context.build` and `build_blast_radius` take `base_ref: str` and shell out `git diff <base_ref>...HEAD` literally. With `base_ref="HEAD"`, that resolves to the worktree HEAD vs. itself — the diff is empty even when the worktree has real commits. Downstream: the reviewer's blast-radius narrative is fed an empty file list and validate-context.md's "Files changed" block reads `(no files changed yet)`.
-
-- [ ] Add a `base_ref_sha: str | None = None` kwarg to `validate_context.build` and `build_blast_radius`. Prefer the SHA when present; fall back to symbolic `base_ref` lazy-resolve when missing. Mirror `lib/metrics/lines.py:_effective_ref`.
-- [ ] Thread the SHA through `cmd_validate.py:_write_validate_context_artifacts` (read `meta["target"]["repo"]["base_ref_sha"]` alongside `base_ref`).
-- [ ] Confirm the diff target is the worktree path (it already is) and that the SHA was originally captured against the source repo (it was).
-- [ ] Unit test against a synthetic two-commit worktree — would fail today, pass after.
-
-### 2b. `lib/board/source.py:_git_shortstat` and `lib/doc_claims.py:_verify`
-
-Both still take symbolic `base_ref`. Neither is *broken* in the same observable way as 2a (the triple-dot diff produces *a* number when `base_ref="HEAD"`), but the type signature has drifted: `lines.py` knows about `base_ref_sha`, these two don't. Pure type-symmetry / consistency play.
-
-- [ ] Add `base_ref_sha` kwarg to `_git_shortstat` and `verify`; lazy-fallback chain identical to `lines.py:_effective_ref`.
-- [ ] Update call sites (`board/source.py:566` and the `doc_claims.verify` call in `cmd_validate.py`).
-- [ ] Parallel unit tests in `tests/test_board_snapshot.py` and `tests/test_doc_claims.py`.
-
-### 2c. Backfill tool for pre-`303bd40` runs
-
-`tools/backfill_completion_refs.py` exists for merge SHAs; no equivalent for `base_ref_sha`. Runs like `2026-05-22-token-efficiency-tracking` whose `base_ref: "HEAD"` was captured before this run still report `generated_lines: 0` even after a `metrics --rebuild` (the lazy resolver inside the worktree can't recover the original fork point once HEAD has advanced).
-
-- [ ] Write `tools/backfill_base_ref_sha.py`. Walk `runs/*/metadata.yaml`. For each entry with symbolic `target.repo.base_ref` and missing `target.repo.base_ref_sha`, compute the fork point — preferred: `git merge-base <target.worktree.branch_name> <agent-workbench.yaml-default-base-ref>`; fall back to `git rev-list --max-parents=0 <branch>` when merge-base fails. Write via `metadata.update`. Idempotent. `--dry-run` flag.
-- [ ] After the script lands, run it once on this repo and verify `agent-workbench metrics --rebuild` against the pass-1 dogfood run reports non-zero `generated_lines` (TODO §3 acceptance from the prior fix-generated-lines TODO).
-
-### 2d. `BaseRefResolved` event
-
-The resolved SHA only lives in `metadata.yaml`. The audit trail (`events.jsonl`) records the transition with `base_ref: "HEAD"` symbolic and nothing else. Two consequences: (1) line counts can't be re-derived from the audit log alone, (2) drift between `metadata.yaml` and the original resolved SHA is undetectable.
-
-- [ ] Add `BaseRefResolved` to `schemas/events.jsonl` with payload `{symbolic_ref, sha, source_repo_path}`.
-- [ ] Emit from `cmd_start.py` immediately after `repos.resolve_ref_to_sha` succeeds, before the `building` transition.
-- [ ] Surface in `lib/audit.py`'s `audit.md` render.
-- [ ] Forward-only. Don't synthesize events for old runs — pair with the backfill tool (2c), which writes metadata only.
-
-### Acceptance
-
-- `validate-context.md` "Files changed" block lists real worktree-branch commits for any run whose metadata carries `base_ref_sha`.
-- `agent-workbench metrics --rebuild` against `2026-05-22-token-efficiency-tracking` reports a non-zero `generated_lines` after the backfill script runs.
-- `events.jsonl` for new runs contains a `BaseRefResolved` event between the `planning → ready` and `ready → building` transitions.
-- Grep for `base_ref:` in `lib/board/source.py` + `lib/doc_claims.py` finds calls that also accept `base_ref_sha`.
-
----
-
 ## 4. Schema-level validation for `metadata.yaml` on load
 
 `lib/metadata.py:_validate` enforces top-level keys + the status enum only. `schemas/run-metadata.yaml` is descriptive — `metadata.load()` doesn't read it. Typos like `bse_ref` instead of `base_ref` load silently, surface later as missing-field crashes or wrong-data renders. As fields proliferate (`base_ref_sha`, `target.worktree.branch_name`, the `build:` block, the new `completion:` shape), the surface area for silent drift grows.
@@ -182,67 +105,7 @@ Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Gr
 
 ---
 
-## 6. Board freshness across worktrees after the per-worktree run-dir landing
-
-### Why this is here
-
-The prior section moved live run dirs into their worktrees (`<worktree>/agent-workbench-live/runs/<id>/`), but the board's freshness infrastructure was scoped to master's `cfg.runs_path` only. Two coupled gaps remain, both surfaced 2026-05-25 while watching the board during this run's own `complete`:
-
-**Gap 1 — watchdog observer covers master only.** `lib/board/app.py:561-573` schedules a single `watchdog.observers.Observer` on `cfg.runs_path` (master). Live writes inside worktrees (every `shape`/`plan`/`validate` artifact for any self-modifying run) fire no watchdog events. The 1Hz fallback timer (`self.set_interval(1.0, self._refresh)`) catches them eventually with up to ~1s lag, but instant refresh is lost.
-
-**Gap 2 — `_list_workbench_worktrees` cache has no TTL.** `lib/runs.py:_WORKTREE_CACHE` is a process-lifetime dict keyed on workbench root path. First call populates it from `git worktree list --porcelain`; every subsequent call in the same process returns the cached tuple. For short-lived CLI commands this is fine (the process exits in milliseconds). For the long-running board, it means worktrees created mid-session are invisible until the board restarts — even with a 1Hz `iter_all_runs` rescan.
-
-Observed concretely on 2026-05-25 while completing this run: the board showed the run stuck in `human_review` until manual restart. Two contributing causes — the board process predated the post-A1 `iter_all_runs` codepath (genuine version skew, not just lag), AND the cache would have masked any new worktree creation thereafter.
-
-### Design principles
-
-- **Optimize the long-running case differently from the one-shot case.** The board ticks for hours. CLI commands exit in <1s. The same cache that's correct for one is wrong for the other. Don't unify them; split.
-- **`git worktree list` is not free.** Measured on the workbench's own repo with 3 worktrees: ~16ms median, ~19ms p90 per call. Scales linearly with worktree count. Calling it raw at 1Hz costs ~1.6% of one CPU continuously today; with 20 worktrees it'd be 5–8%. Don't pretend it's invisible.
-- **Watchdog is the right tool for change notification.** The 1Hz fallback is a safety net, not the primary mechanism. Recursive `Observer.schedule` on every worktree's `runs/` dir is the canonical fix; the 1Hz tick should only be needed for "new worktree appeared since the last observer scheduled".
-- **Don't redesign the source layer.** `RunSnapshot`, `iter_all_runs`, the severity model, the renderers — all post-A1 correct. The bug is narrow: filesystem-event coverage in `AgentBoardApp.on_mount`, plus the cache TTL.
-
-### Tasks
-
-- [ ] **Investigate the actual user-visible symptom space.** Before picking a fix, characterize what's slow and what's wrong:
-  - How often does someone start a new worktree mid-board-session? (Affects whether dynamic re-scheduling is worth the complexity.)
-  - How many worktrees do real users have at once? (Affects whether `git worktree list` cost is meaningful.)
-  - Does the 1Hz fallback actually deliver perceived freshness for everything except the watchdog gap? (May reveal other latency sources.)
-  - Is there a less obvious fix — e.g. having the CLI commands send a signal/file-touch the board listens for, instead of filesystem-event polling?
-- [ ] **Decide on the watchdog strategy.** Three options on the table from the 2026-05-25 conversation; pick one (or a combination) based on the investigation:
-  - **Option 1 — multi-root watchdog at startup.** In `AgentBoardApp.on_mount`, after the initial `obs.schedule(_Handler(self), cfg.runs_path, recursive=True)`, walk `runs.iter_all_runs(cfg)` once and call `obs.schedule(...)` for each unique worktree-side `runs/` directory. ~10 lines. Doesn't cover worktrees created mid-session.
-  - **Option 2 — periodic re-scan of the worktree list.** Add a second `set_interval` (e.g. 30s) that diffs the current watcher set against `git worktree list` and adds observers for new worktrees. ~30 lines plus observer bookkeeping. Covers the mid-session case at the cost of complexity.
-  - **Option 3 — watch the parent `cfg.worktrees_path` recursively.** One `obs.schedule(_Handler, cfg.worktrees_path, recursive=True)` covers every existing and future worktree. ~5 lines. Trade-off: noisy event stream (every product-code edit in every worktree fires a handler); the existing `_Handler` filter handles it cheaply but it's still busier.
-- [ ] **Decide on the cache strategy.** The current process-lifetime cache is the right shape for short-lived CLI commands but wrong for the board. Options:
-  - **Short TTL** (e.g. 2s): `_WORKTREE_CACHE: dict[str, tuple[float, tuple[...]]]`; check `time.monotonic() - cached[0] < TTL` before reuse. CLI calls still cache for their full lifetime (process exits well before TTL); board ticks see new worktrees within TTL seconds. ~10 lines. Doesn't require the board to know it's special.
-  - **Drop the cache for `iter_all_runs`**: keep it only on `find_run`'s hot path. Board pays full `git worktree list` cost every tick (~16ms on a small repo, possibly higher on large). CLI commands lose a tiny optimization. Simplest.
-  - **Explicit invalidation hook**: expose `runs.invalidate_worktree_cache()`; the board's 1Hz refresh calls it; CLI commands don't. Most surgical, ugliest contract.
-  - **Don't change it at all**: rely on option 1 above (multi-root watchdog) to cover the freshness gap without re-scanning. If the user creates a new worktree mid-session that's still invisible until restart, but maybe that's acceptable.
-- [ ] **Implement + test.** Whichever combination wins, add coverage:
-  - Unit test for the cache behavior (TTL expiry, or invalidation-hook contract).
-  - Integration test that launches the board (or its `snapshot.build` driver) against a synthetic workbench, creates a new worktree mid-test, and asserts the new run appears within the expected window.
-  - Performance smoke: measure `snapshot.build(cfg)` wall-clock at 1Hz with N=3, N=10, N=20 worktrees. Confirm it stays under a budget (e.g. 100ms per tick).
-- [ ] **Document the contract.** Whichever cache shape wins, write the rule in `lib/runs.py`'s module docstring so the next person doesn't re-introduce the same bug.
-
-### Acceptance
-
-- Board started before a new worktree exists shows the new worktree's runs within a documented bound (e.g. ≤ 2s for the TTL approach; ≤ 30s for the periodic-rescan approach).
-- `git worktree list` is not called more than necessary — investigation has measured the cost on a representative worktree count and the chosen strategy beats today's worst case.
-- A self-modifying run transitioning through `validate` → `followups` → `human_review` shows the column changes on the live board with ≤ 1s lag (matching today's 1Hz floor) without manual restart.
-- `complete`/`abandon` terminal transitions are visible on the board without manual restart, and the previously-visible `human_review` card disappears cleanly (no stale row).
-- New tests exist that would fail under today's behavior and pass under the new one.
-- `lib/runs.py`'s module docstring explains the cache contract.
-
-### Non-goals
-
-Re-architecting the board's renderer (`RunSnapshot`, `lib/board/source.py`, `lib/board/snapshot.py` are all correct); replacing watchdog with a different filesystem-event library; building a daemon or message bus between CLI commands and the board (out of scope unless investigation surfaces it as the right answer); supporting non-git worktree change detection (e.g. NFS); changing the 1Hz fallback frequency (it's the safety net, not the target).
-
-### Origin
-
-Surfaced 2026-05-25 in a session debugging why this run (`2026-05-25-each-worktree-owns-its-own-run-dir`) stayed at `human_review` on the live board well after `complete` had merged it. Investigation traced the symptom to two layered causes: the board process predated the post-A1 `iter_all_runs` codepath (one-time skew, fixed by restart), AND the worktree-list cache had no TTL (would re-occur for any new worktree created mid-session). The user pushed back on a too-quick "drop the cache" fix — `git worktree list` was measured at ~16ms median, ~19ms p90, ~1.6% of a CPU at 1Hz today — and asked for an explore-then-decide approach rather than jumping to one of the four cache strategies above. Follow-up `follow-ups.md` from that run also called out the watchdog-coverage gap as a separate item; this TODO consolidates both.
-
----
-
-## 7. Team-review delivery mode: GitHub PR creation lifecycle
+## 7. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
 
 Today the workbench is built for personal-repo, single-author work. `done` means "human accepted + locally merged to parent branch" — `cmd_complete` checks out the parent and runs `git merge --no-ff` directly. That model collapses two things that are separate in a team workflow: author sign-off and team sign-off. For team work the workbench needs to model the PR-review world as first-class lifecycle states, not a slash-command bolt-on after `done`.
 
@@ -250,76 +113,74 @@ The user-stated workflow:
 
 > I give a Linear ticket so things are implemented → Human Review → approved means PR is created and run is marked as Done. If PR gets comments, it can get reopened somehow.
 
-The key requirement: **the human must see and approve the PR draft before anything gets pushed**. PR descriptions are not a fire-and-forget concern — they're a structured artifact with its own review step. And `done` for team work cannot mean "auto-merged into master" — it should mean "PR exists, in team review, or merged."
+The key requirement: **the human must see and approve the PR description before anything gets pushed**. PR descriptions are not a fire-and-forget concern — they are an LLM-bearing artifact with its own drafting stage. And `done` for team work cannot mean "auto-merged into master" — it means "PR merged on GitHub."
 
-### Design — Option A: per-run `delivery` mode with branched lifecycle
+### Design — minimal fork at `human_review`
 
-Add a per-run `target.delivery` field at `new-run` time:
-
-```yaml
-target:
-  delivery: local-merge      # today's behavior, default for personal repos
-  # or
-  delivery: pull-request
-  delivery_config:
-    base_branch: main
-    remote: origin
-    auto_assign_reviewers: false
-    update_strategy: append   # append | force_push
-```
-
-The state machine forks after `human_review` based on `delivery`:
+The delivery choice is **not** declared at `new-run` time. Forcing it that early couples a run's identity to a decision the author hasn't made yet — often you don't know if a change is PR-worthy until you've built it. Instead, the fork happens at the `human_review` terminal boundary, by which slash command the author invokes:
 
 ```text
-# delivery: local-merge (unchanged)
-human_review -> done            (complete = local merge)
-human_review -> building         (bounce)
-human_review -> abandoned
+human_review --(/complete)----> done             # local merge (today's behavior, unchanged)
+human_review --(/publish-pr)--> publishing       # PR-flow entry
+human_review --(/bounce)------> building         # rebuild (unchanged)
+human_review --(/abandon)-----> abandoned        # (unchanged)
 
-# delivery: pull-request (new)
-human_review     -> publishing         (author approves → draft PR)
-publishing       -> in_pr_review       (after explicit /publish-pr — pushes + opens PR)
-publishing       -> human_review       (bounce — draft rejected, doesn't push)
-in_pr_review     -> changes_requested  (CI failure or reviewer comments)
-in_pr_review     -> done               (PR merged)
-in_pr_review     -> closed             (NEW terminal — PR closed without merge)
-changes_requested -> building          (rebuild against curated change-request.md)
-any non-terminal -> abandoned
+# PR-flow continuation:
+publishing       --(/publish-pr)--> in_pr_review  # human-confirmed; pushes + opens PR
+publishing       --(/bounce)------> human_review  # draft rejected; nothing pushed
+in_pr_review     --(/complete)----> done          # one-shot `gh pr view` confirms PRMerged
+in_pr_review     --(/bounce)------> building      # human-invoked; pulls comments to change-request.md
+in_pr_review     --(/abandon)-----> abandoned     # local abandon; PR is orphaned (see hard parts)
+in_pr_review     --(/closed)------> closed        # human marks PR was closed on GitHub
+any non-terminal --(/abandon)-----> abandoned
 ```
+
+`completion.delivery` (`local-merge` | `github-pr`) is set by whichever terminal command runs — it is recorded, not declared. Metadata grows `completion.pr_number` + `completion.pr_url` once `/publish-pr` succeeds.
 
 ### The new stages
 
-**`publishing` — LLM-bearing, drafts the PR but does NOT push**
+**`publishing` — LLM-bearing, drafts the PR description**
 
-Reads `HUMAN_REVIEW.md`, `brief.md`, `review.md`, the diff, the Linear ticket if linked.
-Writes `stages/7_publishing/pr-draft.md` (title + body) and `stages/7_publishing/pr-meta.yaml` (base branch, suggested reviewers, labels, linked tickets).
-Also writes `stages/7_publishing/adversarial-review.md` — see sub-step below.
-Stops with a STOP banner. The agent does not run `gh pr create`. The human reviews `pr-draft.md` + `adversarial-review.md`, edits the draft if needed, then runs `/publish-pr` to actually push the branch and create the PR — or bounces back to `human_review` if the draft or adversarial findings warrant it.
+The single purpose of this stage is to produce a high-quality PR description before anything is pushed. It is the GitHub-shaped sibling of `/handoff`. Reuses TODO §1's curated-context pattern: `publishing --init` writes `publishing-context.md` deterministically from prior artifacts; the LLM session reads only that file.
 
-The draft is the artifact you said you need: "I want and need to see exactly what's going to get pushed." `pr-draft.md` is what gets pushed. Editing it before `/publish-pr` is the editing path; bouncing back to `human_review` is the redo path.
+Reads (via `publishing-context.md`):
+- `brief.md` — original intent, acceptance criteria, non-goals
+- `plan.md` — decisions, files-changed, test plan
+- `build.md` — what got built, deviations from plan
+- `validate-context.md` — already curated for review purposes; reused here
+- `review.md` — reviewer's findings + decision
+- `HUMAN_REVIEW.md` — author's sign-off notes
+- The diff (`git diff <base_ref_sha>..HEAD`)
+- Linked Linear ticket if `target.linear_ticket` is set (via Linear MCP)
 
-*Pre-PR adversarial review sub-step.* Before drafting the PR body, `publishing` dispatches an Agent-tool subagent (`general-purpose` or `Explore` with a tight allowlist) fed only `validate-context.md` + the diff. The subagent comes in cold — no builder chain-of-thought, no rationalizations from the implementing session — and returns a structured findings dict (Decision + list of `{section, severity, body}`). The master writes `adversarial-review.md` from the returned findings. This is distinct from `/validate`'s standard review (which is *not* adversarial and runs in the master session); the adversarial pass exists specifically because shipping to a team via PR is a higher bar than local human-review acceptance. The `/pr-review` skill's `adversarial` mode is the closest existing analog and can be reused or adapted. If findings include any `severity: blocker`, `publishing` refuses to write `pr-draft.md` and forces a bounce.
+Writes:
+- `stages/7_publishing/pr-draft.md` — title (line 1) + body (rest). This file becomes the PR description verbatim.
+- `stages/7_publishing/pr-meta.yaml` — base branch, suggested reviewers, labels, linked Linear ticket URL, draft-vs-ready flag.
 
-**`in_pr_review` — passive wait state**
+STOPs with a banner instructing the human to review `pr-draft.md`, edit it directly if needed, then run `/publish-pr` to push — or `/bounce` if the draft reveals the implementation itself is wrong.
 
-No agent activity. The board shows `PR #1234 — N approvals, M comments, CI: passing/failing`.
+The draft is the artifact you said you need: "I want and need to see exactly what's going to get pushed." `pr-draft.md` is what gets pushed.
 
-State flips on external signal. Two trigger mechanisms (pick one or both):
-- `agent-workbench pr-sync <run_id>` — polls `gh pr view --json state,reviews,comments,checksStatus` and emits the right events. Manual or cron.
-- `gh` webhook → workbench-side listener — out of scope for V1, listed only so the architecture leaves room.
+**`/publish-pr` — the human-gated push**
 
-Events emitted by `pr-sync`:
-- `PRApproved` — all required reviews pass + CI green → ready for human to merge
-- `PRChangesRequested` — review left as changes-requested OR CI failed
-- `PRMerged` → transitions to `done`
-- `PRClosed` → transitions to `closed`
-- `PRCommentsAdded` — non-blocking comments; no state change but events logged
+A thin command, not a stage. Validates `pr-draft.md` is non-empty, then forks on `completion.pr_number`:
+- **Not set (first publish):** pushes the branch, runs `gh pr create --title "$(head -1 pr-draft.md)" --body-file <(tail -n +2 pr-draft.md)`, captures the returned PR number/URL into `completion.pr_number` + `completion.pr_url`, transitions `publishing → in_pr_review`.
+- **Already set (re-publish, body changed):** runs `gh pr edit <pr_number> --title ... --body-file ...`. No `gh pr create`.
+- **Already set, body unchanged:** `git push` only. PR auto-updates via the new commits.
 
-Note: `PRApproved` does NOT auto-transition to `done`. The human runs `/complete` (or `/merge-pr`) to actually merge the PR. The workbench does not auto-merge team PRs even when CI + reviews are green — too many edge cases (squash vs merge vs rebase, branch protection rules, "wait for X to land first").
+`gh` failures (auth expired, branch protection forbids, network) keep the run in `publishing`, emit a structured error event, and the STOP banner reprints with the specific failure + remediation. Human fixes the cause, reruns `/publish-pr`. No partial state — either the PR exists and we transition, or it doesn't and we don't.
 
-**`changes_requested` — bounce-with-curated-context**
+**`in_pr_review` — passive holding state, no polling**
 
-Behaves like `human_review → building` bounce today (worktree preserved, prior stages archived under `archive/`), but with a critical difference: **`change-request.md` is pre-populated** from PR state by `pr-sync` before the bounce. Shape:
+No background process. No agent activity. No `pr-sync` command. The board shows `PR #1234 (link)` and the row sits until the human invokes one of:
+- `/complete <run_id>` — does a one-shot `gh pr view --json state,mergeCommitOid`. Asserts `state == MERGED`. Records `completion.merge_sha` from `mergeCommitOid`. Transitions to `done`. Refuses if not yet merged.
+- `/bounce <run_id>` — pulls open PR comments at invocation time (single `gh api repos/<owner>/<repo>/pulls/<n>/comments`), populates `change-request.md` from the response, transitions to `building`. No background sync — comments are fetched on demand only.
+- `/closed <run_id>` — human marks "team closed this PR without merging." Transitions to `closed`.
+- `/abandon <run_id>` — author's call; transitions to `abandoned`. Leaves PR open on GitHub untouched (see hard parts).
+
+**Re-entering `building` from `in_pr_review` (`change-request.md`)**
+
+When `/bounce` pulls PR comments, it writes `change-request.md` to the new building stage's directory. This is the curated entry point (analog of `*-context.md` from TODO §1). Shape:
 
 ```markdown
 # Change request — PR #1234 (round N)
@@ -333,180 +194,237 @@ Behaves like `human_review → building` bounce today (worktree preserved, prior
 
 ## CI failures (if any)
 - buildkite job xyz: pytest tests/test_exports.py::test_archived_filter — assertion failed (link)
-
-## Untouched from prior build
-- brief.md acceptance criteria (unchanged unless reviewer comments suggest replanning)
-- plan.md (ditto)
 ```
 
-The builder, on re-entering `building`, reads `change-request.md` first — it's the curated entry point (analog of `*-context.md` from TODO §1). The brief and plan are still available at their stage paths if the agent decides comments warrant replanning, but `change-request.md` is the default reading list.
-
-A `changes_requested` bounce does **not** require re-running `/validate` from scratch the same way as today's `human_review → building` bounce does. Or maybe it does — open design question; see below.
+The builder reads `change-request.md` first; `brief.md` and `plan.md` remain available if the comments warrant replanning. After `building`, the run flows back through `validating → human_review → /publish-pr` as normal — re-validate is the existing invariant, not optional. Because `/publish-pr` is deterministic on `pr_number`, the same PR gets updated (no new PR created).
 
 **`closed` — new terminal state**
 
-PR was closed without merge (declined, superseded, abandoned by team). Terminal. Distinct from `abandoned` because `abandoned` was the author's call; `closed` was the team's. Both preserve artifacts.
+PR was closed without merge (declined, superseded, abandoned by team). Terminal. Distinct from `abandoned` because `abandoned` was the author's call; `closed` was the team's. Both preserve artifacts. Reached only by explicit human `/closed` invocation — the workbench never closes PRs itself.
 
-### What `/complete` does in `pull-request` mode
+### What `/complete` does in `github-pr` mode
 
-Today `cmd_complete` does `git merge --no-ff` into the parent branch locally. For `pull-request` runs, that's wrong — the merge happens on GitHub via the PR. Two options:
+`/complete` in `in_pr_review` is a verification-only command, not a merge. It runs `gh pr view --json state,mergeCommitOid` once, asserts `state == MERGED`, and records the SHA. No `git merge`, no `gh pr merge`. The human does the actual merge via GitHub UI or `gh pr merge` themselves; `/complete` just acknowledges it landed.
 
-- **Option A1: `/complete` only valid in `in_pr_review` and only after `PRMerged` event landed.** It becomes a no-op transition (`in_pr_review → done`) that records `completion_ref: merge:<github-sha>` from the PR's `mergeCommitOid`. No local merge.
-- **Option A2: `/complete` is renamed `/merge-pr` in `pull-request` mode and actually calls `gh pr merge`.** Workbench triggers the merge on GitHub. Higher control, higher blast radius (now the workbench is talking to remote APIs, which the architecture explicitly disclaims).
-
-Lean A1. Keep the workbench's "we don't talk to remotes" stance intact. The human merges via the GitHub UI or `gh pr merge`; `/complete` just records the SHA and flips to `done`.
+This preserves the workbench's "we don't talk to remotes for write operations on behalf of the agent" stance. The only `gh` writes anywhere in the lifecycle are `gh pr create` and `gh pr edit --body/--title`, both gated behind explicit human `/publish-pr` invocation.
 
 ### Hard parts worth flagging
 
-1. **Force-push vs. append on PR updates.** When the agent addresses comments and pushes again, force-push gives a clean diff but loses GitHub's comment-to-line anchoring; append keeps anchors but makes the PR a mess after 3 rounds. Configurable per-run via `delivery_config.update_strategy`. Default: `append` (safer, anchors preserved). Strong opinions differ team-to-team.
-2. **CI failures vs. reviewer comments are different change types.** Both produce `changes_requested`, but CI failures are deterministic and the agent can act autonomously; reviewer comments often need judgment. Tag `change-request.md`'s top-level type (`ci_only`, `reviewer_only`, `mixed`) so a future automation can auto-bounce on CI-only failures without human intervention. V1: tag the field, don't act on it.
-3. **Stale PR state on `/abandon`.** Abandoning a run with an open PR orphans the PR. `/abandon` for a `pull-request` run should default-prompt "Close PR #1234 too? [Y/n]" and call `gh pr close` if yes. Emit `PRClosed` event regardless of how the close happened.
-4. **PR re-publishing after bounce from author-`human_review`.** If the author bounces from `human_review` (not from PR comments — there's no PR yet) and the worktree gets rebuilt, the next `publishing` stage drafts a fresh PR. If there's a *prior* PR draft from a previous loop, the `publishing` agent should diff its new draft against the prior one and surface the delta, not silently overwrite.
-5. **Branch-name stability across bounces.** PRs anchor on branch names. Today the branch (`agent/<slug>`) stays stable across `human_review → building` bounces, so this is already safe — just calling it out so it doesn't regress.
-6. **What `/validate` reruns mean after a `changes_requested` bounce.** If the change is small (typo, missing test), running the full validate stage feels like overkill. But the contract today is that any state advance through `validating` writes fresh `review.md` + `qa/report.md`. Should we allow a `--skip-validate` path on small changes, or require full re-validate every cycle? Lean toward requiring full re-validate but making it cheap — the curated `validate-context.md` (TODO §1) means the reviewer is reading one file, not five.
-7. **Multi-round comment thread state.** PR comments accumulate across rounds. After 3 rebuild cycles, `change-request.md` shouldn't be "all comments ever" — it should be "unresolved comments + new comments since last push." `pr-sync` needs to track which comments were addressed (heuristic: comments marked resolved in GitHub, or comments on lines that no longer exist in the new diff) vs. which are still open.
+1. **CI failures vs. reviewer comments are different change types.** Both end up in `change-request.md` when the human bounces, but CI failures are deterministic and a future automation could act on them autonomously; reviewer comments often need judgment. Tag `change-request.md`'s top-level type (`ci_only`, `reviewer_only`, `mixed`) so future automation has a hook. V1: tag the field, don't act on it.
+2. **Stale PR state on `/abandon`.** Abandoning a run with an open PR orphans the PR on GitHub. The workbench does **not** close it — that would be an unsolicited write. `/abandon` records the orphan in metadata (`completion.pr_orphaned: true` plus the URL); the human decides whether to close it on GitHub themselves. The STOP banner surfaces the PR URL and reminds the human it's still open.
+3. **Branch-name stability across bounces.** PRs anchor on branch names. Today the branch (`agent/<slug>`) stays stable across `human_review → building` bounces; the same invariant must hold across `in_pr_review → building` bounces or PR updates will fail.
+4. **Multi-round comment state.** PR comments accumulate across rounds. `/bounce` pulling at invocation time gets the *current* snapshot from GitHub, including comments marked resolved. The `gh api` query should filter to unresolved threads (or annotate resolved ones) so the builder doesn't re-address already-resolved feedback. Heuristic: `is_resolved == false` from GraphQL `pullRequestReviewThreads`. V1 may take the simpler "all comments since last push timestamp" approach; revisit if it produces noisy `change-request.md` files.
+5. **Re-publish body diffing.** When `publishing` re-runs after a CR cycle, the new `pr-draft.md` may be substantially different from the previous one (different rationale, different test coverage). The human is reading `pr-draft.md` fresh each cycle — the previous draft is archived under `archive/`. No automatic diffing; the human reads the current draft as they would the first one.
 
 ### Tasks
 
-This is large enough that landing it as one TODO is a fiction; it'll be a sub-project across many runs. Listing the unit-of-work breakdown so future runs can pick discrete pieces:
+This will land across several runs. Discrete unit-of-work breakdown:
 
-- [ ] Decide between Option A (forked lifecycle, new states) vs. Option B (re-entrant `human_review` with no new states). The conversation that produced this TODO leaned A; revisit before committing because it's the largest schema change to the workbench since pass-1.
-- [ ] Add `target.delivery` and `target.delivery_config` fields to `schemas/run-metadata.yaml`. Update the metadata loader (TODO §4 schema validation should land first or co-land to catch typos).
-- [ ] Update `schemas/transitions.yaml` with the new states (`publishing`, `in_pr_review`, `changes_requested`, `closed`) and their transition evidence requirements. Decide what evidence each transition needs (e.g. `publishing → in_pr_review` needs `pr_number`, `pr_url`, `branch_pushed_sha`).
-- [ ] Build `cmd_publish_pr.py` — the slash command that takes a `publishing`-state run, validates `pr-draft.md` exists and is non-empty, pushes the branch, calls `gh pr create --body-file pr-draft.md --title "$(head -1 pr-draft.md)"`, captures the returned PR number/URL, and transitions to `in_pr_review`. Lots of edge cases (auth, branch already exists on remote, force-push policy).
-- [ ] Build `cmd_pr_sync.py` — polls `gh pr view --json` for the current state, emits the right events, transitions if state changed. Idempotent.
-- [ ] Build a `publishing`-stage LLM-bearing slash command (`/draft-pr` or extend `/handoff` for `pull-request` runs). Drafts `pr-draft.md` from `HUMAN_REVIEW.md` + brief + review + diff + linked Linear ticket (Linear MCP integration for the ticket fetch).
-- [ ] Add the pre-PR adversarial-review sub-step to the `publishing` slash command. Dispatches an Agent-tool subagent (`general-purpose` or `Explore`) fed `validate-context.md` + the diff; subagent returns structured findings; master serializes `adversarial-review.md`. Decide whether to reuse the `/pr-review` skill's `adversarial` mode or fork its prompt into a workbench-owned subagent contract. If any finding is `severity: blocker`, refuse to write `pr-draft.md` and force a bounce to `human_review`.
-- [ ] Update `cmd_complete.py` to detect `delivery: pull-request` and take the A1 path (no local merge; just record `merge:<sha>` from the PRMerged event). Make sure the merge-into-master semantics for `local-merge` runs are preserved unchanged.
-- [ ] Update `cmd_abandon.py` to prompt about closing an open PR if one exists.
-- [ ] Update `cmd_bounce.py` (or add a new bounce path) so PR-comment-driven bounces pre-populate `change-request.md` from PR state — currently `change-request.md` is human-authored. Decide whether `pr-sync` does the population at the event time or whether the bounce command pulls fresh.
-- [ ] Board changes — surface PR state (`PR #1234`, approvals count, CI status, last comment time) in `in_pr_review` rows. The board's RunSnapshot model needs new fields; the renderer needs new columns or a status pill.
-- [ ] Audit + `HUMAN_REVIEW.md` rendering — `lib.human_review.render` doesn't know about PR state today. Add a `## Pull request` section that renders when `pr_meta` is present.
-- [ ] Documentation — `architecture.md` § "Non-goals for V1" currently says "No PR creation." That non-goal moves; document the new non-goals (no auto-merge, no auto-resolve-comments, no auto-assignment of reviewers from CODEOWNERS unless `auto_assign_reviewers` is set).
-- [ ] Tests — full E2E coverage for the `pull-request` lifecycle: happy path (draft → publish → approve → merge → done), CR path (publish → CR → rebuild → republish), abandon path (publish → close → closed).
+- [ ] Update `schemas/transitions.yaml` with the new states (`publishing`, `in_pr_review`, `closed`) and their transition evidence requirements. `publishing → in_pr_review` needs `pr_number`, `pr_url`, `branch_pushed_sha`. `in_pr_review → done` needs `merge_sha`. `in_pr_review → closed` needs `closed_by`.
+- [ ] Add `completion.delivery`, `completion.pr_number`, `completion.pr_url`, `completion.merge_sha`, `completion.pr_orphaned` to `schemas/run-metadata.yaml`. (TODO §4 schema validation should land first or co-land to catch typos.) No new fields under `target` — the choice is made at terminal-command time.
+- [ ] Build the `publishing` LLM-bearing slash command. `publishing --init` writes `publishing-context.md` deterministically from brief + plan + build + validate-context + review + HUMAN_REVIEW + diff + linked Linear ticket. The LLM session reads only `publishing-context.md` and writes `pr-draft.md` + `pr-meta.yaml`.
+- [ ] Build `cmd_publish_pr.py` — validates `pr-draft.md` non-empty; forks on `completion.pr_number` (create vs. edit vs. push-only). Captures `pr_number`/`pr_url` on creation. On `gh` failure, keeps run in `publishing` and emits structured error event for the STOP banner.
+- [ ] Update `cmd_complete.py` for `in_pr_review`-state runs: one-shot `gh pr view --json state,mergeCommitOid`, assert merged, record `merge_sha`, transition to `done`. Local-merge path (called from `human_review`) preserved unchanged.
+- [ ] Update `cmd_bounce.py` to handle the `in_pr_review → building` path: pulls open PR comments via `gh api repos/<owner>/<repo>/pulls/<n>/comments`, writes `change-request.md` to the new building stage, with `change_request_type: ci_only | reviewer_only | mixed` annotation.
+- [ ] Add `cmd_closed.py` — small command for human-invoked `in_pr_review → closed` transition.
+- [ ] Update `cmd_abandon.py` to detect an open PR and record `completion.pr_orphaned: true` + URL in metadata. Does **not** call `gh pr close`. STOP banner mentions the orphaned PR.
+- [ ] Board changes — surface `completion.pr_number` + URL on `publishing` / `in_pr_review` / `closed` rows. No CI/approval status (those are read on GitHub directly).
+- [ ] Documentation — `architecture.md` § "Non-goals for V1" currently says "No PR creation." Update with the new contract: `gh pr create` + `gh pr edit --body/--title` are the only writes; everything else is read-only `gh pr view` / `gh api`. Update `docs/lifecycle.md` with the new states and the `human_review` fork.
+- [ ] Tests — E2E coverage for happy path (`human_review → publishing → in_pr_review → done` via simulated `gh` binary), CR path (`in_pr_review → /bounce → building → ... → publishing` with `change-request.md` populated from fake `gh api` output), closed path, abandon-with-open-PR path. `local-merge` regression suite stays untouched.
 
 ### Acceptance
 
-- A run with `target.delivery: pull-request` flows `... → human_review → publishing → in_pr_review → done` against a real GitHub repo, with the PR created from `pr-draft.md` and `done` triggered by `PRMerged`.
-- A reviewer comment on the PR, followed by `pr-sync`, triggers `in_pr_review → changes_requested → building` with `change-request.md` pre-populated from the comment.
-- A PR closed without merge transitions to `closed` (new terminal), not `abandoned`.
-- The `publishing` stage produces `adversarial-review.md` from a fresh subagent (master session does not Read the diff or prior artifacts during the adversarial pass), and a `severity: blocker` finding blocks `pr-draft.md` from being written.
-- `local-merge` runs continue to work exactly as today — no regression in the personal-repo path.
-- The board shows distinct rows for `publishing`, `in_pr_review`, `changes_requested`, `closed`.
-- `architecture.md` and `docs/lifecycle.md` document the new states and the delivery-mode fork.
-
-### Non-goals (for this TODO; reconsider later)
-
-- Auto-merging PRs even when CI + reviews are green (human runs `/complete` or merges via GitHub UI).
-- Auto-resolving review comments (the agent rebuilds against `change-request.md`; resolving the threads on GitHub is the human's call).
-- Real-time PR state via webhooks (poll-based `pr-sync` is V1; webhooks are V2).
-- Auto-assigning reviewers from CODEOWNERS (opt-in via `delivery_config.auto_assign_reviewers`, off by default).
-- Multi-PR runs (one run still maps to one branch maps to one PR).
-- Cross-repo PRs / monorepo PR splits — out of scope until the multi-repo run model lands.
-- Merge-strategy configurability (squash/rebase/merge) — V1 lets the GitHub repo's settings decide; `gh pr merge` honors them.
-
-### Origin
-
-Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash command in a prior turn. The user pushed back: PR descriptions are not fire-and-forget, the human must see and approve what gets pushed, `done` cannot mean "auto-merged to master" for team work, and the change-request-comments-arrive-later loop needs a real state, not a re-entry into `human_review`. This TODO is the larger redesign that the original sketch glossed over.
-
----
-
-## 8. Per-run tool-policy allowlist (only relevant once §7 ships)
-
-Today the workbench's safety story is filesystem-via-worktrees + evidence-gated transitions. There's no per-run tool bounding because there's no need — `local_only: true` in `agent-workbench.yaml` means no remote calls, the worktree confines git operations to one branch, and the agent's shell tool is the agent's-harness problem.
-
-§7 changes the threat model. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false. The blast radius grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
-
-The architectural concern: today, an agent inside a `building` stage that decides on its own to run `gh pr create` would succeed (the harness allows `gh`; the workbench doesn't know to stop it). That's wrong even in the `local-merge` world; it becomes a real problem in the `pull-request` world because the agent now has examples of when `gh` calls are valid (during `publishing`) and might generalize.
-
-### Proposed shape
-
-A per-stage tool-policy file declares which commands are allowed during which lifecycle states. Stored alongside the lifecycle schema:
-
-```yaml
-# schemas/tool-policy.yaml
-schema_version: 1
-kind: tool_policy
-
-stage_policies:
-  shaping:
-    shell_allowlist: []          # no shell calls at all
-    network: deny
-
-  planning:
-    shell_allowlist:
-      - git
-      - find
-      - grep
-      - rg
-    network: deny
-
-  building:
-    shell_allowlist:
-      - git
-      - "*"                       # full shell; the worktree is the bound
-    network: deny                 # except via explicit tooling (test runners may need it)
-
-  validating:
-    shell_allowlist:
-      - git
-      - "<test-runners>"
-      - playwright
-    network: allow_for_qa
-
-  # NEW for §7
-  publishing:
-    shell_allowlist:
-      - gh pr view
-      - gh pr create
-      - gh api repos/*/*/pulls/*
-    network: allow_for_github_only
-    gh_repo_scope: per_run        # see below
-
-  in_pr_review:
-    shell_allowlist:
-      - gh pr view
-      - gh api repos/*/*/pulls/*
-    network: allow_for_github_only
-```
-
-`gh_repo_scope: per_run` means: the policy is scoped to the specific `target.repo` of this run. A run targeting `klaviyo/app` cannot use `gh` against `klaviyo/fender` even though the user's credentials cover both.
-
-Two enforcement paths:
-
-1. **Harness-mediated.** The workbench writes a `tool-policy.yaml` per run; the agent's harness (Claude Code, Codex) reads it and refuses tool calls outside the allowlist. This is the practical V1 path — it doesn't need any new infrastructure on the workbench side beyond emitting the policy. Whether each harness honors it is a per-harness contract; Claude Code's settings.json hooks are the closest existing primitive.
-2. **Wrapper scripts.** The workbench provides a wrapped `gh` (and similar) in a stage-specific PATH; the wrapper checks the policy before forwarding. Heavier, doesn't depend on the harness, but the agent could bypass by calling `/usr/bin/gh` directly unless we also lock down PATH.
-
-Lean toward path 1 for V1. If the harness can't be trusted, path 2 is the escalation.
-
-This is **not** capability tokens (cryptographically signed, expirable). The mental model is closer to AppArmor / firejail profiles: a static policy file per stage, loaded at stage entry, denying anything not listed. Simpler, no crypto, no token lifecycle.
-
-### Tasks
-
-- [ ] **Do nothing until §7 actually starts.** This is a sequential dependency: tool-policy is only meaningful when remote-calling commands enter the workbench's surface. Pre-§7, the only commands the workbench cares about are `git` (worktree-bounded) and `Read`/`Edit`/`Write` (filesystem-bounded). Adding policy infrastructure now would be premature.
-- [ ] **When §7 starts: spec `schemas/tool-policy.yaml`.** Define the stage_policies block above, including the `publishing`/`in_pr_review` entries. Decide whether `gh_repo_scope: per_run` is enforceable via `gh`'s native repo-scoping (`gh repo set-default`) or needs a wrapper.
-- [ ] **Decide the enforcement path.** Harness-mediated (path 1) vs. wrapper scripts (path 2). Spike both on a single command (`gh pr view`) before committing to the broader rollout. Document the choice in `architecture.md`.
-- [ ] **Add `cmd_doctor.py` checks for policy violations.** `agent-workbench doctor` already validates run integrity; extend it to check whether the events log shows any commands run outside that run's policy. Retrospective audit, not preventative; complements whichever enforcement path is chosen.
-- [ ] **Document the contract in `agent-workbench-live/AGENTS.md`.** The agent needs to know "I am in stage X and may only run commands in this allowlist." Make it part of the per-stage rules section in lifecycle.md.
-
-### Acceptance
-
-- §7's `publishing` stage cannot run `gh pr merge` (only allowed commands are `gh pr view`, `gh pr create`, scoped `gh api …`).
-- §7's `building` stage (re-entered after a `changes_requested` bounce) cannot push, cannot create a new PR, cannot close the existing one — the publishing-stage policy is not in effect during building.
-- A run whose policy file is missing or malformed refuses to start (`doctor` flags it; `transitions.transition` rejects).
-- `local-merge` runs continue to work without any policy file (default-allow for that delivery mode, since there's no remote attack surface).
+- From `human_review`, `/publish-pr` drafts `pr-draft.md`, STOPs; a second `/publish-pr` (after human review) pushes and creates the PR via `gh pr create`, transitions to `in_pr_review` with `completion.pr_number` + `completion.pr_url` recorded.
+- `pr-draft.md`'s body cites: acceptance criteria from `brief.md`, the actual diff (files + LOC), the test plan from `plan.md`, and any deviations from `build.md`. Title is one line, ≤72 chars, imperative mood.
+- After the PR is merged on GitHub, `/complete` does a one-shot `gh pr view`, records the merge SHA, and transitions to `done`. No `git merge` runs locally.
+- `/bounce` from `in_pr_review` pulls open PR comments via `gh api`, writes a populated `change-request.md` with `change_request_type` tag, transitions to `building`. A subsequent `/publish-pr` updates the existing PR (via `gh pr edit`), does not create a new one.
+- `/abandon` from `in_pr_review` records `completion.pr_orphaned: true` in metadata, leaves the PR open on GitHub, and the STOP banner surfaces the PR URL.
+- The workbench never calls `gh pr comment`, `gh pr review`, `gh pr merge`, `gh pr close`, `gh pr edit --add-reviewer`. Only `gh pr create`, `gh pr edit --title/--body`, `gh pr view`, `gh api .../comments` (read-only).
+- `local-merge` runs continue to work exactly as today — no regression in the `/complete`-from-`human_review` path.
+- The board shows distinct rows for `publishing`, `in_pr_review`, `closed`.
+- `architecture.md` and `docs/lifecycle.md` document the new states and the `human_review` fork.
 
 ### Non-goals
 
-Capability tokens (no crypto, no expiry, no issuance). Sandboxing the agent's shell tool generally (the worktree is sufficient bound today). Network egress filtering at the OS level (this is a per-command policy, not a network firewall). MCP-server-level policy (out of scope; that's the harness's problem).
+- **No PR comment writes by the workbench.** The agent never posts comments, never resolves threads, never requests reviewers. The human does all of those via GitHub UI or `gh` themselves.
+- **No auto-merge.** Even when CI + reviews are green, the human runs `gh pr merge` or clicks the GitHub button. `/complete` only verifies and records.
+- **No auto-close on `/abandon`.** Orphaned PRs are recorded but left open; the human decides their fate.
+- **No background polling.** No `pr-sync`, no cron, no webhooks. State changes happen only when the human invokes a command.
+- **No auto-assigning reviewers from CODEOWNERS.** `pr-meta.yaml` may *suggest* reviewers in the draft for human review, but `gh pr create` is invoked without `--reviewer` flags. Reviewers are added on GitHub manually.
+- **Multi-PR runs.** One run still maps to one branch maps to one PR.
+- **Cross-repo PRs / monorepo PR splits.** Out of scope until the multi-repo run model lands.
+- **Merge-strategy configurability (squash/rebase/merge).** Whatever the GitHub repo's settings allow is what happens; the workbench is uninvolved.
 
 ### Origin
 
-Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. Today's bounding is filesystem-via-worktrees + state-machine evidence gates; both work because the workbench is local-only. §7 (PR-flow lifecycle) explicitly punctures the local-only stance by adding `gh`-calling commands. This TODO is the matching safety primitive — a per-run, per-stage allowlist that lets the workbench say "even though the agent could call X, in this stage of this run it cannot."
+Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash command in a prior turn. Refined 2026-05-26: the original §7 had a per-run `target.delivery` field set at `new-run` time, an automated `pr-sync` poller, an adversarial-review subagent inside `publishing`, and `/abandon` prompting to close PRs. All four were cut. The delivery choice belongs at the terminal boundary, not the run's identity. There is no polling because re-reading the PR on GitHub is the human's job; the workbench only fetches comments when the human explicitly bounces. The adversarial pass was redundant with `/validate`'s standard review. And the workbench never writes PR state it wasn't explicitly asked to write — closing a PR on the user's behalf is exactly the kind of unsolicited remote action the architecture refuses.
 
 ---
 
-## 9. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
+## 8. Restrictive tool policy for the `publishing` stage only (relevant once §7 ships)
+
+Today the workbench's safety story is filesystem-via-worktrees + evidence-gated transitions. There's no per-run tool bounding because there's no need — `local_only: true` in `agent-workbench.yaml` means no remote calls, the worktree confines git operations to one branch, and the agent's shell tool is the agent's-harness problem.
+
+§7 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
+
+The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh repo delete`, `gh api` against an unrelated repo, or `git push --force` to an unrelated branch. Restricting that one stage is sufficient. Every other stage stays safe under the user's default Claude Code allowlist — `git` is worktree-bounded, test runners and file I/O are filesystem-bounded, none touch remotes, and the default allowlist doesn't include `gh` for them to misuse.
+
+### Design — one stage, one policy
+
+**`publishing`** runs under a restrictive allowlist written per run. Every other stage (`shaping`, `planning`, `building`, `validating`, `followups`) inherits the user's default Claude allowlist with no per-run override and no per-run policy file.
+
+Why this works:
+
+- **The threat surface is exactly one stage.** `publishing` is the only stage that legitimately needs `gh`. There's nothing for a per-stage policy to add for the others that the global allowlist isn't already doing — the default allowlist doesn't include `gh`, so non-publishing stages can't call it regardless.
+- **`in_pr_review` doesn't need a policy.** Per §7 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
+- **Symmetry with worktrees.** Worktrees are the filesystem bound; this is the remote bound. Both narrow and load-bearing, not blanket.
+
+### What the `publishing` policy contains
+
+A static YAML file the workbench writes per run at `publishing`-stage entry. Loaded by the harness; commands outside the list are refused.
+
+```yaml
+# stages/7_publishing/tool-policy.yaml — written by `/publishing --init` for pull-request runs
+schema_version: 1
+kind: tool_policy
+stage: publishing
+
+shell_allowlist:
+  - gh pr view                       # read PR state
+  - gh pr create                     # create the PR (the one mutating call this stage needs)
+  - gh api repos/<owner>/<repo>/*    # scoped reads against the target repo only
+  - git push origin <branch>         # push the branch this PR will open against
+  - git diff
+  - git log
+  - git status
+
+shell_denylist_explicit:
+  - gh pr merge                      # workbench never auto-merges; human merges via gh / GitHub UI
+  - gh pr close                      # closing happens via /abandon, not by the publishing agent
+  - gh repo *                        # no repo-level mutations
+  - git push --force*
+```
+
+`<owner>/<repo>` and `<branch>` are templated at policy-write time from the run's `target.repo` and worktree branch name — so a `publishing` agent for a run targeting `klaviyo/app` cannot `gh api` against `klaviyo/fender` even though the user's credentials cover both. This is the "per-run scope" piece: not a separate concept, just substitution into the allowlist patterns.
+
+The explicit denylist exists for clarity even though the allowlist would already block these — `gh pr merge` and `git push --force` are foot-guns worth naming so a future loosening of the allowlist (e.g. adding `gh pr *`) can't accidentally permit them.
+
+### Enforcement path
+
+**Harness-mediated.** The workbench writes the policy file at stage entry; the Claude Code harness reads it via a settings.json hook (PreToolUse) and refuses tool calls outside the list. No new infrastructure beyond emitting the file.
+
+If a future harness can't honor the policy file, the escalation is a wrapped `gh` on a stage-specific PATH — but this is YAGNI until a second harness shows up. For V1, Claude Code is the harness, and its hooks are sufficient.
+
+This is **not** capability tokens (no crypto, no expiry, no issuance). Static file, loaded at stage entry, denying anything not listed. AppArmor-shaped, not OAuth-shaped.
+
+### Tasks
+
+- [ ] **Do nothing until §7 actually starts.** Sequential dependency. Pre-§7, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
+- [ ] **When §7 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
+- [ ] **Wire the hook.** Claude Code's settings.json PreToolUse hook reads `stages/7_publishing/tool-policy.yaml` when the `/publishing` command starts and applies the allowlist for that session. Spike on `gh pr view` first to confirm the hook shape end-to-end before encoding the full list.
+- [ ] **Add a `doctor` check.** `agent-workbench doctor` extends to scan a run's `events.jsonl` for any tool call emitted during `publishing` that isn't in that run's policy. Retrospective audit complements the preventative hook — if the hook misfires or a future harness ignores the file, doctor catches it.
+- [ ] **Document the contract.** `agent-workbench-live/AGENTS.md` § "Publishing stage rules" names the policy and explains why this stage is special. Note in `architecture.md` that the workbench's safety bounds are now (1) worktrees for filesystem, (2) `publishing`-stage policy for remote — and that every other stage inherits the harness default.
+
+### Acceptance
+
+- `publishing` cannot run `gh pr merge`, `gh pr close`, `gh repo delete`, `gh api` against any repo other than `target.repo`, or `git push --force`. Attempts are refused by the hook and recorded by `doctor`.
+- `publishing` CAN run `gh pr view`, `gh pr create`, scoped `gh api repos/<target.repo>/*`, and `git push origin <branch>`.
+- Every other stage (`shaping`, `planning`, `building`, `validating`, `followups`) runs with no per-run policy file and inherits the user's default Claude allowlist — verified by `doctor` not flagging anything and by the absence of a `tool-policy.yaml` under those stage directories.
+- `local-merge` runs never produce a policy file under any stage (no `publishing` stage exists for them).
+- A run's policy file missing or malformed at `publishing` entry: `transitions.transition(... → publishing)` rejects with a clear error.
+
+### Non-goals
+
+Per-stage policy for stages other than `publishing` (the default Claude allowlist already covers them; adding per-run policy elsewhere is overhead with no threat to mitigate). Capability tokens (no crypto, no expiry). Sandboxing the agent's shell tool generally (worktree is sufficient bound for filesystem; `publishing` policy is sufficient bound for remote). OS-level network egress filtering (per-command policy, not a firewall). MCP-server-level policy (harness's problem). Wrapper scripts as primary enforcement (escalation only, if a future harness can't honor the file).
+
+### Origin
+
+Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. The first draft proposed a full per-stage allowlist for every lifecycle state. Pushed back 2026-05-26: every stage except `publishing` is already safe under the default Claude allowlist (no `gh` in it, worktree-bounded `git`, filesystem-bounded I/O). The only stage that needs a policy is the one that punctures `local_only`, so the mechanism should be scoped to it. Net: one policy file at one stage boundary, not a per-stage matrix.
+
+---
+
+## 9. Board snapshot is O(N²) and re-parses every metadata.yaml 3–4× per tick
+
+### Symptom
+
+`bin/agent-workbench board --static` on the workbench's own runs/ (15 runs, ~30 events each, no live worktrees) takes **~4.1 s wall** (`/usr/bin/time -p` median over 3 runs). The live TUI runs `snapshot.build` at 1 Hz on the main Textual thread; on this dataset every tick blocks the UI for the same ~1.3 s (the static path also pays renderer cost), and any watchdog-driven `RunsChanged` re-enters `_refresh` with no debounce. Worktree-heavy workbenches will get markedly worse.
+
+cProfile of 3 `snapshot.build` calls in-process (`python3 -c "from lib.board import snapshot as s; s.build(cfg)"` under `cProfile.Profile()`):
+
+```
+108,735,248 function calls in 19.902 s   # 3 builds, ~6.6 s/build in profile (no I/O cache effects)
+
+cumtime  pct of profile  func
+17.85s   ~90%   metadata.run_dir         (54 / build — should be ~15)
+16.16s   ~81%   yaml_io.loads            (823 / build — should be ~15)
+15.55s   ~78%   runs._walk_all           (190 / build — should be 1)
+13.99s   ~70%   runs.find_run / _collect_hits (each call re-walks every run)
+12.46s   ~63%   runs._walk_worktrees     (40 / build — should be ≤ 1)
+11.26s   ~57%   yaml_io._strip_comment_outside_quotes (266k calls; >50 M len/append)
+ 6.32s   ~32%   metadata.load            (54 / build — should be 15)
+ 5.93s   ~30%   lifecycle.stage_dir / _run_root  (re-enters metadata.run_dir again)
+ 2.92s   ~15%   subprocess.run           (~48 / build — `git rev-parse --git-common-dir` per run)
+```
+
+### Confirmed root causes
+
+1. **Quadratic `metadata.run_dir` recursion via `find_run`.** `metadata.run_dir` checks for `metadata.yaml` at `cfg.runs_path/<id>`; when that file doesn't exist (every worktree-only run, including this repo's live runs) it falls through to `runs.find_run` → `_collect_hits` → `_walk_all` which walks master + every worktree from scratch (`lib/metadata.py:60-90`, `lib/runs.py:155-208`). One snapshot build calls `metadata.run_dir` 54 times (≈ `load_run_snapshot` × 3-ish: `metadata.load` + `rd =` line + `lifecycle.stage_dir`); each call is O(N). Net cost is O(N²) in the worktree-only-run count. Profile evidence: `_walk_all` ran **570 times for 3 builds** instead of 3.
+
+2. **Hand-rolled YAML parser, character-by-character.** `yaml_io._strip_comment_outside_quotes` does `out.append(c)` in a per-character Python loop (`lib/yaml_io.py:146-174`); it dominates `tottime` at 11.3 s with >50 M underlying `len`/`append` calls. Each `metadata.yaml` is parsed ~3–4 times per run snapshot because both `metadata.run_dir` and `metadata.load` independently read+parse the file (and `lifecycle._run_root` re-enters `run_dir`). 15 runs × ~3.7 parses × 3 builds ≈ 823 `yaml_io.loads` calls in the profile.
+
+3. **`git rev-parse --git-common-dir` shelled out per `is_self_modifying` check.** `runs._git_common_dir` runs a subprocess with no cache (`lib/runs.py:90-109`); each `_try_build_run` triggers `is_self_modifying` indirectly via `resolve_run_dir_for_meta`. Profile shows 145 `subprocess.run` calls in 3 builds (~48 per snapshot, ~2.5 s total). Result is stable for the process — pure cache miss.
+
+4. **No debounce on the watchdog handler.** `_Handler.on_any_event` posts one `RunsChanged` per FS event with only a `.tmp` filter (`lib/board/app.py:498-510`). A build burst writing 10 files in 200 ms triggers 10 full `_refresh` calls **on top of** the 1 Hz timer.
+
+5. **Synchronous `_refresh` on the Textual UI thread.** `snapshot.build` is the work, and it runs inline in `on_mount` / `on_runs_changed` / the 1 Hz timer (`lib/board/app.py:561-606`). Input handling (e.g. `q` to quit) blocks for the duration of a rebuild.
+
+6. **`events.jsonl` walked ~6 times per run with no early exit.** `load_run_snapshot` runs separate loops over `events` for time-in-stage, bounce count, recent-error flag, recent N events, plus `_avg_iteration_seconds`, `_followups_categories`, `_last_qa_completed_age`. Cheap per loop but cumulatively wasteful; one fused pass would suffice.
+
+### Relationship to §6
+
+§6 ("Board freshness across worktrees") names two of the same culprits — the watchdog scope and `_WORKTREE_CACHE`'s lack of TTL — through the lens of *staleness*, not *cost*. This TODO is the missing cost frame: even after §6 fixes freshness, the per-tick rebuild is too expensive. The two are independent: the §6 watchdog/cache changes don't shrink `snapshot.build`; the changes below don't fix the new-worktree-mid-session blind spot. Land both. Where they touch the same line (e.g. `_WORKTREE_CACHE`), the §6 fix is the right place to add a TTL; this TODO's cache work targets `metadata.yaml` parses and `is_self_modifying` instead.
+
+### Confirmation steps (run before landing each fix)
+
+Establish the baseline once, on master:
+
+```sh
+/usr/bin/time -p ./bin/agent-workbench board --static > /dev/null
+# Record real / user / sys. Expect ~4 s real on this repo's 15 runs.
+```
+
+Then for each proposed fix, repeat the timing and the cProfile. The acceptance bar is below.
+
+### Tasks
+
+- [ ] **Single-walk run discovery, threaded through `load_run_snapshot`.** Have `snapshot.build` call `runs.iter_all_runs(cfg)` *once*, collect `{run_id: Run}` (Run already carries `run_dir`, `metadata`, `source`), and pass the resolved `Run` into `load_run_snapshot` instead of having the inner function re-resolve via `metadata.run_dir` + `metadata.load`. Removes the O(N²) `find_run` and the duplicate YAML parses in one stroke. New `load_run_snapshot` signature: `load_run_snapshot(cfg, run: runs_mod.Run, *, now, …)`. The single-run loader path (used by other CLIs) keeps the old `run_id`-keyed entry point as a thin shim that resolves and delegates.
+- [ ] **Cache `_git_common_dir` for the lifetime of one process.** Module-level `dict[str, pathlib.Path | None]` keyed on `str(path.resolve())`. The result is deterministic per repo. Sibling to the existing `_WORKTREE_CACHE`. Cleared by `reset_caches()` for tests.
+- [ ] **Debounce `RunsChanged`.** In `_Handler.on_any_event`, set a "pending" flag and use `App.set_timer(0.25, ...)` to coalesce events; or post one message and have `on_runs_changed` schedule the next refresh on a short timer that swallows further posts during the window. Target: at most one refresh per ~250 ms regardless of FS noise.
+- [ ] **Move `snapshot.build` off the UI thread.** Use Textual's `App.run_worker(...)` (or `asyncio.to_thread`) so `_refresh` returns immediately and the UI stays interactive. Re-render on completion via `call_from_thread`. Required before any of the above can be claimed "good enough" on slower disks.
+- [ ] **Fuse `events.jsonl` traversal.** One pass building a small `EventStats` dataclass (last-transition-to-current, bounce_count, last_error_after_transition, latest_followups_event, latest_qa_event, last-N-events, building-transition timestamps for `_avg_iteration_seconds`). Replace the six existing reversed-loop blocks with one forward pass that records as it goes. Pure refactor; no behavior change.
+- [ ] **Optional, behind a flag: swap the hand-rolled YAML for PyYAML when available.** `yaml_io` is the dominant primitive cost. Try `import yaml` lazily; fall back to the stdlib subset parser when missing. Keep the writer unchanged (the writer's not on a hot path). This is the largest absolute win after the O(N²) fix; it's optional because it adds a soft dependency on PyYAML. Defer if `metadata.yaml` is being changed to a JSON-with-comments format elsewhere.
+
+### Acceptance
+
+- `bin/agent-workbench board --static` on this repo's 15 runs returns in ≤ 1.0 s real (today: ~4.1 s). Measure with `/usr/bin/time -p`; report median of 3 warm runs.
+- cProfile of 3 `snapshot.build` calls shows `runs._walk_all` called **≤ 3 times total** (one per build, not 570).
+- cProfile shows `metadata.run_dir` called **≤ 1× per run per build** (today: 3.6×).
+- cProfile shows `subprocess.run` for `_git_common_dir` called **at most twice per process** (the workbench + first worktree).
+- The live TUI does not block keyboard input for > 100 ms during `_refresh` even with the synthetic "100 FS events in 1 s" stress (use `touch runs/<id>/events.jsonl` in a loop).
+- A build burst (`for i in $(seq 20); do touch runs/<id>/x$i; done`) results in **≤ 2** `_refresh` invocations (verified by a log probe), not 20.
+- Existing tests in `tests/test_board_*.py` (or wherever board coverage lives — confirm during the work) all pass; add a new test that calls `snapshot.build` twice in a row against a synthetic 10-run workbench and asserts `_walk_all` is called exactly once per build (mock-and-count style).
+
+### Non-goals
+
+Re-architecting `RunSnapshot` (the shape is correct; this TODO is purely about how it's populated). Replacing watchdog with a different FS-event library. Caching `RunSnapshot`s across builds — staleness is the failure mode we refuse to ship (per `snapshot.py:14-16`); the goal is to make each rebuild cheap, not to skip rebuilds. Solving the §6 "new worktree mid-session" gap (covered there). Changing the on-disk `metadata.yaml` format (a separate decision; if it lands, the PyYAML swap becomes moot).
+
+### Origin
+
+Surfaced 2026-05-25 during a board-perf audit. User asked "is the board slow?"; profiling on the live workbench (15 runs, no live worktrees) showed `snapshot.build` taking ~1.3 s wall per tick, with 90% of the cost in `metadata.run_dir`'s fallback path (`find_run` re-walking every run, every time, because the runs are worktree-only and have no master-side `metadata.yaml`). The hand-rolled YAML parser dominates the primitive count. Both are pre-existing — the per-worktree run-dir landing (the §6 origin run) made them load-bearing because every run now hits the slow fallback.
+
+---
+
+## 10. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
 
 `lib/metrics/writer.record_run_metrics` writes `metrics.jsonl` at the validate / followups / abandon boundaries. The intent is to attribute token spend to the run. The open question: when a stage spawns a Claude Code Agent-tool subagent (an `Explore` for read-heavy lookup, a `Plan` for design, a `general-purpose` for fan-out), **is the subagent's token spend captured in `metrics.jsonl`, or is only the master session's spend recorded?**
 
@@ -533,3 +451,118 @@ Throttling, capping, or denying subagent spawn — the policy is "spawn subagent
 ### Origin
 
 Surfaced 2026-05-25 in a design conversation about subagent cost. The architecture explicitly permits subagent spawning and the AGENTS.md "subagent-first read strategy" actively encourages it for read-heavy work. The question of whether the resulting spend is captured in the workbench's own metrics is open — the writer code may or may not pull from a telemetry source that includes nested calls, and verifying this is a small but real piece of work. The concern is cross-run comparability: if fan-out runs look artificially cheap, the board's metrics column lies, and decisions about session boundaries (the validate-cut, the cache-discipline rules) get made against bad data.
+
+---
+
+## 11. Canonicalize `repo_name` so the same repo always gets one worktree parent dir
+
+### Symptom
+
+`make_worktree_path` composes `<worktrees_dir>/<repo_name>/<YYYYMMDD>__<slug>`. `repo_name` is `slugify(basename(--repo-path))` (`lib/cli/cmd_new_run.py:54` → `lib/run_ids.py:52-54`). Three valid ways to point at the *same* monorepo today produce three different second-level dirs:
+
+| `--repo-path` value | derived `repo_name` |
+|---|---|
+| `.../new-tech-monorepo` | `new-tech-monorepo` |
+| `.../new-tech-monorepo/agentic-development-task-system-v3__ai` | `agentic-development-task-system-v3-ai` |
+| `.../new-tech-monorepo/agentic-development-task-system-v3__ai/agent-workbench-live` | `agent-workbench-live` |
+
+All three are the same git repo (same `git rev-parse --show-toplevel`). The worktree parent dir disagrees because the CLI never asks git "what is this repo's real root?" — it just slugifies the path the user typed. Anyone running `/new-run` from a different cwd, or invoking `agent-workbench new-run` against a subpath, opens a new top-level dir under `worktrees/`. The intent of `paths.worktrees_dir` is one normalized location per repo; the implementation only normalizes the root, not the per-repo namespace under it.
+
+### Confirmed root cause
+
+`derive_repo_name(repo_path.name)` in `cmd_new_run.py:54` takes the basename of whatever path was passed, never the repo toplevel. There's a `--repo-name` override (`naming.duplicate_repo_basename_strategy: require_repo_name_override` triggers it only on basename collision), but no automatic canonicalization. The `agent-workbench-live/.claude/commands/new-run.md` slash command just shells out to `agent-workbench new-run --repo-path <whatever>`; it inherits the same gap.
+
+The current behavior is also what produced the 578 orphan `aw-e2e-repo-*`/`aw-repo-*`/`aw-self-mod-*`/`aw-snap-repo-*` directories before this cleanup landed — pytest fixtures `mkdtemp` source repos in `/var/folders/...` and the CLI obediently writes their worktrees under the *real* `worktrees_dir`, leaving headless shells when the tmpdir is wiped. Canonicalizing by toplevel won't fix the test-detritus problem (the tests still point `--repo-path` at distinct tmp repos), but it does fix the same-repo-different-cwd case, and it makes the test-fixture fix (route their worktrees into the tmpdir via `AGENT_WORKBENCH_ROOT` or a `paths.worktrees_dir` override) more obviously correct.
+
+### Tasks
+
+- [ ] **Resolve the repo to its git toplevel before deriving `repo_name`.** In `cmd_new_run.py`, after `repo_path = args.repo_path.resolve()`, run `git -C <path> rev-parse --show-toplevel` (already available via `lib/repos.py` — add a thin wrapper if not). Use the toplevel's basename as input to `derive_repo_name`. Fall back to the old behavior if the path isn't inside a git repo (i.e. `new-repo` mode, where the repo doesn't exist yet).
+- [ ] **Honor `--repo-name` unchanged.** The explicit override path stays exactly as today; it's the only escape hatch for users who really do want a second namespace for the same repo (e.g. testing two branches in parallel). Canonicalization only kicks in when `--repo-name` is not passed.
+- [ ] **Optional: detect "same toplevel, different existing `repo_name`" and warn.** If the canonical `repo_name` is `foo` but `<worktrees_dir>/foo/` doesn't exist and `<worktrees_dir>/foo-subpath/` does (i.e. a prior run from a subpath created a different parent), print a one-line warning at `new-run` time so the user notices the drift. Don't auto-merge — the existing dir might genuinely belong to a different intent.
+- [ ] **Add a test in `tests/test_run_ids.py` (or wherever `derive_repo_name` is covered) that exercises the canonicalization.** Synthetic repo at `/tmp/foo/`; passing `--repo-path /tmp/foo/sub/dir` derives `repo_name=foo`, not `dir`. Make sure the `--repo-name` override still wins.
+- [ ] **Document the rule in `agent-workbench-live/.claude/commands/new-run.md` and `lib/run_ids.py` module docstring.** "`repo_name` defaults to the slugified basename of the *git toplevel*, not the path you typed. Use `--repo-name` to override."
+
+### Acceptance
+
+- `agent-workbench new-run --repo-path .../new-tech-monorepo/agentic-development-task-system-v3__ai/agent-workbench-live …` and `agent-workbench new-run --repo-path .../new-tech-monorepo …` produce worktrees under the **same** second-level dir under `worktrees/`.
+- `--repo-name foo` still wins unconditionally.
+- New repos (`--new-repo-path`) keep working — toplevel resolution skipped before init, then the new repo's own basename is used.
+- A test demonstrates the canonical behavior and would fail under today's `cmd_new_run.py:54`.
+
+### Non-goals
+
+Re-homing the 578 orphan e2e/snap/self-mod directories (those are a separate test-hygiene issue — the e2e fixtures should set `AGENT_WORKBENCH_ROOT` or override `paths.worktrees_dir` to a tmpdir, not depend on canonical naming). Renaming or merging existing pre-canonicalization worktree dirs on disk — that's a migration script, not a behavior change. Cross-machine path canonicalization (`/Users/x` vs `/home/x` symlinks etc.) — out of scope; we canonicalize via `git rev-parse`, not by string-matching.
+
+### Origin
+
+Surfaced 2026-05-26 while auditing the worktree list in this repo. Two real worktrees existed for the same monorepo under different `repo_name` parents (`agent-workbench-live/` vs `agentic-development-task-system-v3-ai/` vs `new-tech-monorepo/`) purely because of which subpath was passed to `--repo-path` at `/new-run` time. The user pushed back: paths "look all over the place, but they SHOULD be normalized. Different ways of creating like claude commands vs cli commands should make the same result." Slash commands and the CLI already share one code path; the gap is that the shared path doesn't canonicalize the input. This TODO closes that.
+
+## 12. Investigate the handoff-rendering failure cluster (HUMAN_REVIEW.md + stop banner)
+
+### Symptom
+
+The `human_review` handoff is supposed to give a reviewer a faithful, code-derived summary of what the run actually did. In practice, multiple recent runs produce handoffs whose `## Summary of changes` section is either fabricated (literal example bullets from a template comment) or hollow (parent headers with no detail). The stop banner that the agent reads after the handoff lands inherits these problems and amplifies them.
+
+Two concrete examples on disk to investigate:
+
+**Example A — fabricated bullets from template comment.** Run `2026-05-26-schema-level-validation-for-metadata`. HUMAN_REVIEW.md's `## Summary of changes` reads:
+
+```
+## Summary of changes
+
+- 2 doc(s) touched:
+  - `README.md — added a /hello endpoint example`
+  - `docs/api.md — documented the new response schema`
+
+→ Full diff: /Users/timothy.shee/GitHub/LOCAL_worktrees/new-tech-monorepo/agent-workbench-live/worktrees/agentic-development-task-system-v3-ai/20260526__schema-level-validation-for-metadata/agentic-development-task-system-v3__ai/agent-workbench-live/runs/2026-05-26-schema-level-validation-for-metadata/stages/4_building/build.md
+```
+
+Neither `README.md` nor `docs/api.md` was actually touched by this run. The build.md file at the path the handoff points to is byte-for-byte identical to `templates/build.md` — the builder wrote nothing into it. The two phantom bullets are the literal example lines that live *inside* an HTML comment under the `## Documentation touched` section of the template. `lib/human_review.py`'s `_section` + `_bullet_items` pair walks the section body for `- ` lines without stripping `<!-- -->` framing, so the examples get parsed as if they were real entries.
+
+**Example B — hollow parent headers in the stop banner.** Run `2026-05-26-board-freshness-across-worktrees`. The stop banner printed after the `followups → human_review` transition shows:
+
+```
+Review:
+  HUMAN_REVIEW.md: /Users/timothy.shee/GitHub/LOCAL_worktrees/new-tech-monorepo/agent-workbench-live/worktrees/agentic-development-task-system-v3-ai/20260526__board-freshness-across-worktrees/agentic-development-task-system-v3__ai/agent-workbench-live/runs/2026-05-26-board-freshness-across-worktrees/HUMAN_REVIEW.md
+
+Summary of changes (≤3 bullets):
+  - 5 file(s) touched:
+  - 1 doc(s) touched:
+
+Summary of testing (≤2 sentences, or "None recorded."):
+  Unit tests passed; no known issues.
+```
+
+The two parent bullets end in colons with nothing after them. The detail *does* exist in HUMAN_REVIEW.md (per-file nested rows under each header — 500+ character bullets describing each touched file). But `lib/cli/_stop_banner.py`'s `_render_summary_bullets` deliberately drops nested `  - ` rows ("Top-level bullets only — no leading whitespace before the dash."). The result is structurally correct but reads as broken because the surviving headers were never meant to stand alone.
+
+### Three observed failure modes
+
+These came out of the conversation that surfaced this TODO; they may or may not be the full set.
+
+1. **HTML-comment leakage in `lib/human_review.py`.** `_extract_build_summary` calls `_section` then `_bullet_items` on `## Documentation touched` (and would do the same on `## Files changed` if its template comment ever contained `- ` lines). Neither function strips `<!-- ... -->` blocks. Any `- ` line inside a comment is parsed as a real bullet. Affects `## Summary of changes` in HUMAN_REVIEW.md.
+
+2. **Silent template fallback at `cmd_validate.py:290-298`.** `/validate --init` requires `build.md` to exist at the run root before the building→validating transition; if it's absent, the code stages `templates/build.md` and proceeds. The transition itself only checks file existence, not content (per the `("implementation_summary_path", "build.md", "building", "build.md")` row at `lib/lifecycle.py:152`). A builder that never wrote build.md is indistinguishable from one that did — until the unfilled template starts feeding bug 1 downstream.
+
+3. **Stop-banner extractor drops the only level that has detail.** `_render_summary_bullets` in `lib/cli/_stop_banner.py` extracts column-0 `- ` bullets from HUMAN_REVIEW.md's `## Summary of changes`. The human_review renderer's convention for "files changed" is `- N file(s) touched:` as a parent + `  - <path>` rows as children. The banner extractor sees the parent, drops the children, and renders headers with empty colons.
+
+### Tasks (investigation only — no fixes in this TODO)
+
+- [ ] **Map all sites where text-shape parsing meets template-shaped input.** Grep for `_section`, `_bullet_items`, `## ` literal matching, anything that consumes `build.md` / `HUMAN_REVIEW.md` / `qa/report.md`. Each consumer should be examined for: does it assume content was written? Does it strip HTML comments? Does it understand the nested-bullet convention the producer uses? Write the findings as a table (file:line, what it reads, what assumption it makes, whether that assumption is safe today).
+- [ ] **Audit `runs/` for how often the silent template fallback fires.** For each run with a `stages/4_building/build.md`, diff it against `templates/build.md`. Count how many are byte-identical (= builder wrote nothing) vs. partially filled vs. fully filled. The ratio tells us how systemic the unfilled-template handoff is.
+- [ ] **Audit HUMAN_REVIEW.md across recent runs** for phantom example bullets, hollow header rows, or any other text that looks templated. Map each instance back to which producer/consumer pair produced it. The two examples above are a starting set; there may be more failure modes (e.g. `Manual testing performed` section, `Run timeline` empty rows).
+- [ ] **Re-read the producer↔consumer contract** between the builder's `build.md`, the validate-init template fallback, the `human_review` renderer, the stop-banner builder, and the templates themselves. Specifically: is the right contract "the renderer parses build.md and templates are inert decoration," or "the builder writes structured fields the renderer consumes by name"? Today's mix of template HTML comments + free-form markdown + regex extraction is the weakest of both worlds.
+- [ ] **Decide whether the broader pattern is the bug, not the individual sites.** Three different functions are each independently permissive. The conversation that surfaced this TODO suggested "common thread: shallow text-shape parsing without understanding semantics — comments are content, nested bullets are noise, an existing template file means done." That framing is worth pressure-testing: is there a single producer-side change (e.g. structured frontmatter in build.md, or a `build.json` sibling) that obsoletes all three consumer-side workarounds at once?
+
+### Acceptance
+
+- A written analysis (1–2 pages) that identifies every site involved in the handoff-rendering chain, names each failure mode observed, and proposes one or more candidate fix strategies (single-site patches vs. contract redesign vs. validation upstream).
+- The analysis explicitly answers: should we strip HTML comments at the parsing layer (cheap, narrow), reject unfilled templates at `/validate --init` (changes lifecycle), restructure build.md to carry machine-readable fields (largest change), or some combination?
+- A go/no-go recommendation for each candidate, with the smallest change that closes the example-A and example-B regressions called out as the minimum bar.
+
+### Non-goals
+
+Implementing any of the fixes. This TODO is the investigation; the fix(es) get their own TODO entry once the analysis lands and the user picks a direction. Re-running prior runs whose handoffs are already wrong — those are historical artifacts, not blockers.
+
+### Origin
+
+Surfaced 2026-05-26 while inspecting two recent runs' HUMAN_REVIEW.md and stop-banner output. The user noticed `## Summary of changes` was either fabricated (example A) or hollow (example B) and pushed back that "looks to me there is a larger issue at play." Three distinct bugs were identified in the same conversation, but the user asked to investigate thoroughly before designing solutions rather than patching each in isolation — the suspicion is that the right fix is at the contract level, not the regex level.

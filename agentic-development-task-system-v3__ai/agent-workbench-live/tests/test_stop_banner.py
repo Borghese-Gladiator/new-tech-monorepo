@@ -5,9 +5,10 @@ import contextlib
 import io
 import os
 import pathlib
+import tempfile
 import unittest
 
-from lib.cli._stop_banner import BORDER, print_stop_banner
+from lib.cli._stop_banner import BORDER, print_stop_banner, render_stop_banner
 
 
 SNAPSHOTS = pathlib.Path(__file__).resolve().parent / "snapshots"
@@ -28,8 +29,20 @@ class TestPrintStopBanner(unittest.TestCase):
         self.assertTrue(out.rstrip("\n").endswith(BORDER))
         self.assertIn("STOP. State: ready (human-owned).", out)
         self.assertIn(SAMPLE_RUN_ID, out)
-        self.assertIn("agent-workbench start", out)
-        self.assertIn("Next moves (human-triggered):", out)
+        self.assertIn(f"/start {SAMPLE_RUN_ID}", out)
+        # Slash-form replaces the shell-form.
+        self.assertNotIn("agent-workbench start", out)
+        self.assertIn("Next moves (human-triggered, type in a session):", out)
+
+    def test_no_shell_form_in_any_banner(self):
+        """Cross-state pin: no banner renders the shell-form `agent-workbench` literal."""
+        for state in ("ready", "human_review", "done", "abandoned"):
+            out = _render(state)
+            self.assertNotIn(
+                "agent-workbench ",
+                out,
+                f"shell-form leaked into {state} banner",
+            )
 
     def test_human_review_banner_structure(self):
         # No-cfg fallback: only the three slash-form Next moves lines are
@@ -80,6 +93,50 @@ class TestPrintStopBanner(unittest.TestCase):
         out = _render("ready")
         for line in (out.splitlines()[0], out.splitlines()[-1]):
             self.assertEqual(line, BORDER)
+
+
+class TestWriteTo(unittest.TestCase):
+    """`write_to` persists the rendered banner to disk for durable handoff."""
+
+    def test_write_to_writes_rendered_banner(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = pathlib.Path(tmp) / "nested" / "stop-banner.txt"
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                print_stop_banner("ready", SAMPLE_RUN_ID, write_to=target)
+            self.assertTrue(target.exists())
+            on_disk = target.read_text()
+            stdout = buf.getvalue()
+            # File content matches render_stop_banner exactly + a trailing newline.
+            self.assertEqual(on_disk, render_stop_banner("ready", SAMPLE_RUN_ID) + "\n")
+            # Same content also went to stdout (minus the writer's trailing newline,
+            # since print() adds its own).
+            self.assertEqual(stdout.rstrip("\n"), on_disk.rstrip("\n"))
+
+    def test_write_to_creates_parent_dirs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = pathlib.Path(tmp) / "a" / "b" / "c" / "stop-banner.txt"
+            with contextlib.redirect_stdout(io.StringIO()):
+                print_stop_banner("done", SAMPLE_RUN_ID, write_to=target)
+            self.assertTrue(target.exists())
+
+    def test_write_to_none_skips_write(self):
+        # The default (write_to=None) must not raise and must not touch disk.
+        with contextlib.redirect_stdout(io.StringIO()):
+            print_stop_banner("abandoned", SAMPLE_RUN_ID)  # no write_to kwarg
+
+    def test_write_failure_is_swallowed(self):
+        # Convenience artifact: a write failure must NOT propagate, so the
+        # transition itself never fails on disk weirdness.
+        with tempfile.TemporaryDirectory() as tmp:
+            # Point write_to at a path whose "parent" is a regular file —
+            # mkdir(parents=True) will raise OSError on this.
+            blocker = pathlib.Path(tmp) / "blocker"
+            blocker.write_text("not a directory")
+            target = blocker / "stop-banner.txt"
+            with contextlib.redirect_stdout(io.StringIO()):
+                # Must not raise.
+                print_stop_banner("ready", SAMPLE_RUN_ID, write_to=target)
 
 
 class TestSnapshots(unittest.TestCase):

@@ -71,7 +71,11 @@ If validation fails it prints the errors and stops. Fix the file and re-run the 
 
 ## Next step
 
-Tell the user: the run is in `human_review`. They can `/complete`, `/bounce`, or `/abandon`. The `stages/6_followups/follow-ups.md` file is the candidate list for their next bite.
+Step 4's CLI invocation writes a deterministic five-section banner to `runs/$RUN_ID/stages/6_followups/stop-banner.txt` (it also prints to stdout, but the file is the durable source of truth). The banner carries the HUMAN_REVIEW.md path, summary of changes, testing line, diffstat, and the three slash-form decisions.
+
+Show the user the banner by reading `stages/6_followups/stop-banner.txt` and relaying it **verbatim inside a fenced code block** — do not paraphrase its sections under different headings, do not re-summarize "what landed" / "validation" / "follow-ups" from other artifacts, and do not invent prose around it.
+
+Add at most one sentence after the banner, and only if there is a real blocker the human needs to know before deciding (e.g. a known merge conflict surfaced in `review.md`). Otherwise: banner alone.
 
 ## Reference
 

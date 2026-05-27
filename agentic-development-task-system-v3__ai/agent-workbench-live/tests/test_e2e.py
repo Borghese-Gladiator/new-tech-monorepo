@@ -166,11 +166,21 @@ class TestE2EHappyPath(E2ECase):
         # plan --init does not transition; no banner.
         self.assertNotIn("STOP.", r.stdout)
 
+        # Pre-condition: no banner file yet at the planning stage dir.
+        planning_banner = run_dir / "stages" / "3_planning" / "stop-banner.txt"
+        self.assertFalse(planning_banner.exists())
+
         r = cli(self.tmp, "plan", run_id, stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("planning -> ready", r.stdout)
         # TODO §2: planning -> ready is agent-stopping. STOP banner expected.
         self.assertIn("STOP. State: ready (human-owned).", r.stdout)
+        # Durable on-disk copy of the banner lives in the producing stage's dir.
+        self.assertTrue(planning_banner.exists(),
+                        msg=f"expected banner file at {planning_banner}")
+        banner_text = planning_banner.read_text()
+        self.assertIn("STOP. State: ready (human-owned).", banner_text)
+        self.assertIn(f"/start {run_id}", banner_text)
 
         # start (no LLM).
         r = cli(self.tmp, "start", run_id, "--approved-by", "e2e-tester",
@@ -195,6 +205,23 @@ class TestE2EHappyPath(E2ECase):
         ):
             self.assertIn(header, ctx_body,
                           f"build-context.md missing section: {header}")
+
+        # 2d: /start should have emitted exactly one BaseRefResolved event,
+        # with the SHA matching the value just written to metadata, and it
+        # should sit before the ready->building transition in the audit log.
+        evs = read_events(run_dir)
+        base_ref_events = [e for e in evs if e["type"] == "BaseRefResolved"]
+        self.assertEqual(len(base_ref_events), 1, [e["type"] for e in evs])
+        meta = _meta(run_dir)
+        recorded_sha = meta["target"]["repo"]["base_ref_sha"]
+        recorded_symbolic = meta["target"]["repo"]["base_ref"]
+        self.assertEqual(base_ref_events[0]["payload"]["base_ref_sha"], recorded_sha)
+        self.assertEqual(base_ref_events[0]["payload"]["symbolic_ref"], recorded_symbolic)
+        # Sequence ordering: BaseRefResolved comes before ready->building.
+        trans = [e for e in evs if e["type"] == "TransitionApplied"
+                 and e.get("from") == "ready" and e.get("to") == "building"]
+        self.assertTrue(trans, "expected ready->building transition event")
+        self.assertLess(base_ref_events[0]["seq"], trans[0]["seq"])
 
         # validate --init: materializes build.md + validating fixtures.
         r = cli(self.tmp, "validate", run_id, "--init", stub_fixture=fixture)
@@ -230,11 +257,29 @@ class TestE2EHappyPath(E2ECase):
         # validate (staged) lands at followups, still agent-driven. No banner.
         self.assertNotIn("STOP.", r.stdout)
         self.assertTrue((run_dir / "audit.md").exists())
+        # 2d: audit.md should surface the BaseRefResolved event so line counts
+        # can be re-derived from the audit log alone.
+        audit_text = (run_dir / "audit.md").read_text()
+        self.assertIn("BaseRefResolved", audit_text)
+        # The summary line includes the symbolic ref → 12-char sha prefix.
+        recorded_sha_prefix = _meta(run_dir)["target"]["repo"]["base_ref_sha"][:12]
+        self.assertIn(recorded_sha_prefix, audit_text)
 
         # followups default mode: materializes follow-ups.md + transitions.
+        followups_banner = run_dir / "stages" / "6_followups" / "stop-banner.txt"
+        self.assertFalse(followups_banner.exists())
+
         r = cli(self.tmp, "followups", run_id, stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("followups -> human_review", r.stdout)
+        # Durable on-disk copy of the human_review banner.
+        self.assertTrue(followups_banner.exists(),
+                        msg=f"expected banner file at {followups_banner}")
+        followups_banner_text = followups_banner.read_text()
+        self.assertIn("STOP. State: human_review (human-owned).", followups_banner_text)
+        self.assertIn(f"/complete {run_id}", followups_banner_text)
+        # File content matches stdout (modulo print()'s trailing newline).
+        self.assertIn(followups_banner_text.rstrip("\n"), r.stdout)
         # TODO §2 AC2: the absolute path to HUMAN_REVIEW.md must appear in
         # stdout so the reviewer can click it from the terminal.
         self.assertIn(str(run_dir / "HUMAN_REVIEW.md"), r.stdout)
@@ -280,11 +325,18 @@ class TestE2EHappyPath(E2ECase):
         )
 
         # complete — now also performs the merge.
+        done_banner = run_dir / "stop-banner.txt"
+        self.assertFalse(done_banner.exists())
+
         r = cli(self.tmp, "complete", run_id, "--accepted-by", "e2e-tester")
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("human_review -> done", r.stdout)
         # TODO §2: human_review -> done is terminal. STOP banner expected.
         self.assertIn("STOP. State: done (terminal).", r.stdout)
+        # Terminal banner lives at the run root (no producing stage dir).
+        self.assertTrue(done_banner.exists(),
+                        msg=f"expected banner file at {done_banner}")
+        self.assertIn("STOP. State: done (terminal).", done_banner.read_text())
         # Auto-merge: completion_ref is now a real SHA, not a label.
         import re
         m = re.search(r"completion_ref:\s+merge:([0-9a-f]{40})", r.stdout)

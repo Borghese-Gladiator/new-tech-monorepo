@@ -284,21 +284,26 @@ class TestRender(unittest.TestCase):
         (rd / "stages" / "4_building" / "build.md").write_text("# Build\n")
         out = human_review.render(cfg, run_id)
         text = out.read_text()
-        # Each existing artifact renders as `- **<Label>** — \`<abs path>\`` on
-        # its own line. Find the Files section body.
+        # Each existing artifact renders as
+        # `- **<Label>** — [<filename>](<abs path>)` on its own line.
         files_body = text.split("## Files", 1)[1].split("##", 1)[0]
         rows = [ln for ln in files_body.splitlines() if ln.startswith("- ")]
         self.assertGreaterEqual(len(rows), 2)  # brief + build at least
-        pat = re.compile(r"^- \*\*[^*]+\*\* — `(?P<abs>[^`]+)`$")
+        pat = re.compile(
+            r"^- \*\*[^*]+\*\* — \[(?P<name>[^\]]+)\]\((?P<abs>[^)]+)\)$"
+        )
         for r in rows:
             m = pat.match(r)
             self.assertIsNotNone(m, f"row does not match expected shape: {r!r}")
             # The path must be absolute (starts with `/`).
             self.assertTrue(m.group("abs").startswith("/"),
                             f"path is not absolute: {m.group('abs')!r}")
-            # And must contain exactly one backticked path token.
-            self.assertEqual(r.count("`"), 2,
-                             f"row should have exactly one backticked path: {r!r}")
+            # The link text is the file name only (no slashes).
+            self.assertNotIn("/", m.group("name"),
+                             f"link text should be a bare file name: {r!r}")
+            # And the file name should match the basename of the path.
+            self.assertEqual(m.group("name"), m.group("abs").rsplit("/", 1)[-1],
+                             f"link text should equal path basename: {r!r}")
 
     def test_testing_section_has_unit_and_manual_subheadings(self):
         from lib import human_review

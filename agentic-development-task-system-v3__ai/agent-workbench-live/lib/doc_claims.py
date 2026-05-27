@@ -12,9 +12,11 @@ Public surface:
                                       list of repo-relative claimed paths, OR
                                       the sentinel if the section reads
                                       "none needed — ..."
-    verify(claimed, worktree_path, base_ref) -> list[str]
+    verify(claimed, worktree_path, base_ref, *, base_ref_sha=None) -> list[str]
                                       returns the subset of claimed paths NOT
-                                      present in the worktree's diff
+                                      present in the worktree's diff. Prefers
+                                      ``base_ref_sha`` over the symbolic
+                                      ``base_ref`` when provided.
 """
 from __future__ import annotations
 
@@ -63,18 +65,23 @@ def verify(
     claimed: list[str],
     worktree_path: pathlib.Path | str,
     base_ref: str,
+    *,
+    base_ref_sha: str | None = None,
 ) -> list[str]:
     """Return the subset of `claimed` paths NOT changed in the worktree.
 
-    Runs `git diff --name-only <base_ref>...HEAD` in the worktree. If git fails
-    (no such ref, not a repo) we treat the verification as inconclusive and
-    return an empty list — the reviewer still sees the claim in build.md.
+    Runs `git diff --name-only <effective_ref>...HEAD` in the worktree, where
+    ``effective_ref`` is the resolved SHA when present, otherwise the symbolic
+    ``base_ref``. If git fails (no such ref, not a repo) we treat the
+    verification as inconclusive and return an empty list — the reviewer still
+    sees the claim in build.md.
     """
     if not claimed:
         return []
+    effective_ref = base_ref_sha or base_ref
     try:
         proc = subprocess.run(
-            ["git", "-C", str(worktree_path), "diff", "--name-only", f"{base_ref}...HEAD"],
+            ["git", "-C", str(worktree_path), "diff", "--name-only", f"{effective_ref}...HEAD"],
             capture_output=True, text=True, check=False,
         )
     except FileNotFoundError:

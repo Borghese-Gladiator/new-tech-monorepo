@@ -57,7 +57,7 @@ That verifies the brief is non-empty and transitions `shaping -> planning`.
 
 ## Next step
 
-`/plan $RUN_ID`.
+Auto-chain: immediately invoke `/plan $RUN_ID` once `shaping -> planning` has been recorded by the CLI. Do not stop here — the next human gate is `ready -> building`, which is owned by `/start`.
 
 ## Reference
 

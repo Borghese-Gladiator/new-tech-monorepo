@@ -67,7 +67,16 @@ That:
 
 ## Next step
 
-Wait for the user to approve. They run `/start $RUN_ID`.
+Stop here. This is a real human approval gate — `ready -> building` requires `--approved-by` evidence that only the user can supply.
+
+Tell the user:
+
+- The `run_id` and that planning is complete.
+- The path to `plan.md`.
+- A one-paragraph summary of the proposed changes and the top risks.
+- The single recommended next command: `/start $RUN_ID`.
+
+Do not invoke `/start` automatically.
 
 ## Reference
 

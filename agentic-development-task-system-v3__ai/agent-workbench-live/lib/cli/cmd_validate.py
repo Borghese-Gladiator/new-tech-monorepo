@@ -149,9 +149,11 @@ def _check_scope_creep_staged(cfg, run_id, rd, meta, actor) -> None:
 
     worktree_path = meta["target"]["worktree"]["path"]
     base_ref = meta["target"]["repo"]["base_ref"]
+    base_ref_sha = meta["target"]["repo"].get("base_ref_sha")
+    effective_ref = base_ref_sha or base_ref
     try:
         proc = subprocess.run(
-            ["git", "-C", str(worktree_path), "diff", "--name-only", f"{base_ref}...HEAD"],
+            ["git", "-C", str(worktree_path), "diff", "--name-only", f"{effective_ref}...HEAD"],
             capture_output=True, text=True, check=False,
         )
     except FileNotFoundError:
@@ -184,6 +186,8 @@ def _check_scope_creep_staged(cfg, run_id, rd, meta, actor) -> None:
             "actual": actual,
             "creep": creep,
             "base_ref": base_ref,
+            "base_ref_sha": base_ref_sha,
+            "effective_ref": effective_ref,
             "worktree_path": worktree_path,
         },
         actor=actor,
@@ -210,7 +214,8 @@ def _verify_doc_claims_staged(cfg, run_id, rd, meta, actor) -> None:
         return
     worktree_path = meta["target"]["worktree"]["path"]
     base_ref = meta["target"]["repo"]["base_ref"]
-    unverified = doc_claims.verify(claimed, worktree_path, base_ref)
+    base_ref_sha = meta["target"]["repo"].get("base_ref_sha")
+    unverified = doc_claims.verify(claimed, worktree_path, base_ref, base_ref_sha=base_ref_sha)
     if unverified:
         review = rd / "review.md"
         with open(review, "a") as f:
@@ -559,5 +564,6 @@ def run(args) -> int:
     print(f"branch:   {meta['target']['worktree']['branch_name']}")
     print(f"worktree: {meta['target']['worktree']['path']}")
     print(f"audit:    {audit_path}")
-    print_stop_banner("human_review", run_id, cfg=cfg)
+    banner_path = lifecycle.stage_dir(cfg, run_id, "validating") / "stop-banner.txt"
+    print_stop_banner("human_review", run_id, cfg=cfg, write_to=banner_path)
     return 0

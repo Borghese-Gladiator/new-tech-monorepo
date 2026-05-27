@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pathlib
 
-from lib import build_context, metadata, transitions, locks, repos, run_ids, lifecycle
+from lib import build_context, events, metadata, transitions, locks, repos, run_ids, lifecycle
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -58,8 +58,10 @@ def run(args) -> int:
 
     if already_created:
         # TODO §1A: self-modifying runs created the worktree at new-run time.
-        # /start is a state-only transition here.
+        # /start is a state-only transition here. The SHA was resolved at
+        # new-run time and lives in metadata already.
         worktree_path = pathlib.Path(meta["target"]["worktree"]["path"])
+        base_ref_sha = meta["target"]["repo"].get("base_ref_sha")
     else:
         worktree_path = run_ids.make_worktree_path(
             cfg, repo_name, worktree_name, run_id,
@@ -86,6 +88,23 @@ def run(args) -> int:
             d["target"]["worktree"]["created"] = True
             d["target"]["repo"]["base_ref_sha"] = base_ref_sha
         metadata.update(cfg, run_id, _m)
+
+    # Record the resolution in the audit log so line counts can be
+    # re-derived from events.jsonl alone and drift between metadata and the
+    # originally-resolved SHA is detectable. Emitted from /start regardless
+    # of where the SHA was first computed (new-run for self-modifying, or
+    # here for the standard path), so the audit narrative consistently
+    # places the event at the ready->building boundary (AC 6).
+    if base_ref_sha:
+        events.append(
+            cfg, run_id, "BaseRefResolved",
+            payload={
+                "symbolic_ref": base_ref,
+                "base_ref_sha": base_ref_sha,
+                "source_repo_path": str(repo_path),
+            },
+            actor=actor,
+        )
 
     # Write build-context.md (TODO §1: curated stage-entry context for the
     # building stage; mirrors validate-context.md). Convenience artifact —

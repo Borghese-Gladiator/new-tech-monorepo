@@ -142,6 +142,41 @@ class TestVerify(unittest.TestCase):
                 doc_claims.verify(claims, self.repo, base_ref), expected, msg=label
             )
 
+    def test_verify_prefers_base_ref_sha(self):
+        """2b regression: when base_ref is the literal 'HEAD' but base_ref_sha
+        carries the real fork point, verify must diff against the SHA."""
+        import subprocess
+        # The 'main' branch hasn't been touched since init; HEAD on the
+        # current branch ('feat') is past the fork. The fork SHA is main's tip.
+        fork_sha = subprocess.run(
+            ["git", "-C", str(self.repo), "rev-parse", "main"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+        # Without the SHA — HEAD...HEAD on the worktree is empty → all
+        # claims look unverified, including the one that really changed.
+        unverified_broken = doc_claims.verify(
+            ["README.md", "src.py"], self.repo, "HEAD",
+        )
+        self.assertEqual(
+            sorted(unverified_broken), ["README.md", "src.py"],
+            "without SHA, both claims should look unverified",
+        )
+
+        # With the SHA — only README.md is unchanged, so only it shows up.
+        unverified_fixed = doc_claims.verify(
+            ["README.md", "src.py"], self.repo, "HEAD", base_ref_sha=fork_sha,
+        )
+        self.assertEqual(unverified_fixed, ["README.md"])
+
+    def test_verify_falls_back_when_sha_missing(self):
+        """SHA-less calls still resolve a valid symbolic ref."""
+        # main is a valid symbolic ref → diff works without an explicit SHA.
+        out = doc_claims.verify(
+            ["README.md", "src.py"], self.repo, "main", base_ref_sha=None,
+        )
+        self.assertEqual(out, ["README.md"])
+
 
 if __name__ == "__main__":
     unittest.main()

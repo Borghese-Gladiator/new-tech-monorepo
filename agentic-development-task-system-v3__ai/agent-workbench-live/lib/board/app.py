@@ -39,6 +39,7 @@ from textual.widgets import Footer, Header, Static
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
+from lib import runs as runs_mod
 from lib.board import snapshot as snapshot_mod
 from lib.board.snapshot import format_age
 from lib.board.source import (
@@ -53,6 +54,25 @@ from lib.board.source import (
     severity_reason,
 )
 from lib.config import Config
+
+
+_WATCH_RESCAN_DEFAULT_SECONDS: float = 5.0
+# Lower bound: `set_interval(0, ...)` would either error or fire constantly;
+# anything sub-second risks pegging the UI thread on filesystem walks. Values
+# below this clamp upward.
+_WATCH_RESCAN_MIN_SECONDS: float = 1.0
+
+
+def _resolve_watch_rescan_seconds(cfg: Config) -> float:
+    board = (cfg.raw.get("board") or {}) if isinstance(cfg.raw, dict) else {}
+    try:
+        value = float(board.get("watch_rescan_seconds",
+                                _WATCH_RESCAN_DEFAULT_SECONDS))
+    except (TypeError, ValueError):
+        return _WATCH_RESCAN_DEFAULT_SECONDS
+    if value < _WATCH_RESCAN_MIN_SECONDS:
+        return _WATCH_RESCAN_MIN_SECONDS
+    return value
 
 
 # Card width / column width. Picked to fit a typical run_id (40 chars) +
@@ -548,6 +568,10 @@ class AgentBoardApp(App):
         self._observer: Observer | None = None
         self._columns: dict[str, StatusColumn] = {}
         self._workbench_root = str(cfg.root)
+        # Paths watchdog has been scheduled against. Populated in on_mount
+        # (master's runs/ + every existing worktree-side runs dir) and
+        # extended by the periodic re-scan when new worktrees appear.
+        self._watched_paths: set[str] = set()
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -564,13 +588,78 @@ class AgentBoardApp(App):
         # 1 Hz fallback timer for liveness + age tickers.
         self.set_interval(1.0, self._refresh)
         # Watchdog observer for low-latency response to file changes.
+        # Master's runs/ + every existing worktree-side runs/ get a separate
+        # schedule on a single Observer instance. The periodic re-scan below
+        # picks up worktrees created after startup.
         runs_path = self._cfg.runs_path
         runs_path.mkdir(parents=True, exist_ok=True)
         obs = Observer()
-        obs.schedule(_Handler(self), str(runs_path), recursive=True)
+        self._observer = obs
+        # Resolve paths before keying so a master-side path can't be added
+        # twice under symlinked vs canonical forms (matches the resolved form
+        # we get from runs.iter_all_runs / _list_workbench_worktrees).
+        self._schedule_path(str(runs_path.resolve()))
+        self._schedule_worktree_runs_dirs()
         obs.daemon = True
         obs.start()
-        self._observer = obs
+        # Periodically diff the worktree set against what we've scheduled and
+        # add observers for any worktrees that have appeared since startup.
+        rescan_seconds = _resolve_watch_rescan_seconds(self._cfg)
+        self.set_interval(rescan_seconds, self._rescan_worktrees)
+
+    def _schedule_path(self, path: str) -> None:
+        """Schedule a watchdog observer at ``path`` if not already watched.
+
+        Idempotent: re-scheduling the same path is a no-op (and silently
+        absorbs the watchdog backend's missing-path edge cases — we accept a
+        dead schedule rather than fight the platform).
+        """
+        if self._observer is None:
+            return
+        if path in self._watched_paths:
+            return
+        try:
+            self._observer.schedule(_Handler(self), path, recursive=True)
+        except Exception:
+            # Path may have vanished between discovery and schedule; accept
+            # the loss and continue. The 1Hz fallback timer keeps us correct.
+            return
+        self._watched_paths.add(path)
+
+    def _schedule_worktree_runs_dirs(self) -> None:
+        """Add a watchdog schedule for each worktree-side runs/ dir.
+
+        Iterates the live worktree set directly (not the runs in them) so a
+        brand-new worktree with zero runs still gets observed — important for
+        AC2's "new worktree appears mid-session" path, where the worktree may
+        exist before its first metadata.yaml is written.
+
+        Idempotent — _schedule_path skips paths already in _watched_paths.
+        """
+        sub = runs_mod.workbench_subpath(self._cfg)
+        if sub is None:
+            return
+        try:
+            worktrees = runs_mod._list_workbench_worktrees(self._cfg)
+        except Exception:
+            return
+        for wt in worktrees:
+            runs_dir = wt / sub / "runs"
+            if not runs_dir.exists():
+                # watchdog refuses to schedule against nonexistent paths.
+                # The 1Hz fallback + next re-scan covers this gap.
+                continue
+            self._schedule_path(str(runs_dir.resolve()))
+
+    def _rescan_worktrees(self) -> None:
+        """Periodic timer: pick up worktrees created since last tick.
+
+        Reads the (TTL-cached) worktree set and schedules observers for any
+        worktree-side runs/ dirs not already in self._watched_paths. Does not
+        unschedule observers for vanished worktrees — the dead schedule is
+        harmless and avoids platform-specific unschedule edge cases.
+        """
+        self._schedule_worktree_runs_dirs()
 
     def on_unmount(self) -> None:
         if self._observer is not None:

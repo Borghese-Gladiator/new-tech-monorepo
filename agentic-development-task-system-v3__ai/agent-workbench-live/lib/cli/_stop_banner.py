@@ -76,8 +76,8 @@ _SPECS: dict[str, _BannerSpec] = {
 }
 
 
-def print_stop_banner(landing_state: str, run_id: str, cfg=None) -> None:
-    """Print the STOP banner for ``landing_state`` to stdout.
+def render_stop_banner(landing_state: str, run_id: str, cfg=None) -> str:
+    """Return the STOP banner text for ``landing_state`` (no trailing newline).
 
     Raises ``ValueError`` if ``landing_state`` is not one of the four
     agent-stopping states.
@@ -99,14 +99,45 @@ def print_stop_banner(landing_state: str, run_id: str, cfg=None) -> None:
     if landing_state == "human_review":
         lines.extend(_build_human_review_body(cfg, run_id))
     elif spec.next_moves:
-        lines.append("Next moves (human-triggered):")
+        lines.append("Next moves (human-triggered, type in a session):")
+        pad = max(len(f"/{cmd} {run_id}") for cmd, _ in spec.next_moves)
         for cmd, desc in spec.next_moves:
-            lines.append(f"  agent-workbench {cmd} {run_id}  - {desc}")
+            cmd_text = f"/{cmd} {run_id}"
+            lines.append(f"  {cmd_text:<{pad}}  — {desc}")
     else:
         lines.append(spec.terminal_line)
 
     lines.append(BORDER)
-    print("\n".join(lines))
+    return "\n".join(lines)
+
+
+def print_stop_banner(
+    landing_state: str,
+    run_id: str,
+    cfg=None,
+    write_to: pathlib.Path | None = None,
+) -> None:
+    """Print the STOP banner for ``landing_state`` to stdout.
+
+    When ``write_to`` is supplied, also persist the rendered banner to that
+    path (creating parent dirs as needed). The on-disk copy gives the
+    slash-command layer a durable artifact to point at, instead of relying
+    on Claude to relay stdout verbatim.
+
+    Raises ``ValueError`` if ``landing_state`` is not one of the four
+    agent-stopping states.
+    """
+    text = render_stop_banner(landing_state, run_id, cfg=cfg)
+    print(text)
+    if write_to is not None:
+        try:
+            write_to.parent.mkdir(parents=True, exist_ok=True)
+            write_to.write_text(text + "\n")
+        except OSError:
+            # Convenience artifact — never block the transition on a write
+            # failure. Mirrors cmd_validate's swallow-on-exception pattern
+            # for stage-entry context files.
+            pass
 
 
 # ---------- human_review body builder ----------
@@ -144,6 +175,9 @@ def _build_human_review_body(cfg, run_id: str) -> list[str]:
     human_review_path = (rd / "HUMAN_REVIEW.md").resolve()
     body.append("Review:")
     body.append(f"  HUMAN_REVIEW.md: {human_review_path}")
+    # Clickable URL on its own line, no indentation, so terminal emulators
+    # that auto-link `file://` schemes pick it up without wrapping.
+    body.append(f"file://{human_review_path}")
     body.append("")
 
     # --- Summary of changes ---

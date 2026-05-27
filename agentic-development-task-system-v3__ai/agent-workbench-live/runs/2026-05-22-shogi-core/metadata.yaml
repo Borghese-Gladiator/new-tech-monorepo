@@ -11,6 +11,7 @@ target:
     base_ref: HEAD
     fingerprint: "126ab634db40f9c43dd812735c1c8931286ac072"
     created_by_run: "2026-05-22-shogi-core"
+    base_ref_sha: "126ab634db40f9c43dd812735c1c8931286ac072"
   worktree:
     name: shogi-core
     path: "/Users/timothy.shee/GitHub/LOCAL_worktrees/202605_agent_workbench_v2/agentic-development-task-system-v2__ai/agent-workbench-live/worktrees/repo/20260522__shogi-core"

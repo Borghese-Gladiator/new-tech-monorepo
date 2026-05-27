@@ -2,12 +2,12 @@
 
 ## Files
 
-- **Brief** — `<RUN_ROOT>/stages/2_shaping/brief.md`
-- **Plan** — `<RUN_ROOT>/stages/3_planning/plan.md`
-- **Build (diffs + AC coverage)** — `<RUN_ROOT>/stages/4_building/build.md`
-- **QA report** — `<RUN_ROOT>/stages/5_validating/qa/report.md`
-- **Review decision** — `<RUN_ROOT>/stages/5_validating/review.md`
-- **Audit** — `<RUN_ROOT>/audit.md`
+- **Brief** — [brief.md](<RUN_ROOT>/stages/2_shaping/brief.md)
+- **Plan** — [plan.md](<RUN_ROOT>/stages/3_planning/plan.md)
+- **Build (diffs + AC coverage)** — [build.md](<RUN_ROOT>/stages/4_building/build.md)
+- **QA report** — [report.md](<RUN_ROOT>/stages/5_validating/qa/report.md)
+- **Review decision** — [review.md](<RUN_ROOT>/stages/5_validating/review.md)
+- **Audit** — [audit.md](<RUN_ROOT>/audit.md)
 
 ## Summary of changes
 

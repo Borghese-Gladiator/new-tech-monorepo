@@ -191,7 +191,9 @@ def run(args) -> int:
     print(f"{run_id}: followups -> human_review")
     print(f"entries:  {len(entries)} ({', '.join(cats) or 'none'})")
     print(f"review:   {handoff_path}")
-    print_stop_banner("human_review", run_id, cfg=cfg)
+    print(f"file://{handoff_path.resolve()}")
+    banner_path = lifecycle.stage_dir(cfg, run_id, "followups") / "stop-banner.txt"
+    print_stop_banner("human_review", run_id, cfg=cfg, write_to=banner_path)
     return 0
 
 

@@ -13,6 +13,25 @@ delegates here for runs whose metadata is already on disk.
 
 `find_run` is strict (raises on collision); `iter_all_runs` is permissive
 (prefers worktree, warns on stderr).
+
+Worktree-list cache contract
+----------------------------
+`_WORKTREE_CACHE` memoises `git worktree list --porcelain` keyed on the
+workbench root, with a short TTL (default 2s, configurable via
+`agent-workbench.yaml` -> `board.worktree_cache_ttl_seconds`). The TTL is
+correct for both consumer regimes:
+
+  * short-lived CLI calls (sub-second lifetime) never reach TTL expiry, so
+    they pay the git cost at most once per process — the original cache
+    contract is preserved;
+  * the long-running `agent-workbench board` ticks see new worktrees within
+    TTL seconds, without paying the git cost on every tick.
+
+Measured cost of `git worktree list --porcelain` on a 3-worktree repo was
+~16ms median / ~19ms p90; cost scales roughly linearly with worktree count.
+Do NOT remove the TTL or set it to 0 globally: the board would call git at
+its re-scan rate, which is far above the original "once per process" budget
+this cache was sized for.
 """
 from __future__ import annotations
 
@@ -20,6 +39,7 @@ import dataclasses
 import pathlib
 import subprocess
 import sys
+import time
 from typing import Iterator
 
 from lib import yaml_io
@@ -300,25 +320,53 @@ def _try_build_run(
     )
 
 
-# Cache keyed on the workbench root path string: same root → same worktree
-# set for the lifetime of the process. Tests reset this via reset_caches().
-_WORKTREE_CACHE: dict[str, tuple[pathlib.Path, ...]] = {}
+# Cache keyed on the workbench root path string. Value is
+# (populated_at_monotonic, worktrees) so each call can decide whether to
+# re-fetch based on a short TTL. See the module docstring for the contract.
+_WORKTREE_CACHE: dict[str, tuple[float, tuple[pathlib.Path, ...]]] = {}
+_WORKTREE_CACHE_TTL_DEFAULT_SECONDS: float = 2.0
+# Lower bound — the cache is load-bearing for short-lived CLI calls, and a
+# 0 / negative TTL would silently make every call invoke git (the exact
+# behavior the module docstring forbids). Configured values below this clamp
+# upward.
+_WORKTREE_CACHE_TTL_MIN_SECONDS: float = 0.05
 
 
-def _list_workbench_worktrees(cfg: Config) -> tuple[pathlib.Path, ...]:
+def _resolve_worktree_cache_ttl(cfg: Config, override: float | None) -> float:
+    if override is not None:
+        ttl = float(override)
+    else:
+        board = (cfg.raw.get("board") or {}) if isinstance(cfg.raw, dict) else {}
+        try:
+            ttl = float(board.get("worktree_cache_ttl_seconds",
+                                  _WORKTREE_CACHE_TTL_DEFAULT_SECONDS))
+        except (TypeError, ValueError):
+            ttl = _WORKTREE_CACHE_TTL_DEFAULT_SECONDS
+    if ttl < _WORKTREE_CACHE_TTL_MIN_SECONDS:
+        return _WORKTREE_CACHE_TTL_MIN_SECONDS
+    return ttl
+
+
+def _list_workbench_worktrees(
+    cfg: Config,
+    *,
+    ttl: float | None = None,
+) -> tuple[pathlib.Path, ...]:
     """Every workbench worktree path *except* the main checkout.
 
-    Cached for the duration of one CLI invocation; the worktree set is stable
-    within a process.
+    Memoised with a short TTL (see module docstring). Pass ``ttl`` to override
+    the configured value — primarily for tests.
     """
     wb_root = cfg.root.resolve()
     cache_key = str(wb_root)
+    effective_ttl = _resolve_worktree_cache_ttl(cfg, ttl)
+    now = time.monotonic()
     cached = _WORKTREE_CACHE.get(cache_key)
-    if cached is not None:
-        return cached
+    if cached is not None and (now - cached[0]) < effective_ttl:
+        return cached[1]
     main_repo = _git_main_repo_root(wb_root)
     if main_repo is None:
-        _WORKTREE_CACHE[cache_key] = ()
+        _WORKTREE_CACHE[cache_key] = (now, ())
         return ()
     try:
         proc = subprocess.run(
@@ -329,10 +377,10 @@ def _list_workbench_worktrees(cfg: Config) -> tuple[pathlib.Path, ...]:
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
-        _WORKTREE_CACHE[cache_key] = ()
+        _WORKTREE_CACHE[cache_key] = (now, ())
         return ()
     if proc.returncode != 0:
-        _WORKTREE_CACHE[cache_key] = ()
+        _WORKTREE_CACHE[cache_key] = (now, ())
         return ()
     out: list[pathlib.Path] = []
     current: dict[str, str] = {}
@@ -358,7 +406,7 @@ def _list_workbench_worktrees(cfg: Config) -> tuple[pathlib.Path, ...]:
             current[line] = ""
     _flush()
     result = tuple(out)
-    _WORKTREE_CACHE[cache_key] = result
+    _WORKTREE_CACHE[cache_key] = (now, result)
     return result
 
 

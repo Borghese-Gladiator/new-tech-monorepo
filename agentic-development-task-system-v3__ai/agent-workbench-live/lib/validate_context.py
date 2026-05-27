@@ -307,13 +307,15 @@ def _git(worktree_path: str, *args: str) -> str | None:
 def _effective_ref(worktree_path: str, base_ref: str, base_ref_sha: str | None) -> str:
     """Prefer the resolved SHA; lazily resolve in the worktree; else symbolic.
 
-    Mirrors ``lib/metrics/lines.py:_effective_ref``. Duplicated rather than
-    imported to keep this module's dependencies minimal (no cross-package
-    import into ``lib.metrics``) and because the two callers may diverge as
-    other ``base_ref_sha``-consuming sites are migrated (TODO §3).
+    Mirrors ``lib/metrics/lines.py:_effective_ref``. Kept local to avoid a
+    cross-module dependency for a six-line utility (DR-001). Deviates from
+    the metrics version by adding an early-return guard for a missing
+    worktree path — harmless extra defense; harmonize at promotion time.
     """
     if base_ref_sha:
         return base_ref_sha
+    if not worktree_path or not pathlib.Path(worktree_path).exists():
+        return base_ref
     try:
         proc = subprocess.run(
             ["git", "-C", worktree_path, "rev-parse", "--verify", base_ref],
@@ -345,17 +347,13 @@ def build_blast_radius(
 ) -> str:
     """Compute the depth-1/2/3 caller tree as a small text file.
 
-    ``base_ref_sha`` (TODO §3 item 2a): prefer the resolved SHA; lazy-fallback
-    to in-worktree resolution; finally fall back to the symbolic ``base_ref``.
-    Without this, runs with ``base_ref="HEAD"`` produce empty diffs and the
-    blast-radius file reads ``(no files changed yet)`` even when the worktree
-    has real commits.
+    Covers committed + uncommitted + untracked changes. Validation often runs
+    before the builder has committed, so committed-only diffs render empty
+    in the common case. Same rationale as ``_render_diff``.
     """
     if not worktree_path or not pathlib.Path(worktree_path).exists():
         return "(worktree not available)\n"
     effective_ref = _effective_ref(worktree_path, base_ref, base_ref_sha)
-    # Committed range, uncommitted (staged + unstaged), and untracked. Same
-    # rationale as `_render_diff`: validation often runs before commit.
     committed = _git(worktree_path, "diff", "--name-only", f"{effective_ref}...HEAD") or ""
     uncommitted = _git(worktree_path, "diff", "--name-only", "HEAD") or ""
     untracked = _git(worktree_path, "ls-files", "--others", "--exclude-standard") or ""

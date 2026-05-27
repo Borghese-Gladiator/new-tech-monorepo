@@ -34,6 +34,8 @@ def run(args) -> int:
     print(f"branch:   {meta['target']['worktree']['branch_name']}")
     print(f"worktree: {meta['target']['worktree']['path']}")
     print(f"audit:    {rd / 'audit.md'}")
+    print(f"{label}: {handoff}")
+    print(f"file://{handoff.resolve()}")
     print()
     print(handoff.read_text())
     return 0
