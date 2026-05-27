@@ -53,6 +53,9 @@ def _write_validate_context_artifacts(cfg, run_id, rd, staged: bool, meta: dict)
         worktree_path = worktree.get("path") or ""
         repo = (meta.get("target") or {}).get("repo") or {}
         base_ref = repo.get("base_ref") or "HEAD"
+        # TODO §3 item 2a: prefer the resolved SHA captured at /start time.
+        # Without this, runs with base_ref="HEAD" produce empty diffs.
+        base_ref_sha = repo.get("base_ref_sha")
 
         if staged:
             brief_path = lifecycle.stage_dir(cfg, run_id, "shaping") / "brief.md"
@@ -71,12 +74,14 @@ def _write_validate_context_artifacts(cfg, run_id, rd, staged: bool, meta: dict)
             qa_report_path=qa_path,
             worktree_path=worktree_path,
             base_ref=base_ref,
+            base_ref_sha=base_ref_sha,
         )
         validate_context.write(target_dir / "validate-context.md", body)
 
         br_text = validate_context.build_blast_radius(
             worktree_path=worktree_path,
             base_ref=base_ref,
+            base_ref_sha=base_ref_sha,
         )
         (target_dir / "blast-radius.txt").write_text(br_text, encoding="utf-8")
     except Exception:

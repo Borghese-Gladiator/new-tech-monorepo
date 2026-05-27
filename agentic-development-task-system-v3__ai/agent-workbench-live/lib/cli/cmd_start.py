@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pathlib
 
-from lib import metadata, transitions, locks, repos, run_ids, lifecycle
+from lib import build_context, metadata, transitions, locks, repos, run_ids, lifecycle
 from lib.cli._common import actor_from_env, fail, load_config
 
 
@@ -87,6 +87,11 @@ def run(args) -> int:
             d["target"]["repo"]["base_ref_sha"] = base_ref_sha
         metadata.update(cfg, run_id, _m)
 
+    # Write build-context.md (TODO §1: curated stage-entry context for the
+    # building stage; mirrors validate-context.md). Convenience artifact —
+    # failures must not block the transition.
+    _write_build_context_artifacts(cfg, run_id, staged)
+
     # Transition.
     if staged:
         preflight_evidence = str(rd / "stages" / "planning" / "plan.md") + "#preflight"
@@ -115,3 +120,40 @@ def run(args) -> int:
     print(f"{run_id}: ready -> building")
     print(f"worktree: {worktree_path}")
     return 0
+
+
+def _write_build_context_artifacts(cfg, run_id: str, staged: bool) -> None:
+    """Render `build-context.md` for the building stage. Idempotent. Errors
+    are swallowed — this is a convenience artifact; its absence shouldn't
+    break the `ready -> building` transition. Mirrors
+    `cmd_validate._write_validate_context_artifacts`.
+    """
+    try:
+        # `metadata.update` (above) writes to disk but does not mutate the
+        # caller's `meta` dict — it loads its own copy, calls the mutator on
+        # that copy, then saves. So the caller's `meta` is stale here; reload
+        # to pick up `base_ref_sha`. Re-resolve `rd` for the same reason (self-
+        # modifying runs route through `runs.resolve_run_dir_for_meta`).
+        meta = metadata.load(cfg, run_id)
+        rd = metadata.run_dir(cfg, run_id)
+        if staged:
+            brief_path = lifecycle.stage_dir(cfg, run_id, "shaping") / "brief.md"
+            plan_path = lifecycle.stage_dir(cfg, run_id, "planning") / "plan.md"
+            target_dir = lifecycle.stage_dir(cfg, run_id, "building")
+        else:
+            brief_path = rd / "brief.md"
+            plan_path = rd / "plan.md"
+            target_dir = rd
+
+        build_template_path = cfg.root / "templates" / "build.md"
+
+        body = build_context.build(
+            brief_path=brief_path,
+            plan_path=plan_path,
+            meta=meta,
+            build_template_path=build_template_path,
+        )
+        build_context.write(target_dir / "build-context.md", body)
+    except Exception:
+        # Best-effort: never fail the transition over a curation artifact.
+        pass
