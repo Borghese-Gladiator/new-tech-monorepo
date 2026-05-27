@@ -556,3 +556,73 @@ Re-homing the 578 orphan e2e/snap/self-mod directories (those are a separate tes
 ### Origin
 
 Surfaced 2026-05-26 while auditing the worktree list in this repo. Two real worktrees existed for the same monorepo under different `repo_name` parents (`agent-workbench-live/` vs `agentic-development-task-system-v3-ai/` vs `new-tech-monorepo/`) purely because of which subpath was passed to `--repo-path` at `/new-run` time. The user pushed back: paths "look all over the place, but they SHOULD be normalized. Different ways of creating like claude commands vs cli commands should make the same result." Slash commands and the CLI already share one code path; the gap is that the shared path doesn't canonicalize the input. This TODO closes that.
+
+## 12. Investigate the handoff-rendering failure cluster (HUMAN_REVIEW.md + stop banner)
+
+### Symptom
+
+The `human_review` handoff is supposed to give a reviewer a faithful, code-derived summary of what the run actually did. In practice, multiple recent runs produce handoffs whose `## Summary of changes` section is either fabricated (literal example bullets from a template comment) or hollow (parent headers with no detail). The stop banner that the agent reads after the handoff lands inherits these problems and amplifies them.
+
+Two concrete examples on disk to investigate:
+
+**Example A — fabricated bullets from template comment.** Run `2026-05-26-schema-level-validation-for-metadata`. HUMAN_REVIEW.md's `## Summary of changes` reads:
+
+```
+## Summary of changes
+
+- 2 doc(s) touched:
+  - `README.md — added a /hello endpoint example`
+  - `docs/api.md — documented the new response schema`
+
+→ Full diff: /Users/timothy.shee/GitHub/LOCAL_worktrees/new-tech-monorepo/agent-workbench-live/worktrees/agentic-development-task-system-v3-ai/20260526__schema-level-validation-for-metadata/agentic-development-task-system-v3__ai/agent-workbench-live/runs/2026-05-26-schema-level-validation-for-metadata/stages/4_building/build.md
+```
+
+Neither `README.md` nor `docs/api.md` was actually touched by this run. The build.md file at the path the handoff points to is byte-for-byte identical to `templates/build.md` — the builder wrote nothing into it. The two phantom bullets are the literal example lines that live *inside* an HTML comment under the `## Documentation touched` section of the template. `lib/human_review.py`'s `_section` + `_bullet_items` pair walks the section body for `- ` lines without stripping `<!-- -->` framing, so the examples get parsed as if they were real entries.
+
+**Example B — hollow parent headers in the stop banner.** Run `2026-05-26-board-freshness-across-worktrees`. The stop banner printed after the `followups → human_review` transition shows:
+
+```
+Review:
+  HUMAN_REVIEW.md: /Users/timothy.shee/GitHub/LOCAL_worktrees/new-tech-monorepo/agent-workbench-live/worktrees/agentic-development-task-system-v3-ai/20260526__board-freshness-across-worktrees/agentic-development-task-system-v3__ai/agent-workbench-live/runs/2026-05-26-board-freshness-across-worktrees/HUMAN_REVIEW.md
+
+Summary of changes (≤3 bullets):
+  - 5 file(s) touched:
+  - 1 doc(s) touched:
+
+Summary of testing (≤2 sentences, or "None recorded."):
+  Unit tests passed; no known issues.
+```
+
+The two parent bullets end in colons with nothing after them. The detail *does* exist in HUMAN_REVIEW.md (per-file nested rows under each header — 500+ character bullets describing each touched file). But `lib/cli/_stop_banner.py`'s `_render_summary_bullets` deliberately drops nested `  - ` rows ("Top-level bullets only — no leading whitespace before the dash."). The result is structurally correct but reads as broken because the surviving headers were never meant to stand alone.
+
+### Three observed failure modes
+
+These came out of the conversation that surfaced this TODO; they may or may not be the full set.
+
+1. **HTML-comment leakage in `lib/human_review.py`.** `_extract_build_summary` calls `_section` then `_bullet_items` on `## Documentation touched` (and would do the same on `## Files changed` if its template comment ever contained `- ` lines). Neither function strips `<!-- ... -->` blocks. Any `- ` line inside a comment is parsed as a real bullet. Affects `## Summary of changes` in HUMAN_REVIEW.md.
+
+2. **Silent template fallback at `cmd_validate.py:290-298`.** `/validate --init` requires `build.md` to exist at the run root before the building→validating transition; if it's absent, the code stages `templates/build.md` and proceeds. The transition itself only checks file existence, not content (per the `("implementation_summary_path", "build.md", "building", "build.md")` row at `lib/lifecycle.py:152`). A builder that never wrote build.md is indistinguishable from one that did — until the unfilled template starts feeding bug 1 downstream.
+
+3. **Stop-banner extractor drops the only level that has detail.** `_render_summary_bullets` in `lib/cli/_stop_banner.py` extracts column-0 `- ` bullets from HUMAN_REVIEW.md's `## Summary of changes`. The human_review renderer's convention for "files changed" is `- N file(s) touched:` as a parent + `  - <path>` rows as children. The banner extractor sees the parent, drops the children, and renders headers with empty colons.
+
+### Tasks (investigation only — no fixes in this TODO)
+
+- [ ] **Map all sites where text-shape parsing meets template-shaped input.** Grep for `_section`, `_bullet_items`, `## ` literal matching, anything that consumes `build.md` / `HUMAN_REVIEW.md` / `qa/report.md`. Each consumer should be examined for: does it assume content was written? Does it strip HTML comments? Does it understand the nested-bullet convention the producer uses? Write the findings as a table (file:line, what it reads, what assumption it makes, whether that assumption is safe today).
+- [ ] **Audit `runs/` for how often the silent template fallback fires.** For each run with a `stages/4_building/build.md`, diff it against `templates/build.md`. Count how many are byte-identical (= builder wrote nothing) vs. partially filled vs. fully filled. The ratio tells us how systemic the unfilled-template handoff is.
+- [ ] **Audit HUMAN_REVIEW.md across recent runs** for phantom example bullets, hollow header rows, or any other text that looks templated. Map each instance back to which producer/consumer pair produced it. The two examples above are a starting set; there may be more failure modes (e.g. `Manual testing performed` section, `Run timeline` empty rows).
+- [ ] **Re-read the producer↔consumer contract** between the builder's `build.md`, the validate-init template fallback, the `human_review` renderer, the stop-banner builder, and the templates themselves. Specifically: is the right contract "the renderer parses build.md and templates are inert decoration," or "the builder writes structured fields the renderer consumes by name"? Today's mix of template HTML comments + free-form markdown + regex extraction is the weakest of both worlds.
+- [ ] **Decide whether the broader pattern is the bug, not the individual sites.** Three different functions are each independently permissive. The conversation that surfaced this TODO suggested "common thread: shallow text-shape parsing without understanding semantics — comments are content, nested bullets are noise, an existing template file means done." That framing is worth pressure-testing: is there a single producer-side change (e.g. structured frontmatter in build.md, or a `build.json` sibling) that obsoletes all three consumer-side workarounds at once?
+
+### Acceptance
+
+- A written analysis (1–2 pages) that identifies every site involved in the handoff-rendering chain, names each failure mode observed, and proposes one or more candidate fix strategies (single-site patches vs. contract redesign vs. validation upstream).
+- The analysis explicitly answers: should we strip HTML comments at the parsing layer (cheap, narrow), reject unfilled templates at `/validate --init` (changes lifecycle), restructure build.md to carry machine-readable fields (largest change), or some combination?
+- A go/no-go recommendation for each candidate, with the smallest change that closes the example-A and example-B regressions called out as the minimum bar.
+
+### Non-goals
+
+Implementing any of the fixes. This TODO is the investigation; the fix(es) get their own TODO entry once the analysis lands and the user picks a direction. Re-running prior runs whose handoffs are already wrong — those are historical artifacts, not blockers.
+
+### Origin
+
+Surfaced 2026-05-26 while inspecting two recent runs' HUMAN_REVIEW.md and stop-banner output. The user noticed `## Summary of changes` was either fabricated (example A) or hollow (example B) and pushed back that "looks to me there is a larger issue at play." Three distinct bugs were identified in the same conversation, but the user asked to investigate thoroughly before designing solutions rather than patching each in isolation — the suspicion is that the right fix is at the contract level, not the regex level.
