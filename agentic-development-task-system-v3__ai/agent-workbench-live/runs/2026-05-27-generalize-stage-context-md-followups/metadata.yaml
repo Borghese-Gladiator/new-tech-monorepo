@@ -2,7 +2,7 @@ schema_version: 1
 run_id: "2026-05-27-generalize-stage-context-md-followups"
 status: building
 created_at: "2026-05-27T15:09:20-04:00"
-updated_at: "2026-05-27T15:24:04-04:00"
+updated_at: "2026-05-27T17:22:10-04:00"
 target:
   repo:
     mode: existing
@@ -30,19 +30,19 @@ artifacts:
   preflight: "plan.md#preflight"
   assumptions: "plan.md#decisions--assumptions"
   decisions: "plan.md#decisions--assumptions"
-  implementation_summary: null
-  diff_summary: null
-  review_report: null
-  qa_report: null
-  audit: null
-  handoff: null
-  followups: null
+  implementation_summary: stages/4_building/build.md
+  diff_summary: "stages/4_building/build.md#files-changed"
+  review_report: review.md
+  qa_report: qa/report.md
+  audit: audit.md
+  handoff: HUMAN_REVIEW.md
+  followups: stages/6_followups/follow-ups.md
 validation:
   required: true
-  review_completed: false
-  qa_completed: false
-  qa_recorded: false
-  tests_passed: null
+  review_completed: true
+  qa_completed: true
+  qa_recorded: true
+  tests_passed: false
   known_issues_count: 0
 completion:
   accepted_by: null
@@ -50,6 +50,6 @@ completion:
   completed_at: null
   abandoned_reason: null
 build:
-  iterations: null
-  exit_reason: null
+  iterations: 1
+  exit_reason: tests_green
   max_iterations: 5

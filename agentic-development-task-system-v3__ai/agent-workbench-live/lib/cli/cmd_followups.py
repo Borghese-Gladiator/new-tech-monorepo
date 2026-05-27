@@ -10,11 +10,14 @@ Two modes:
            transition followups -> human_review (engine validates the
            HUMAN_REVIEW.md sections at that point).
 
-Note: --init here is a convenience shortcut that does the same thing as
-running `agent-workbench validate <run_id>` (which transitions validating
--> followups on staged runs). Most callers won't need --init; they'll come
-in via /validate. We expose it anyway so /followups is symmetric with the
-other stage commands.
+Note: --init here is a convenience shortcut equivalent to running
+`agent-workbench validate <run_id>` (which transitions validating ->
+followups on staged runs). BOTH paths write `followups-context.md` into
+`stages/6_followups/` via `_write_followups_context_artifacts()` — the
+helper is called from both `cmd_followups._init` and (since the §5
+rebuild) `cmd_validate.run`'s staged default-mode path. Most callers
+won't need --init; they'll come in via /validate. We expose it anyway
+so /followups is symmetric with the other stage commands.
 """
 from __future__ import annotations
 

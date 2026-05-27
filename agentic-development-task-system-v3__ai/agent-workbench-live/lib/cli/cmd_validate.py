@@ -509,6 +509,13 @@ def run(args) -> int:
                 )
         except transitions.TransitionError as e:
             return fail(str(e), 4)
+        # Write followups-context.md now that the prior-stage outputs have
+        # been moved into their stage dirs by the transition. The canonical
+        # user path (`agent-workbench validate <run_id>`) lands here; the
+        # rarer `cmd_followups --init` shortcut writes it too. Both paths
+        # must produce the curated file for the §5 contract to hold.
+        from lib.cli.cmd_followups import _write_followups_context_artifacts
+        _write_followups_context_artifacts(cfg, run_id, rd)
         # Token-efficiency tracking: write metrics.jsonl now so it's available
         # to the followups stage's HUMAN_REVIEW rendering.
         try:
