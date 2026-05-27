@@ -183,11 +183,11 @@ agent-workbench build <run_id>          # finalize building: verify build.md, tr
 
 ### Non-goals
 
-- **Behavioral enforcement of the read-only-curated-file contract.** The slash command nudges the agent; it does not technically restrict which files the agent's `Read` tool can open. Stronger enforcement (per-stage tool-policy allowlist, subagent isolation) is §10's territory, not this.
+- **Behavioral enforcement of the read-only-curated-file contract.** The slash command nudges the agent; it does not technically restrict which files the agent's `Read` tool can open. Stronger enforcement (per-stage tool-policy allowlist, subagent isolation) is §9's territory, not this.
 - **Renaming, merging, or restructuring other slash commands.** This is purely additive.
 - **Building `plan-context.md`, `followups-context.md`, `shape-context.md`** — those are §5 (the renumbered "Generalize the `*-context.md` cross-stage contract" follow-up).
-- **Subagent-based building.** Routing the builder through an `Agent`-tool subagent fed only `build-context.md` would be a stronger enforcement story; that's a separate design conversation (would touch §9 publishing-stage subagent pattern).
-- **Tool-policy file at building stage.** §10 work; out of scope here.
+- **Subagent-based building.** Routing the builder through an `Agent`-tool subagent fed only `build-context.md` would be a stronger enforcement story; that's a separate design conversation (would touch §8 publishing-stage subagent pattern).
+- **Tool-policy file at building stage.** §9 work; out of scope here.
 
 ### Origin
 
@@ -280,7 +280,7 @@ The 2026-05-25 `generalize-stage-context-md` run shipped `build-context.md` (the
 The leverage is twofold:
 
 1. **Cache footprint.** File reads in the master session stick in the prefix forever. Today the builder typically reads `brief.md` + `plan.md` + occasional `decisions.md` lookups; the reviewer (without the curated context) would read all of those plus the QA report plus the build summary. Each is a permanent prefix cost. One curated file per stage collapses that into a single read.
-2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§9 `publishing` stage) depends on this — `validate-context.md` and `build-context.md` are already shaped right, but `plan-context.md` would need to exist before the subagent pattern can extend to the planning stage.
+2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§8 `publishing` stage) depends on this — `validate-context.md` and `build-context.md` are already shaped right, but `plan-context.md` would need to exist before the subagent pattern can extend to the planning stage.
 
 ### What each remaining file contains
 
@@ -337,52 +337,7 @@ Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a prop
 
 ---
 
-## 6. Canonicalize `repo_name` so the same repo always gets one worktree parent dir
-
-### Symptom
-
-`make_worktree_path` composes `<worktrees_dir>/<repo_name>/<YYYYMMDD>__<slug>`. `repo_name` is `slugify(basename(--repo-path))` (`lib/cli/cmd_new_run.py:54` → `lib/run_ids.py:52-54`). Three valid ways to point at the *same* monorepo today produce three different second-level dirs:
-
-| `--repo-path` value | derived `repo_name` |
-|---|---|
-| `.../new-tech-monorepo` | `new-tech-monorepo` |
-| `.../new-tech-monorepo/agentic-development-task-system-v3__ai` | `agentic-development-task-system-v3-ai` |
-| `.../new-tech-monorepo/agentic-development-task-system-v3__ai/agent-workbench-live` | `agent-workbench-live` |
-
-All three are the same git repo (same `git rev-parse --show-toplevel`). The worktree parent dir disagrees because the CLI never asks git "what is this repo's real root?" — it just slugifies the path the user typed. Anyone running `/new-run` from a different cwd, or invoking `agent-workbench new-run` against a subpath, opens a new top-level dir under `worktrees/`. The intent of `paths.worktrees_dir` is one normalized location per repo; the implementation only normalizes the root, not the per-repo namespace under it.
-
-### Confirmed root cause
-
-`derive_repo_name(repo_path.name)` in `cmd_new_run.py:54` takes the basename of whatever path was passed, never the repo toplevel. There's a `--repo-name` override (`naming.duplicate_repo_basename_strategy: require_repo_name_override` triggers it only on basename collision), but no automatic canonicalization. The `agent-workbench-live/.claude/commands/new-run.md` slash command just shells out to `agent-workbench new-run --repo-path <whatever>`; it inherits the same gap.
-
-The current behavior is also what produced the 578 orphan `aw-e2e-repo-*`/`aw-repo-*`/`aw-self-mod-*`/`aw-snap-repo-*` directories before this cleanup landed — pytest fixtures `mkdtemp` source repos in `/var/folders/...` and the CLI obediently writes their worktrees under the *real* `worktrees_dir`, leaving headless shells when the tmpdir is wiped. Canonicalizing by toplevel won't fix the test-detritus problem (the tests still point `--repo-path` at distinct tmp repos), but it does fix the same-repo-different-cwd case, and it makes the test-fixture fix (route their worktrees into the tmpdir via `AGENT_WORKBENCH_ROOT` or a `paths.worktrees_dir` override) more obviously correct.
-
-### Tasks
-
-- [ ] **Resolve the repo to its git toplevel before deriving `repo_name`.** In `cmd_new_run.py`, after `repo_path = args.repo_path.resolve()`, run `git -C <path> rev-parse --show-toplevel` (already available via `lib/repos.py` — add a thin wrapper if not). Use the toplevel's basename as input to `derive_repo_name`. Fall back to the old behavior if the path isn't inside a git repo (i.e. `new-repo` mode, where the repo doesn't exist yet).
-- [ ] **Honor `--repo-name` unchanged.** The explicit override path stays exactly as today; it's the only escape hatch for users who really do want a second namespace for the same repo (e.g. testing two branches in parallel). Canonicalization only kicks in when `--repo-name` is not passed.
-- [ ] **Optional: detect "same toplevel, different existing `repo_name`" and warn.** If the canonical `repo_name` is `foo` but `<worktrees_dir>/foo/` doesn't exist and `<worktrees_dir>/foo-subpath/` does (i.e. a prior run from a subpath created a different parent), print a one-line warning at `new-run` time so the user notices the drift. Don't auto-merge — the existing dir might genuinely belong to a different intent.
-- [ ] **Add a test in `tests/test_run_ids.py` (or wherever `derive_repo_name` is covered) that exercises the canonicalization.** Synthetic repo at `/tmp/foo/`; passing `--repo-path /tmp/foo/sub/dir` derives `repo_name=foo`, not `dir`. Make sure the `--repo-name` override still wins.
-- [ ] **Document the rule in `agent-workbench-live/.claude/commands/new-run.md` and `lib/run_ids.py` module docstring.** "`repo_name` defaults to the slugified basename of the *git toplevel*, not the path you typed. Use `--repo-name` to override."
-
-### Acceptance
-
-- `agent-workbench new-run --repo-path .../new-tech-monorepo/agentic-development-task-system-v3__ai/agent-workbench-live …` and `agent-workbench new-run --repo-path .../new-tech-monorepo …` produce worktrees under the **same** second-level dir under `worktrees/`.
-- `--repo-name foo` still wins unconditionally.
-- New repos (`--new-repo-path`) keep working — toplevel resolution skipped before init, then the new repo's own basename is used.
-- A test demonstrates the canonical behavior and would fail under today's `cmd_new_run.py:54`.
-
-### Non-goals
-
-Re-homing the 578 orphan e2e/snap/self-mod directories (those are a separate test-hygiene issue — the e2e fixtures should set `AGENT_WORKBENCH_ROOT` or override `paths.worktrees_dir` to a tmpdir, not depend on canonical naming). Renaming or merging existing pre-canonicalization worktree dirs on disk — that's a migration script, not a behavior change. Cross-machine path canonicalization (`/Users/x` vs `/home/x` symlinks etc.) — out of scope; we canonicalize via `git rev-parse`, not by string-matching.
-
-### Origin
-
-Surfaced 2026-05-26 while auditing the worktree list in this repo. Two real worktrees existed for the same monorepo under different `repo_name` parents (`agent-workbench-live/` vs `agentic-development-task-system-v3-ai/` vs `new-tech-monorepo/`) purely because of which subpath was passed to `--repo-path` at `/new-run` time. The user pushed back: paths "look all over the place, but they SHOULD be normalized. Different ways of creating like claude commands vs cli commands should make the same result." Slash commands and the CLI already share one code path; the gap is that the shared path doesn't canonicalize the input. This TODO closes that.
-
----
-
-## 7. Test-coverage gaps
+## 6. Test-coverage gaps
 
 Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Grouped because they all share the same shape: a code path that's verified by code-reading or by tmp-dir structural assertions, but doesn't have a runtime drive-and-assert.
 
@@ -400,7 +355,7 @@ Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Gr
 
 ---
 
-## 8. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
+## 7. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
 
 `lib/metrics/writer.record_run_metrics` writes `metrics.jsonl` at the validate / followups / abandon boundaries. The intent is to attribute token spend to the run. The open question: when a stage spawns a Claude Code Agent-tool subagent (an `Explore` for read-heavy lookup, a `Plan` for design, a `general-purpose` for fan-out), **is the subagent's token spend captured in `metrics.jsonl`, or is only the master session's spend recorded?**
 
@@ -430,7 +385,7 @@ Surfaced 2026-05-25 in a design conversation about subagent cost. The architectu
 
 ---
 
-## 9. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
+## 8. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
 
 Today the workbench is built for personal-repo, single-author work. `done` means "human accepted + locally merged to parent branch" — `cmd_complete` checks out the parent and runs `git merge --no-ff` directly. That model collapses two things that are separate in a team workflow: author sign-off and team sign-off. For team work the workbench needs to model the PR-review world as first-class lifecycle states, not a slash-command bolt-on after `done`.
 
@@ -586,11 +541,11 @@ Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash com
 
 ---
 
-## 10. Restrictive tool policy for the `publishing` stage only (relevant once §9 ships)
+## 9. Restrictive tool policy for the `publishing` stage only (relevant once §8 ships)
 
 Today the workbench's safety story is filesystem-via-worktrees + evidence-gated transitions. There's no per-run tool bounding because there's no need — `local_only: true` in `agent-workbench.yaml` means no remote calls, the worktree confines git operations to one branch, and the agent's shell tool is the agent's-harness problem.
 
-§9 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
+§8 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
 
 The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh repo delete`, `gh api` against an unrelated repo, or `git push --force` to an unrelated branch. Restricting that one stage is sufficient. Every other stage stays safe under the user's default Claude Code allowlist — `git` is worktree-bounded, test runners and file I/O are filesystem-bounded, none touch remotes, and the default allowlist doesn't include `gh` for them to misuse.
 
@@ -601,7 +556,7 @@ The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh rep
 Why this works:
 
 - **The threat surface is exactly one stage.** `publishing` is the only stage that legitimately needs `gh`. There's nothing for a per-stage policy to add for the others that the global allowlist isn't already doing — the default allowlist doesn't include `gh`, so non-publishing stages can't call it regardless.
-- **`in_pr_review` doesn't need a policy.** Per §9 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
+- **`in_pr_review` doesn't need a policy.** Per §8 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
 - **Symmetry with worktrees.** Worktrees are the filesystem bound; this is the remote bound. Both narrow and load-bearing, not blanket.
 
 ### What the `publishing` policy contains
@@ -644,8 +599,8 @@ This is **not** capability tokens (no crypto, no expiry, no issuance). Static fi
 
 ### Tasks
 
-- [ ] **Do nothing until §9 actually starts.** Sequential dependency. Pre-§9, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
-- [ ] **When §9 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
+- [ ] **Do nothing until §8 actually starts.** Sequential dependency. Pre-§8, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
+- [ ] **When §8 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
 - [ ] **Wire the hook.** Claude Code's settings.json PreToolUse hook reads `stages/7_publishing/tool-policy.yaml` when the `/publishing` command starts and applies the allowlist for that session. Spike on `gh pr view` first to confirm the hook shape end-to-end before encoding the full list.
 - [ ] **Add a `doctor` check.** `agent-workbench doctor` extends to scan a run's `events.jsonl` for any tool call emitted during `publishing` that isn't in that run's policy. Retrospective audit complements the preventative hook — if the hook misfires or a future harness ignores the file, doctor catches it.
 - [ ] **Document the contract.** `agent-workbench-live/AGENTS.md` § "Publishing stage rules" names the policy and explains why this stage is special. Note in `architecture.md` that the workbench's safety bounds are now (1) worktrees for filesystem, (2) `publishing`-stage policy for remote — and that every other stage inherits the harness default.
@@ -668,7 +623,7 @@ Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. The 
 
 ---
 
-## 11. Cross-run dependencies — `depends_on` + upstream artifact reads for coordinated multi-run work
+## 10. Cross-run dependencies — `depends_on` + upstream artifact reads for coordinated multi-run work
 
 ### Symptom
 
