@@ -355,33 +355,68 @@ Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Gr
 
 ---
 
-## 7. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
+## 7. Subagent cost measurement — fold Agent-tool spend into `metrics.jsonl`'s totals (Path B)
 
-`lib/metrics/writer.record_run_metrics` writes `metrics.jsonl` at the validate / followups / abandon boundaries. The intent is to attribute token spend to the run. The open question: when a stage spawns a Claude Code Agent-tool subagent (an `Explore` for read-heavy lookup, a `Plan` for design, a `general-purpose` for fan-out), **is the subagent's token spend captured in `metrics.jsonl`, or is only the master session's spend recorded?**
+### Status (2026-05-27)
 
-This isn't a correctness concern about the agent's behavior — subagents should keep being spawned, the architecture says they should, and they're how the workbench keeps the master session's prefix bounded (see AGENTS.md "Subagent-first read strategy"). It's an accounting concern: if subagent spend isn't attributed to the run, then any run that fans out heavily looks artificially cheap, and cross-run comparisons (which the board surfaces) are misleading.
+The investigation pass shipped as run `2026-05-27-subagent-cost-measurement` (review pending) classified the current state and made the gap explicit, but did NOT close it. Empirical finding from that run:
 
-### Tasks
+**Subagent token spend is invisible to `metrics.jsonl`'s totals.** `lib/metrics/writer.py` derives every token count from `~/.claude/projects/<slug>/<session-id>.jsonl` by reading `message.usage` off `assistant`-type records. Claude Code's `Agent` tool emits a `tool_use` block (the invocation) and a `tool_result` block (the subagent's text response), but **neither block carries any `usage` field**. Verified by reading real transcripts. There is no `PostToolUse` hook firing for the `Agent` tool (only for Bash/Write/Edit); no Claude Code session-metrics export; no OpenTelemetry sink; no aicodemetricsd integration for Agent. RTK's SQLite DB tracks command-level token savings, not subagent calls.
 
-- [ ] **Read `lib/metrics/writer.py` + `lib/metrics/buckets.py` + the bucket sources to determine what counts as "input/output tokens" for a run.** The relevant question: does the underlying telemetry source (whatever the writer pulls from — `claude-code session metrics`, the Anthropic API ledger, something else?) include nested-Agent-tool calls in the parent session's totals, or are they tracked separately?
-- [ ] **Write a synthetic run that explicitly spawns N Agent-tool subagents from `/validate` and compare the resulting `metrics.jsonl` against the master-session-only baseline.** If the subagent spend is invisible, the delta will be small / zero; if it's captured, it'll match the subagents' individual spend.
-- [ ] **If subagent spend is NOT captured: extend the writer.** This may require the writer to read from a more comprehensive source, or to walk subagent IDs and sum them. Implementation depends entirely on the telemetry source's shape — investigate first, design after.
-- [ ] **If subagent spend IS captured but not labeled: add a `subagent_spend` rollup to the metrics.** Even if the totals are correct, knowing "how much of this run's spend was master vs. subagent" is useful diagnostic information for tuning the subagent-first strategy.
-- [ ] **Document the contract.** Whatever the answer turns out to be, write it in `lib/metrics/writer.py`'s module docstring and link from `agent-workbench-live/AGENTS.md` § "Subagent discipline" so the next person isn't unsure what they're looking at.
+V1 (the investigation pass) shipped four header-row fields to make this gap explicit instead of silent:
+
+- `subagent_tokens: null` (always — we don't have the data)
+- `subagent_tokens_status: "telemetry_not_available"`
+- `subagent_invocations: <int>` (count of `Agent` tool_use blocks observed; the only fan-out signal we can derive)
+- `telemetry_source: "claude_code_transcript_v1"`
+
+And bumped `SCHEMA_VERSION` 2 → 3.
+
+But **`total_tokens` and `cost_usd` in the summary, in the board, and in the CLI's text render still only sum master-session turns**. The whole product `metrics.jsonl` is supposed to deliver — honest per-run accounting — does not work for any run that uses subagents. The board's cost column lies, silently, for every fan-out run.
+
+This is a bigger problem than V1's sentinel suggests. The "subagent-first read strategy" that AGENTS.md actively encourages is the dominant pattern for read-heavy work in `/build` and `/validate`. Recent runs routinely fan out 2–8 subagents per stage. Their spend disappears.
+
+### What needs to happen now
+
+Capture subagent token spend at the boundary, write it to a sidecar the writer can read, fold it into `total_tokens` / `cost_usd` / the board's per-run total. The architecture has to give us a way to observe the data the Agent tool doesn't expose.
+
+### Path B implementation sketch
+
+- [ ] **`PostToolUse` hook on the `Agent` tool.** Configured in `~/.claude/settings.json` (or the project-local `.claude/settings.json` so it can be checked in). Hook fires with the tool_use + tool_result on stdin. The hook script (likely shell or a small Python entry point under `agent-workbench-live/bin/`) appends one record per Agent call to a sidecar file. **Investigation needed first:** verify a `PostToolUse` hook can actually fire for `Agent` (the current hooks config only references Bash/Write/Edit; whether `Agent` is hook-eligible needs confirmation in Claude Code docs or via experiment). If it isn't, this path is blocked and the work shifts to (e) below.
+- [ ] **Decide what the hook captures.** Three sub-options:
+  - (a) The hook reads the subagent's response text and *estimates* tokens from response length (4 chars/token heuristic — the same one `lib/metrics/buckets.py` uses). Approximate but always available.
+  - (b) The hook waits for Claude Code to expose `usage` on the Agent tool's result (out of our control; may never happen).
+  - (c) The hook spawns the subagent itself via the Anthropic SDK and observes `usage` directly. Major architectural change; subagents would no longer be Claude-Code-managed.
+  - Pick (a) for now — heuristic spend beats null spend, and the same heuristic already underpins our bucket attribution.
+- [ ] **Sidecar JSONL schema.** Decide where it lives (`~/.claude/agent-workbench/subagent-spend.jsonl`? `<workbench_root>/runs/<run_id>/.subagent-spend.jsonl`? — the first is hook-config friendly but harder for the writer to scope per-run; the second requires the hook to know the run ID at fire time, which it may not have). Each row: `{at, session_id, parent_cwd, subagent_type, description_prefix, input_tokens_est, output_tokens_est}`.
+- [ ] **Writer integration.** After the existing transcript walk, `record_run_metrics()` reads the sidecar (scoped by session_id and cwd-or-workbench-root match), sums the per-invocation estimates into a single `subagent_tokens` int, flips `subagent_tokens_status` from `"telemetry_not_available"` to `"captured_estimate"` (or `"captured"` if (b) ever materializes), and **adds the sum to `total_tokens`** at the summary layer.
+- [ ] **Summary layer change.** `RunMetricsSummary.total_tokens` must include `subagent_tokens` when populated. Today it's `sum(turn_row.usage.* across turn_rows)`. Either (i) emit synthetic `kind: turn` rows for subagent calls so the existing summer picks them up, or (ii) add subagent_tokens to the total after the per-turn sum. Pick (i) for board-consistency (the board's `_quick_metrics_from_jsonl` already iterates turn rows). The synthetic row would carry `stage: <calling stage>`, `command: "Agent"`, `model: <subagent_type>`, `usage: {input: est_in, output: est_out, cache_read: 0, cache_creation: 0}`. Pricing reuses `metrics/prices.yaml` (subagents run the same models as the master, so the rate table doesn't need to grow).
+- [ ] **Board renderer pickup.** Once `total_tokens` includes subagent spend, the board's existing cost column starts being honest automatically — no UX change required, just truthful numbers. If a "captured_estimate" badge or annotation is wanted on the card to flag heuristic-vs-real, that's a follow-on.
+- [ ] **Tests.** Drive a synthetic run that emits N entries to the sidecar; assert `metrics.jsonl` carries N+M turn rows (M master turns + N synthetic subagent rows) and that `total_tokens` matches the sum. A second test for the sidecar-missing path (must degrade gracefully back to the V1 sentinel).
+- [ ] **Backward compat for v3 runs already on disk.** Runs that landed before Path B writes `subagent_tokens: null` + `"telemetry_not_available"` to their headers. The summary must not error on those; today's loader already handles `None`.
+- [ ] **Document the captured-estimate caveat** in `lib/metrics/writer.py`'s module docstring (already laying the groundwork in V1) and in `AGENTS.md` § "Subagent discipline" (V1 bullet stays, gets a second sub-bullet on the estimation methodology).
+- [ ] **Fallback if `PostToolUse` for `Agent` is not supported.** Investigation may turn up that Claude Code doesn't fire hooks for the Agent tool. In that case the path forks to: (e1) parse the master session's transcript for `Agent` tool_use blocks, derive a heuristic estimate from the `description` and `prompt` length + the returned text length (worse signal than a hook can provide but available), or (e2) accept that subagent spend stays invisible and document it as a Claude Code limitation. Decide which only after (a) is confirmed dead.
 
 ### Acceptance
 
-- A test or measurement script demonstrates whether subagent tokens are captured in `metrics.jsonl`. Answer is one of: (a) yes, captured in totals, (b) yes, captured separately, (c) no, missing.
-- If (c), the writer is updated and the next test run shows the spend included. If (a) or (b), the docstring documents which case applies.
-- The board's per-run spend display (if it shows a token total) is accurate within ~5% of the true total including subagent work.
+- `metrics.jsonl`'s `total_tokens` for a synthetic run that fans out 5 subagents matches (master_session_tokens + sum_of_5_subagent_estimates) within rounding.
+- `agent-workbench metrics <run_id>` text output's `total` line is honest about fan-out — a run with heavy subagent use no longer reports an artificially low total.
+- The board's per-run cost column is accurate within ~10% of true total cost for a fan-out run. (5% is the brief's stretch goal; 10% is realistic for an estimate-based capture.)
+- `subagent_tokens_status` reports `"captured_estimate"` (or whatever literal we settle on) in the header row; the existing V1 unit tests that assert `"telemetry_not_available"` get updated to match.
+- The synthetic test from V1 (`test_header_row_counts_agent_invocations`) still passes — invocation counting is independent of spend capture.
+- A `bin/agent-workbench-subagent-hook` (or equivalent) script exists, is wired in `~/.claude/settings.json` (or the project's `.claude/settings.json`), and produces the sidecar JSONL on every Agent call.
 
 ### Non-goals
 
-Throttling, capping, or denying subagent spawn — the policy is "spawn subagents when the work justifies it, and measure honestly." This TODO is purely measurement. Building a per-subagent breakdown in the audit (e.g. "this run spawned 3 Explore subagents, here's what each cost") would be nice but is a follow-on; the immediate concern is total-accuracy.
+- **Throttling or capping subagent spawn.** Same as V1: "spawn when the work justifies it; measure honestly."
+- **Per-subagent breakdown in the audit.** Recording "this run spawned 3 Explore subagents at 200k each + 2 general-purpose at 50k each" is genuinely useful but secondary to fixing `total_tokens`. Defer.
+- **Replacing Claude Code's Agent tool with a custom SDK-driven spawner.** That's option (c) above; out of scope for Path B unless (a) and (e) both prove unworkable.
+- **Cross-session aggregation.** A subagent invoked in session A whose record lands while session B is also writing the sidecar — define the schema with `session_id` so cross-contamination is filtered, but don't attempt cross-machine or cross-user sync.
+- **Migrating existing v3 metrics.jsonl files.** Once Path B ships, new runs get accurate totals. Old v3 runs keep their `subagent_tokens: null` header; the summary handles it.
 
 ### Origin
 
-Surfaced 2026-05-25 in a design conversation about subagent cost. The architecture explicitly permits subagent spawning and the AGENTS.md "subagent-first read strategy" actively encourages it for read-heavy work. The question of whether the resulting spend is captured in the workbench's own metrics is open — the writer code may or may not pull from a telemetry source that includes nested calls, and verifying this is a small but real piece of work. The concern is cross-run comparability: if fan-out runs look artificially cheap, the board's metrics column lies, and decisions about session boundaries (the validate-cut, the cache-discipline rules) get made against bad data.
+Surfaced as a deferred-from-investigation TODO at the end of run `2026-05-27-subagent-cost-measurement`. The V1 pass (`/complete` pending review at time of writing) classified the gap as case (c) — "no, missing" — and shipped an honest sentinel + invocation counter + documentation. The user's pushback on V1's scope is the correct one: a metrics system whose `total_tokens` doesn't include subagent work isn't doing its job, and the board's cost column lies for any fan-out run. The "Path B" framing comes from DR-001 in that run's plan, which explicitly deferred this work. The conversation that surfaced the urgency: "What is metrics.jsonl counting currently? Is it not focused on total tokens and total cost?" — and the answer made clear that V1's sentinel was honest about the gap but didn't close the underlying accounting failure.
 
 ---
 
