@@ -677,3 +677,68 @@ Per-stage policy for stages other than `publishing` (the default Claude allowlis
 
 Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. The first draft proposed a full per-stage allowlist for every lifecycle state. Pushed back 2026-05-26: every stage except `publishing` is already safe under the default Claude allowlist (no `gh` in it, worktree-bounded `git`, filesystem-bounded I/O). The only stage that needs a policy is the one that punctures `local_only`, so the mechanism should be scoped to it. Net: one policy file at one stage boundary, not a per-stage matrix.
 
+---
+
+## 12. Cross-run dependencies — `depends_on` + upstream artifact reads for coordinated multi-run work
+
+### Symptom
+
+A single user-facing task that spans two repos (e.g. a frontend ticket and a backend ticket that share an API contract) has no first-class representation in the workbench. Each `/new-run` creates a run with a single `target.repo`, no awareness of sibling runs, and `/shape` + `/plan` only read from the run's own `runs/<id>/` directory. The two practical workarounds today are: (a) write the API contract into a shared `raw-idea.md` before both `/new-run`s and rely on convention to keep them in sync, or (b) sequence runs manually — finish the backend run through `/complete`, then drop a reference to its merged diff or `plan.md` into the frontend's `raw-idea.md` by hand. Both are convention-strength; nothing in the lifecycle, metadata, or slash commands knows that two runs are coordinated.
+
+The asymmetry: agent-workbench has a strong cross-stage contract *within* a run (`build-context.md` lifts plan + brief artifacts deterministically; §5 generalizes this to the other LLM-bearing stages). There is no cross-*run* contract. A run that should be planned against another run's plan or build output has no declarative way to say so.
+
+### Confirmed root cause
+
+`schemas/run-metadata.yaml` has no `depends_on` field. `lib/cli/cmd_new_run.py` accepts a single `--repo-path` (`cmd_new_run.py:16`) and writes a single `target.repo` object. `lib/cli/cmd_shape.py` and `lib/cli/cmd_plan.py` read from `metadata.run_dir(cfg, run_id)` exclusively — there's no `iter_upstream_runs(cfg, run_id)` enumerator and no per-run hook that says "before staging the curated-entry file, also read these foreign run dirs." `lib/build_context.py` and the future plan/shape/followups context builders (§5) are single-run by construction.
+
+### Proposed shape
+
+Three pieces, smallest first:
+
+**1. Schema field — `depends_on`** at `target.depends_on` in `schemas/run-metadata.yaml`. List of `{run_id, kind}` pairs where `kind ∈ {plan, build, complete}` describes which upstream lifecycle stage the dependency reads from. `plan` means "read upstream's `plan.md` + `decisions.md`" (use when upstream is still in `planning` or `ready`); `build` means "read upstream's `build.md` + worktree diff" (upstream must be in `validating` or later); `complete` means "read upstream's merged diff against the parent ref" (upstream must be `done`). Optional `scope` string for free-form notes ("API contract" / "shared types"). Empty list (or absent) for standalone runs — today's default.
+
+**2. CLI surface — `--depends-on <run_id>[:kind]`** as a repeatable flag on `agent-workbench new-run`. Resolves the run_id (errors if not found), validates the upstream's current state allows the requested `kind` (e.g. you can't say `--depends-on X:build` if X is still in `planning`), writes the dependency into `target.depends_on`. Default `kind` is `complete` (safest — upstream is fully merged) when the upstream is already `done`; otherwise `kind=plan`.
+
+**3. Stage-context hook — `*-context.md` builders read upstream artifacts.** `lib/build_context.py` and the future `lib/plan_context.py` (§5) each gain an "Upstream dependencies" section that materializes summaries of the artifacts named by `target.depends_on`:
+- For `kind=plan`: inline the upstream's `plan.md` "Proposed changes" + "Files likely to change" + "Data model changes" sections, plus all DR/ASM blocks from `decisions.md` / `assumptions.md`.
+- For `kind=build`: inline the upstream's `build.md` "Implementation summary" + "Files changed" + "Acceptance criteria coverage", plus a `git diff <upstream-base-ref-sha>..<upstream-worktree-HEAD> --stat` rollup.
+- For `kind=complete`: inline the upstream's `HUMAN_REVIEW.md` summary block, plus the merge SHA and a `git diff <merge-parent>..<merge-sha> --stat` rollup against the actual merged state.
+
+The reader (planner, builder, etc.) gets the same curated-context discipline as today, just expanded to cover upstream runs. Cache cost is bounded — one curated section per dependency, not a free read of the foreign run dir.
+
+### Tasks
+
+- [ ] **Schema work in `schemas/run-metadata.yaml`** — add `target.depends_on` as an optional list. Define the `{run_id, kind, scope?}` shape; specify which `kind` values are valid against which upstream states. Update §7's schema validator if that lands first.
+- [ ] **`lib/cli/cmd_new_run.py`** — accept `--depends-on <run_id>[:kind]` (repeatable). Resolve via `metadata.load`, validate upstream state vs. requested kind, write into metadata. Emit a `DependencyRecorded` event per dependency for the audit trail.
+- [ ] **`lib/dependencies.py` (new module)** — helpers: `resolve_upstream(cfg, run_id) -> list[UpstreamRun]`, `validate_kind_against_state(upstream_state, requested_kind) -> None | error`, `extract_upstream_artifacts(upstream_run, kind) -> UpstreamSnapshot`. Keep the I/O paths centralized so the context builders (next task) don't reimplement them.
+- [ ] **Extend `lib/build_context.py`** — add an "Upstream dependencies" section that iterates `target.depends_on` and inlines per-kind summaries. Skip silently (with a comment) if the list is empty; today's runs are unaffected.
+- [ ] **Extend the future `lib/plan_context.py` (§5)** with the same hook. The planner is the most likely consumer — frontend planning against a backend's `plan.md` is the canonical use case.
+- [ ] **`.claude/commands/new-run.md`** — document the `--depends-on` flag. Add an example: backend run finishes planning → frontend run created with `--depends-on <backend-run-id>:plan`. Make clear the agent doesn't infer dependencies; the human declares them.
+- [ ] **`.claude/commands/plan.md` and `build.md` (§3)** — add a line to the step-1 read instructions: "If `target.depends_on` is non-empty, the curated context file's 'Upstream dependencies' section is the source of truth for what upstream runs decided. Do not re-read their full run dirs."
+- [ ] **`docs/lifecycle.md`** — add a new section "Cross-run dependencies" describing the schema field, the kind→state matrix, and how `*-context.md` materializes upstream summaries. Cross-link from § draft (where `--depends-on` is declared) and § planning / § building (where the artifacts are consumed).
+- [ ] **Audit `cmd_complete.py` and `cmd_abandon.py` for downstream impact** — if a `done` run is the upstream of an in-flight dependent, completing/abandoning it doesn't break anything (the dependent already has the upstream's frozen artifacts in its own `<stage>-context.md`), but the audit should call this out. Decide: warn on `/abandon` if there's an active downstream dependent? Probably yes — surface the link, let the user decide. No hard block.
+- [ ] **Tests under `tests/test_dependencies.py`** — schema validation (valid/invalid `kind` for given upstream states); `cmd_new_run` accepts `--depends-on` and writes metadata correctly; `build_context.build` produces an "Upstream dependencies" section when deps are present and omits the section when they aren't; the section correctly excerpts upstream `plan.md` / `build.md` per kind.
+- [ ] **E2E test** — two synthetic runs against two synthetic repos. Run A: shape → plan → start → validate → complete. Run B: created with `--depends-on <run-A>:complete`. Drive Run B through `/plan`; assert `plan-context.md` contains Run A's merge SHA, file list, and brief excerpt. (Bundles a §5 acceptance test naturally.)
+
+### Acceptance
+
+- `agent-workbench new-run --repo-path <frontend-repo> --idea-file foo.md --depends-on <backend-run-id>:plan` succeeds when the backend run is in `planning`/`ready`/later; fails with a clear error when the kind is incompatible (e.g. `:build` against a backend run still in `shaping`).
+- The frontend run's `plan-context.md` (when §5's plan-context ships) and `build-context.md` carry an "Upstream dependencies" section with concrete per-kind excerpts from the backend run. Without `--depends-on`, neither file has the section — today's behavior preserved.
+- `runs/<frontend-run-id>/metadata.yaml` carries `target.depends_on: [{run_id: <backend-run-id>, kind: plan}]`. The schema validator (§7) accepts it.
+- `agent-workbench abandon <backend-run-id>` while a downstream `<frontend-run-id>` is in-flight prints a warning that the downstream exists, names it, and continues. No hard block — the downstream has the upstream's frozen artifacts and can finish.
+- An E2E test demonstrates the full flow on synthetic repos; would fail under today's behavior if the dependency-consuming code path were reverted.
+
+### Non-goals
+
+- **Autonomous chaining of runs.** This TODO adds declarative dependencies, not a scheduler. The user still runs `/new-run` + `/shape` + `/plan` + `/start` for each run individually; the only thing that changes is downstream runs can name upstream ones and consume their artifacts. Auto-firing `/start` on Run B when Run A hits `done` is explicitly out of scope — that collides with the `ready → building` human gate and isn't worth the blast-radius increase for the cardinality of cases we see (two coordinated runs, occasionally three).
+- **Multi-repo single-run.** This is not a step toward "one run with N target repos." The cardinality stays one repo per run; coordination happens *between* runs via `depends_on`, not *inside* one.
+- **Bidirectional dependencies / sibling sync.** No mechanism for Run A and Run B to keep their plans synchronized as they each evolve. The contract is strictly upstream → downstream, materialized at the downstream's `<stage>-context.md` build time. If both sides need to evolve together, the user re-runs `/plan` on the downstream after the upstream changes.
+- **Cycle detection beyond trivial cases.** A → B → A is rejected at `--depends-on` time by checking the target's own `depends_on` graph; deeper cycles (A → B → C → A) are out of scope until they actually occur.
+- **Cross-machine dependency resolution.** Upstream run dirs must be readable on the local filesystem. If Run A lives on a different machine, the workbench can't materialize its artifacts; this is the same constraint as everything else in the workbench today.
+- **Auto-detecting dependencies from idea text.** The human declares dependencies explicitly via `--depends-on`. No NLP heuristic that says "this idea mentions a backend ticket, let me link to it."
+- **Changing how `/complete` merges.** Downstream runs that depend on `:complete` read the merged diff from the parent branch's history; the merge mechanics in `cmd_complete.py` don't change.
+
+### Origin
+
+Surfaced 2026-05-27 in conversation about how to coordinate a frontend ticket and a backend ticket as one logical unit of work. First proposal was "multiple repos as input to one run"; the schema and CLI both rejected that. Second proposal was "sequence runs and have them cross-pollinate." Pushback: autonomous chaining of `/start`s is a real blast-radius increase against the lifecycle's human gates, and the actually-hard part isn't sequencing — it's giving the downstream run access to the upstream's artifacts in a curated, cache-disciplined way. Net: `depends_on` + upstream artifact reads from inside the existing `<stage>-context.md` contract is the right shape. Autonomous chaining stays out of scope until the manual sequencing pattern surfaces enough friction to justify it.
+
