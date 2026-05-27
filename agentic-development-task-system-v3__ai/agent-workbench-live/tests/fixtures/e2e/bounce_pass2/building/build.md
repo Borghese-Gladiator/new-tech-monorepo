@@ -1,6 +1,6 @@
 # Build — Goodbye command, pass 2
 
-## Implementation summary
+## What changed
 
 Added the missing `echo "goodbye, world"` line to the case arm.
 

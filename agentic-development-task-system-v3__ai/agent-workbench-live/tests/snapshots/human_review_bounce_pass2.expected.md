@@ -12,8 +12,7 @@
 ## Summary of changes
 
 - Added the missing `echo "goodbye, world"` line to the case arm.
-- 1 file(s) touched:
-  - `bin/cli`
+- 1 file(s) touched: bin/cli
 - AC coverage: 1/1 covered
 
 → Full diff: `<RUN_ROOT>/stages/4_building/build.md`

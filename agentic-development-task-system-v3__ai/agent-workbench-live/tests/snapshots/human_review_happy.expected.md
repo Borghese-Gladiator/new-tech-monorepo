@@ -12,8 +12,7 @@
 ## Summary of changes
 
 - Added a `hello` case to `bin/cli` that prints `hello, world`.
-- 1 file(s) touched:
-  - `bin/cli`
+- 1 file(s) touched: bin/cli
 - AC coverage: 2/2 covered
 
 → Full diff: `<RUN_ROOT>/stages/4_building/build.md`

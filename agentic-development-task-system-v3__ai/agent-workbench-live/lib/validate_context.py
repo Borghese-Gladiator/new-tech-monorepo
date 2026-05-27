@@ -112,7 +112,9 @@ _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
 
 def _section(body: str, name: str) -> str:
     """Return the content under `## <name>` (or any heading level) up to the
-    next same-or-higher-level heading. Returns empty string if not found."""
+    next same-or-higher-level heading. Returns empty string if not found.
+    HTML comments are stripped so unfilled template hints don't get parsed
+    as real content."""
     if not body:
         return ""
     lines = body.splitlines(keepends=True)
@@ -137,7 +139,8 @@ def _section(body: str, name: str) -> str:
         if m and len(m.group(1)) <= start_level:
             end = j
             break
-    return "".join(lines[start:end]).strip("\n") + "\n"
+    body_text = "".join(lines[start:end]).strip("\n") + "\n"
+    return re.sub(r"<!--.*?-->", "", body_text, flags=re.DOTALL)
 
 
 _BLOCK_ID_RE = re.compile(r"^#{2,4}\s+(DR-\d+|ASM-\d+)\s*$", re.MULTILINE)

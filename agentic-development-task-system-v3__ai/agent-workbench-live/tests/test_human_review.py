@@ -172,7 +172,7 @@ class TestExtractBuildSummary(unittest.TestCase):
         from lib import human_review
         build = self._write_build(
             "# Build\n\n"
-            "## Implementation summary\n\n"
+            "## What changed\n\n"
             "Added a `goodbye` case to `bin/cli`.\n\n"
             "## Files changed\n\n"
             "- `bin/cli`\n- `tests/test_cli.py`\n\n"
@@ -184,11 +184,9 @@ class TestExtractBuildSummary(unittest.TestCase):
         )
         out = human_review._extract_build_summary(build)
         joined = "\n".join(out)
-        # impl bullet, files parent + 2 nested, AC bullet.
+        # impl bullet, files inline bullet, AC bullet.
         self.assertIn("goodbye", joined)
-        self.assertIn("- 2 file(s) touched:", joined)
-        self.assertIn("  - `bin/cli`", joined)
-        self.assertIn("  - `tests/test_cli.py`", joined)
+        self.assertIn("- 2 file(s) touched: bin/cli, tests/test_cli.py", joined)
         self.assertIn("- AC coverage: 2/2 covered", joined)
 
     def test_no_headers_returns_empty(self):
@@ -196,23 +194,21 @@ class TestExtractBuildSummary(unittest.TestCase):
         build = self._write_build("# Build\n\nJust prose, no headers.\n")
         self.assertEqual(human_review._extract_build_summary(build), [])
 
-    def test_docs_touched_renders_as_nested_list(self):
+    def test_docs_touched_renders_inline_list(self):
         from lib import human_review
         build = self._write_build(
             "# Build\n\n"
-            "## Implementation summary\nFoo.\n\n"
+            "## What changed\nFoo.\n\n"
             "## Documentation touched\n- `README.md`\n- `docs/LOG.md`\n"
         )
         joined = "\n".join(human_review._extract_build_summary(build))
-        self.assertIn("- 2 doc(s) touched:", joined)
-        self.assertIn("  - `README.md`", joined)
-        self.assertIn("  - `docs/LOG.md`", joined)
+        self.assertIn("- 2 doc(s) touched: README.md, docs/LOG.md", joined)
 
     def test_docs_touched_none_entry_skipped(self):
         from lib import human_review
         build = self._write_build(
             "# Build\n\n"
-            "## Implementation summary\nFoo.\n\n"
+            "## What changed\nFoo.\n\n"
             "## Documentation touched\n- (none — tiny addition)\n"
         )
         joined = "\n".join(human_review._extract_build_summary(build))
@@ -364,39 +360,38 @@ class TestRender(unittest.TestCase):
         # Fallback string must NOT appear when a body is present.
         self.assertNotIn("_None recorded._", manual)
 
-    def test_files_touched_renders_as_nested_list(self):
+    def test_files_touched_renders_inline_list(self):
         from lib import human_review
         # Synthesize a build.md with 4 files and verify the renderer's output.
         build_path = pathlib.Path(tempfile.mkdtemp(prefix="aw-build-")) / "build.md"
         build_path.write_text(
             "# Build\n\n"
-            "## Implementation summary\n\nfoo\n\n"
+            "## What changed\n\nfoo\n\n"
             "## Files changed\n\n"
             "- `a.py`\n- `b.py`\n- `c.py`\n- `d.py`\n"
         )
         lines = human_review._extract_build_summary(build_path)
-        # Find the "files touched" parent + nested rows.
         idx = next(i for i, ln in enumerate(lines) if "file(s) touched" in ln)
-        self.assertEqual(lines[idx], "- 4 file(s) touched:")
-        self.assertEqual(lines[idx + 1], "  - `a.py`")
-        self.assertEqual(lines[idx + 2], "  - `b.py`")
-        self.assertEqual(lines[idx + 3], "  - `c.py`")
-        self.assertEqual(lines[idx + 4], "  - `d.py`")
+        self.assertEqual(lines[idx], "- 4 file(s) touched: a.py, b.py, c.py, d.py")
 
     def test_files_touched_truncates_above_cap(self):
         from lib import human_review
         build_path = pathlib.Path(tempfile.mkdtemp(prefix="aw-build-")) / "build.md"
         files = "\n".join(f"- `f{i}.py`" for i in range(12))
         build_path.write_text(
-            f"# Build\n\n## Implementation summary\n\nfoo\n\n"
+            f"# Build\n\n## What changed\n\nfoo\n\n"
             f"## Files changed\n\n{files}\n"
         )
         lines = human_review._extract_build_summary(build_path)
         idx = next(i for i, ln in enumerate(lines) if "file(s) touched" in ln)
-        self.assertEqual(lines[idx], "- 12 file(s) touched:")
-        # 8 nested rows + 1 overflow row.
-        self.assertEqual(lines[idx + 1 + human_review.SUMMARY_NESTED_CAP],
-                         f"  - …and {12 - human_review.SUMMARY_NESTED_CAP} more")
+        # Inline names, then a `(…+N more)` overflow suffix.
+        overflow = 12 - human_review.SUMMARY_INLINE_CAP
+        self.assertTrue(
+            lines[idx].endswith(f"(…+{overflow} more)"),
+            msg=f"unexpected overflow form: {lines[idx]!r}",
+        )
+        for i in range(human_review.SUMMARY_INLINE_CAP):
+            self.assertIn(f"f{i}.py", lines[idx])
 
     def test_render_is_idempotent(self):
         from lib import human_review
@@ -404,6 +399,53 @@ class TestRender(unittest.TestCase):
         first = human_review.render(cfg, run_id).read_text()
         second = human_review.render(cfg, run_id).read_text()
         self.assertEqual(first, second)
+
+
+# ============================================================================
+# Regression tests for TODO §13 (handoff-rendering failure cluster)
+# ============================================================================
+
+
+class TestHandoffRenderingRegressions(unittest.TestCase):
+    """TODO §13 regression tests for the handoff-rendering failure cluster.
+
+    Each test was written to fail on master (pre-fix) and pass after the fix.
+    See runs/2026-05-27-handoff-rendering-failure-cluster for the full
+    investigation that surfaced these defects.
+    """
+
+    def _write_build(self, contents: str) -> pathlib.Path:
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="aw-build-")) / "build.md"
+        tmp.write_text(contents)
+        return tmp
+
+    def test_html_comment_bullets_dont_leak(self):
+        """Defect 1. A build.md identical to templates/build.md must NOT
+        produce phantom bullets from the example HTML comment in
+        `## Documentation touched`."""
+        from lib import human_review
+        template_path = ROOT / "templates" / "build.md"
+        build = self._write_build(template_path.read_text())
+        rendered = "\n".join(human_review._extract_build_summary(build))
+        # The template's `## Documentation touched` HTML comment includes an
+        # example `- README.md — added a /hello endpoint example` bullet. The
+        # extractor must strip HTML comments and not produce that phantom row.
+        self.assertNotIn("README.md", rendered)
+        self.assertNotIn("/hello endpoint example", rendered)
+        self.assertNotIn("docs/api.md", rendered)
+
+    def test_what_changed_heading_extracts_narrative(self):
+        """Defect 4. The extractor must read `## What changed` (the canonical
+        heading in templates/build.md), not the legacy `## Implementation
+        summary`. Without this, every handoff lost its narrative."""
+        from lib import human_review
+        build = self._write_build(
+            "# Build\n\n"
+            "## What changed\n\n"
+            "We added X.\n"
+        )
+        rendered = "\n".join(human_review._extract_build_summary(build))
+        self.assertIn("We added X.", rendered)
 
 
 # ============================================================================

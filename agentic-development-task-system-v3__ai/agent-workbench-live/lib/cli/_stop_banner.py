@@ -259,12 +259,17 @@ def _render_summary_bullets(human_review_path: pathlib.Path) -> list[str]:
 def _extract_section(text: str, heading: str) -> str:
     """Return the body under ``## {heading}`` up to the next ``## `` heading.
 
-    Returns the empty string if the heading isn't found. Mirrors
-    ``lib/human_review.py``'s ``_section`` helper.
+    Returns the empty string if the heading isn't found. HTML comments are
+    stripped so unfilled template hints don't get parsed as real content.
+    Mirrors ``lib/human_review.py``'s ``_section`` helper.
     """
     pat = re.compile(rf"(?ms)^##\s+{re.escape(heading)}\s*\n(.*?)(?=^##\s|\Z)")
     m = pat.search(text)
-    return m.group(1) if m else ""
+    if not m:
+        return ""
+    body = m.group(1)
+    body = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL)
+    return body
 
 
 def _truncate_inline(s: str, limit: int) -> str:

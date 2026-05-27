@@ -1,6 +1,6 @@
 # Build — Hello command
 
-## Implementation summary
+## What changed
 
 Added a `hello` case to `bin/cli` that prints `hello, world`.
 

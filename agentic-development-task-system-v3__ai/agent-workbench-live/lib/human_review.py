@@ -203,16 +203,17 @@ def project_timeline(events: Iterable[dict]) -> list[TimelineRow]:
 
 # ---------- build.md extraction ----------
 
-SUMMARY_NESTED_CAP = 8
+SUMMARY_INLINE_CAP = 8
 
 
 def _extract_build_summary(build_path: pathlib.Path) -> list[str]:
     r"""Return markdown lines describing what the build delivered.
 
-    Each list-item header is ``- ...`` (top-level bullet). A list of files
-    (e.g. ``## Files changed``, ``## Documentation touched``) renders as a
-    parent bullet with one nested ``  - `<path>` `` line per file (capped at
-    ``SUMMARY_NESTED_CAP``, with a ``  - …and N more`` overflow row).
+    Each list-item is a single top-level ``- ...`` bullet. A list of files
+    (e.g. ``## Files changed``, ``## Documentation touched``) renders as one
+    bullet with the file names joined inline, e.g.
+    ``- 5 file(s) touched: a.py, b.py, c.py, d.py, e.py``. When the count
+    exceeds ``SUMMARY_INLINE_CAP``, the bullet appends `` (…+N more)``.
 
     Falls back to an empty list if the file is missing or has none of the
     expected headers; the caller renders a single "→ Full diff" line in that
@@ -223,7 +224,7 @@ def _extract_build_summary(build_path: pathlib.Path) -> list[str]:
     text = build_path.read_text()
     lines: list[str] = []
 
-    impl = _section(text, "Implementation summary")
+    impl = _section(text, "What changed")
     if impl:
         # First paragraph only, single line.
         first_para = impl.strip().split("\n\n", 1)[0].strip().replace("\n", " ")
@@ -234,8 +235,7 @@ def _extract_build_summary(build_path: pathlib.Path) -> list[str]:
     if files:
         items = _bullet_items(files)
         if items:
-            lines.append(f"- {len(items)} file(s) touched:")
-            lines.extend(_nested_path_list(items))
+            lines.append(f"- {len(items)} file(s) touched: {_inline_path_list(items)}")
 
     coverage = _section(text, "Acceptance criteria coverage")
     if coverage:
@@ -258,32 +258,34 @@ def _extract_build_summary(build_path: pathlib.Path) -> list[str]:
     if docs:
         items = _bullet_items(docs)
         if items and not all(i.strip().lower().startswith("(none") for i in items):
-            lines.append(f"- {len(items)} doc(s) touched:")
-            lines.extend(_nested_path_list(items))
+            lines.append(f"- {len(items)} doc(s) touched: {_inline_path_list(items)}")
 
     return lines
 
 
-def _nested_path_list(items: list[str]) -> list[str]:
-    r"""Render a list of paths as nested ``  - `<path>` `` markdown rows,
-    capped at SUMMARY_NESTED_CAP with a ``  - …and N more`` overflow line."""
-    out: list[str] = []
-    shown = items[:SUMMARY_NESTED_CAP]
-    for it in shown:
-        out.append(f"  - `{it}`")
-    if len(items) > SUMMARY_NESTED_CAP:
-        out.append(f"  - …and {len(items) - SUMMARY_NESTED_CAP} more")
-    return out
+def _inline_path_list(items: list[str]) -> str:
+    r"""Render a list of paths as a comma-joined inline string, capped at
+    ``SUMMARY_INLINE_CAP`` items with a `` (…+N more)`` overflow suffix."""
+    shown = items[:SUMMARY_INLINE_CAP]
+    joined = ", ".join(shown)
+    if len(items) > SUMMARY_INLINE_CAP:
+        joined += f" (…+{len(items) - SUMMARY_INLINE_CAP} more)"
+    return joined
 
 
 def _section(text: str, heading: str) -> str:
     """Return the body under `## {heading}` up to the next `## ` heading.
 
-    Returns the empty string if the heading isn't found.
+    Returns the empty string if the heading isn't found. HTML comments are
+    stripped so unfilled template hints don't get parsed as real content.
     """
     pat = re.compile(rf"(?ms)^##\s+{re.escape(heading)}\s*\n(.*?)(?=^##\s|\Z)")
     m = pat.search(text)
-    return m.group(1) if m else ""
+    if not m:
+        return ""
+    body = m.group(1)
+    body = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL)
+    return body
 
 
 def _bullet_items(section_text: str) -> list[str]:
@@ -491,6 +493,12 @@ def render(cfg: Config, run_id: str) -> pathlib.Path:
     # ## Summary of changes — pre-formatted markdown lines from the extractor.
     lines.append("## Summary of changes")
     lines.append("")
+    if (meta.get("build") or {}).get("template_fallback_fired"):
+        lines.append(
+            "- ⚠ **Template fallback fired** — the builder produced no "
+            "build.md; the staged content below is from the template."
+        )
+        lines.append("")
     build_path = rd / "stages" / "4_building" / "build.md"
     summary_lines = _extract_build_summary(build_path)
     if summary_lines:

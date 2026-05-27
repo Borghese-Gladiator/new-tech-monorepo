@@ -1,6 +1,6 @@
 # Build — Goodbye command, pass 1
 
-## Implementation summary
+## What changed
 
 Wired the dispatch case but forgot to actually print the message.
 

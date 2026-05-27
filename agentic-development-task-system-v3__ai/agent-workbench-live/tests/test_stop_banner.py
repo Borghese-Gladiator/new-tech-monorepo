@@ -172,5 +172,52 @@ class TestSnapshots(unittest.TestCase):
         self._check_snapshot("abandoned")
 
 
+class TestHandoffRenderingRegressions(unittest.TestCase):
+    """TODO §13 regression: the banner's `Summary of changes` must show file
+    names inline. Previously the parent `- N file(s) touched:` bullet would
+    render with no file names below it because the banner extractor dropped
+    nested rows."""
+
+    def test_file_list_renders_inline_not_split(self):
+        from tests._helpers import make_tmp_workbench, cleanup, reset_caches
+        from lib import config as cfg_mod, metadata, lifecycle, human_review
+        tmp = make_tmp_workbench()
+        try:
+            cfg = cfg_mod.load(tmp)
+            run_id = "2026-05-27-banner-inline-test"
+            metadata.create(
+                cfg, run_id,
+                repo_mode="existing", repo_path="/tmp/repo", repo_name="repo",
+                base_ref="HEAD", worktree_name="inline-test",
+                branch_name="agent/inline-test", raw_idea_path="raw-idea.md",
+                scope_kind="implementation", scope_summary="inline test",
+            )
+            lifecycle.init_staged_layout(cfg, run_id)
+            rd = metadata.run_dir(cfg, run_id)
+            (rd / "raw-idea.md").write_text("test idea\n")
+            # Stage a build.md with 3 named files.
+            build_dir = rd / "stages" / "4_building"
+            build_dir.mkdir(parents=True, exist_ok=True)
+            (build_dir / "build.md").write_text(
+                "# Build\n\n"
+                "## What changed\n\nWired up the new endpoint.\n\n"
+                "## Files changed\n\n"
+                "- `alpha.py`\n- `beta.py`\n- `gamma.py`\n"
+            )
+            # Render HUMAN_REVIEW.md, then drive the banner's bullet extractor.
+            human_review.render(cfg, run_id)
+            from lib.cli._stop_banner import _render_summary_bullets
+            bullets = _render_summary_bullets(rd / "HUMAN_REVIEW.md")
+            joined = "\n".join(bullets)
+            # The banner must show the file names inline, not the hollow form.
+            self.assertIn("alpha.py", joined)
+            self.assertIn("beta.py", joined)
+            self.assertIn("gamma.py", joined)
+            self.assertNotIn("- 3 file(s) touched:\n", joined + "\n")
+        finally:
+            cleanup(tmp)
+            reset_caches()
+
+
 if __name__ == "__main__":
     unittest.main()

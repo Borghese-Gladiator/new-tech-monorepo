@@ -16,6 +16,7 @@ will auto-init if invoked from `building`.
 from __future__ import annotations
 
 import subprocess
+import sys
 
 from lib import metadata, events, transitions, locks, audit, lifecycle, doc_claims, scope_check, stub_llm, validate_context
 from lib.cli._common import actor_from_env, fail, load_config
@@ -291,13 +292,31 @@ def run(args) -> int:
             stub_llm.materialize(rd, "building", stub_fix)
         # Staged runs require build.md to already exist (builder writes it
         # during building). Stage it from the template only if absent, but
-        # that's the builder's job — warn by failing loudly here.
+        # warn loudly: the fallback exists for smoke tests, and a real run
+        # hitting it means the builder produced nothing reviewable.
+        template_fallback_fired = False
         if staged and not (rd / "build.md").exists():
-            # First-time path: also tolerate the builder hasn't written it yet
-            # by staging the template, so a smoke run with no real builder
-            # still works. The transition engine will move whatever is there.
+            # Smoke-test tolerance: stage the template so the transition
+            # engine has something to move into stages/4_building/build.md.
             tpl = cfg.root / "templates" / "build.md"
-            (rd / "build.md").write_text(tpl.read_text() if tpl.exists() else "# Build\n")
+            build_path = rd / "build.md"
+            build_path.write_text(tpl.read_text() if tpl.exists() else "# Build\n")
+            template_fallback_fired = True
+            print(
+                f"WARNING: builder wrote no build.md for {run_id}; "
+                f"staged templates/build.md as fallback. The handoff will "
+                f"contain phantom-template content unless the builder runs.",
+                file=sys.stderr,
+            )
+            events.append(
+                cfg, run_id, "ArtifactWritten",
+                payload={
+                    "artifact_key": "build",
+                    "path": str(build_path),
+                    "summary": "template fallback fired — builder wrote no build.md",
+                },
+                actor=actor,
+            )
         _stage(cfg, rd, staged)
         # Stub-LLM mode (TODO §1 E2E): overwrite the just-staged validating
         # templates (review.md, qa/report.md, HUMAN_REVIEW.md) with the
@@ -320,6 +339,8 @@ def run(args) -> int:
             d["build"]["iterations"] = iterations
             d["build"]["exit_reason"] = exit_reason
             d["build"].setdefault("max_iterations", 5)
+            if template_fallback_fired:
+                d["build"]["template_fallback_fired"] = True
         metadata.update(cfg, run_id, _fill_build)
 
         # For staged runs, build.md is the single merged artifact; both

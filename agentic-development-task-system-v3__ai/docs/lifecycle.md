@@ -97,6 +97,8 @@ When a staged run closes the `followups` stage, `lib/human_review.render` writes
 
 After the transition, `cmd_followups` also appends a `## Token efficiency` block delimited by `<!-- metrics:start -->` / `<!-- metrics:end -->` HTML comments. The block is best-effort and idempotent: a later re-render replaces the prior block in place.
 
+The renderer's `## Summary of changes` body is extracted from `stages/4_building/build.md`. The **canonical narrative heading is `## What changed`** (defined in `templates/build.md`) — the renderer reads that section for the one-paragraph "what was implemented and why" bullet that opens the summary. The legacy `## Implementation summary` heading is no longer recognized; builders that emit only the old heading will produce a summary missing its narrative bullet. See TODO §13 for the failure-cluster fix that established this contract.
+
 ### Bounce supersession
 
 A bounce (`human_review → building`) calls `lifecycle.archive_for_bounce` *before* the transition fires. It moves the entire contents of `stages/4_building/`, `stages/5_validating/`, and `stages/6_followups/` into `archive/<stage>/` with versioned names: regular files become `<stem>-v<N><suffix>` and the `qa/` directory moves as a whole to `qa-v<N>/`. Versions are computed by scanning the destination for the highest existing `-v<N>` per stem, then adding one. The source stage directories are recreated empty so the rebuild can write into them again. `followups` is included so prior brainstorms don't leak into the rebuild.
@@ -389,8 +391,9 @@ agent-workbench/worktrees/<repo_name>/<worktree_name>/
 **`build.md` sections**
 
 ```text
-Implementation summary
+What changed                    # canonical narrative heading; renderer extracts the opening bullet from this section
 Files changed                   # anchored: #files-changed
+Reviewer reading order
 Acceptance criteria coverage
 Deviations from plan
 Known issues
