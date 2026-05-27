@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 
-from lib import metadata, events, transitions, locks, lifecycle, stub_llm
+from lib import metadata, events, transitions, locks, lifecycle, stub_llm, plan_context
 from lib.cli._common import actor_from_env, fail, load_config
 from lib.cli._stop_banner import print_stop_banner
 
@@ -151,6 +151,10 @@ def run(args) -> int:
             return fail(str(e), 2)
         if fix is not None:
             stub_llm.materialize(rd, "planning", fix)
+        # Write plan-context.md (TODO §5: curated stage-entry context for
+        # the planning stage; mirrors build-context.md / validate-context.md).
+        # Convenience artifact — failures must not block --init.
+        _write_plan_context_artifacts(cfg, run_id, rd, staged, meta)
         print(f"{run_id}: staged {', '.join(templates)}")
         return 0
 
@@ -266,3 +270,25 @@ def run(args) -> int:
     banner_path = lifecycle.stage_dir(cfg, run_id, "planning") / "stop-banner.txt"
     print_stop_banner("ready", run_id, write_to=banner_path)
     return 0
+
+
+def _write_plan_context_artifacts(cfg, run_id: str, rd, staged: bool, meta: dict) -> None:
+    """Render `plan-context.md` for the planning stage. Idempotent. Errors
+    are swallowed — this is a convenience artifact; its absence shouldn't
+    block `plan --init`. Mirrors `cmd_start._write_build_context_artifacts`.
+    """
+    try:
+        target_dir = lifecycle.stage_dir(cfg, run_id, "planning") if staged else rd
+        brief_path = rd / "brief.md"
+        plan_template_path = cfg.root / "templates" / "plan.md"
+        worktree = (meta.get("target") or {}).get("worktree") or {}
+        worktree_path = worktree.get("path")
+        body = plan_context.build(
+            brief_path=brief_path,
+            plan_template_path=plan_template_path,
+            worktree_path=worktree_path,
+            meta=meta,
+        )
+        plan_context.write(target_dir / "plan-context.md", body)
+    except Exception:
+        pass

@@ -10,17 +10,20 @@ Two modes:
            transition followups -> human_review (engine validates the
            HUMAN_REVIEW.md sections at that point).
 
-Note: --init here is a convenience shortcut that does the same thing as
-running `agent-workbench validate <run_id>` (which transitions validating
--> followups on staged runs). Most callers won't need --init; they'll come
-in via /validate. We expose it anyway so /followups is symmetric with the
-other stage commands.
+Note: --init here is a convenience shortcut equivalent to running
+`agent-workbench validate <run_id>` (which transitions validating ->
+followups on staged runs). BOTH paths write `followups-context.md` into
+`stages/6_followups/` via `_write_followups_context_artifacts()` — the
+helper is called from both `cmd_followups._init` and (since the §5
+rebuild) `cmd_validate.run`'s staged default-mode path. Most callers
+won't need --init; they'll come in via /validate. We expose it anyway
+so /followups is symmetric with the other stage commands.
 """
 from __future__ import annotations
 
 from lib import (
     metadata, events, transitions, locks, lifecycle, stub_llm,
-    followups as followups_mod, human_review,
+    followups as followups_mod, human_review, followups_context,
 )
 from lib.cli._common import actor_from_env, fail, load_config
 from lib.cli._stop_banner import print_stop_banner
@@ -82,6 +85,10 @@ def run(args) -> int:
                 )
         except transitions.TransitionError as e:
             return fail(str(e), 4)
+        # Write followups-context.md (TODO §5: curated stage-entry context
+        # for the followups stage; mirrors build-context.md / validate-
+        # context.md). Convenience artifact — failures must not block --init.
+        _write_followups_context_artifacts(cfg, run_id, rd)
         print(f"{run_id}: validating -> followups; staged follow-ups.md at {rd / 'follow-ups.md'}")
         return 0
 
@@ -203,6 +210,38 @@ def _stage_template(cfg, rd) -> None:
         return
     src = cfg.root / "templates" / "follow-ups.md"
     dest.write_text(src.read_text() if src.exists() else "# Follow-ups\n")
+
+
+def _write_followups_context_artifacts(cfg, run_id: str, rd) -> None:
+    """Render `followups-context.md` for the followups stage. Idempotent.
+    Errors are swallowed — this is a convenience artifact; its absence
+    shouldn't block the `validating -> followups` transition. Mirrors
+    `cmd_validate._write_validate_context_artifacts`.
+
+    Called AFTER the transition completes, so the prior-stage files
+    (brief, plan, build.md, review.md, qa/report.md) have been moved into
+    their `stages/N_<stage>/` directories.
+    """
+    try:
+        target_dir = lifecycle.stage_dir(cfg, run_id, "followups")
+        brief_path = lifecycle.stage_dir(cfg, run_id, "shaping") / "brief.md"
+        plan_path = lifecycle.stage_dir(cfg, run_id, "planning") / "plan.md"
+        build_md_path = lifecycle.stage_dir(cfg, run_id, "building") / "build.md"
+        review_path = lifecycle.stage_dir(cfg, run_id, "validating") / "review.md"
+        qa_report_path = lifecycle.stage_dir(cfg, run_id, "validating") / "qa" / "report.md"
+        followups_template_path = cfg.root / "templates" / "follow-ups.md"
+
+        body = followups_context.build(
+            brief_path=brief_path,
+            plan_path=plan_path,
+            build_md_path=build_md_path,
+            review_path=review_path,
+            qa_report_path=qa_report_path,
+            followups_template_path=followups_template_path,
+        )
+        followups_context.write(target_dir / "followups-context.md", body)
+    except Exception:
+        pass
 
 
 METRICS_BLOCK_START = "<!-- metrics:start -->"
