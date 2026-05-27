@@ -60,7 +60,69 @@ Surfaced 2026-05-27 while answering "what's the current status of tasks inside a
 
 ---
 
-## 2. Add a `/build` slash command — close the building-stage curated-entry enforcement gap
+## 2. Create the worktree at `/new-run` for non-self-modifying runs too — collapse the draft/worktree asymmetry
+
+### Symptom
+
+A non-self-modifying run that has progressed `draft → shaping → planning → ready` still has no worktree on disk: `target.worktree.created: false`, `target.worktree.path: null`, no `agent/<slug>` branch in the target repo. The artifacts produced during shaping and planning (`raw-idea.md`, `brief.md`, `plan.md`, `stages/1_draft/`, `stages/2_shaping/`, `stages/3_planning/`, `metadata.yaml`, `events.jsonl`) live under the workbench's master `agent-workbench-live/runs/<run-id>/` and show up as untracked files there until `/start` runs. Concrete example on disk 2026-05-27: run `2026-05-27-campaign-performance-summary-drs` (target `~/Klaviyo/Repos/app`, status `ready`) shows up as `agent-workbench-live/runs/2026-05-27-campaign-performance-summary-drs/` in `git status` of the workbench root, four stages of artifacts already written, no worktree, no branch.
+
+This is the documented behavior — `agent-workbench-live/.claude/commands/new-run.md` says explicitly "**No worktree is created here.** The `git worktree add` happens later in `/start`" — but it produces a real asymmetry: **self-modifying runs get a worktree at `/new-run` time, non-self-modifying runs don't get one until `/start`.** Same lifecycle, two different filesystem stories depending on whether the run happens to target the workbench's own repo.
+
+### Confirmed root cause
+
+`lib/cli/cmd_new_run.py:75-110` (the `# TODO §1A: for an existing self-modifying target …` block) creates the worktree at draft time **only** when `runs_mod.is_self_modifying(cfg, probe_meta)` returns true. For any other repo, `worktree_path` stays `None`, the run dir lands in `cfg.runs_path` (master-side), and `cmd_start.py` is the first place a worktree gets created. `docs/lifecycle.md` § draft (line 222) and § ready→building (lines 345-346) both document this fork in plain text — they describe two different lifecycles depending on self-modifying status, not one uniform one.
+
+The historical reason is genuine: when `/new-run` was first written, none of the LLM-bearing pre-build stages did anything that *needed* a worktree (shaping is code-blind by design, planning reads code but doesn't modify it, ready is a state-only transition). So creating the worktree early was wasted I/O. Self-modifying runs got the early worktree as a *correctness* requirement — the run dir has to live inside the worktree so the `runs/<id>/` writes are committable on the agent's branch instead of polluting master — not because draft/shaping/planning needed it.
+
+What's changed since then:
+
+1. **Planning increasingly reads target-repo code.** Plans now include "Files likely to change" with concrete file paths and short excerpts (see plan template). Doing that read against the user's working tree at `HEAD` instead of a stable worktree means a `git checkout` or rebase by the user mid-plan invalidates the path references. A worktree-as-of-`base_ref_sha` would freeze the working tree at the moment the plan was written.
+2. **`base_ref_sha` already gets resolved at `/new-run` for self-modifying runs** (`cmd_new_run.py:87-89`). For non-self-modifying runs it stays `null` until `/start` (see the `2026-05-27-campaign-performance-summary-drs` `metadata.yaml` — `base_ref_sha: null` even though `status: ready`). That's a second asymmetry: self-modifying runs have a frozen, auditable base commit from the moment they're created; non-self-modifying runs don't.
+3. **`/abandon` of a `ready` run today doesn't need to remove a worktree for non-self-modifying targets but does need to for self-modifying ones** (`cmd_abandon.py`). Two code paths for the same lifecycle state.
+4. **Plumbing a worktree-aware `/plan` is currently impossible.** Future work that wants planning to run inside the worktree (subagent isolation, plan-context.md materialization next to the code, planning-side `git grep` on a stable ref) requires the worktree to exist by then. Today it doesn't for the common case.
+
+### Tasks
+
+- [ ] **Decide the cut.** Two candidates:
+  - (a) **Create the worktree at `/new-run` for all runs.** Drop the `is_self_modifying` branch. `cmd_new_run.py` always calls `repos.create_worktree`, `runs_mod.reset_caches()`, `make_worktree_path`, and sets `target.worktree.created: true` + `target.worktree.path` in metadata. The run dir lives inside the worktree from the start (for self-modifying, this is today's behavior; for non-self-modifying, the run dir lives at `<worktree_path>/<workbench_subpath_or_root>/runs/<id>/` — same shape, just relative to a foreign repo's worktree). `/start` becomes a state-only transition for *all* runs.
+  - (b) **Defer worktree creation for all runs to `/start`** (including self-modifying). This collapses the asymmetry in the opposite direction — uniform "no worktree until ready" — but loses the self-modifying correctness property (run dir would temporarily live on master, get committed only at `/start`).
+  - Pick (a) unless friction surfaces. The asymmetry exists because self-modifying needs the early worktree; the right move is to extend that to all repos, not to take it away from self-modifying.
+- [ ] **Update `lib/cli/cmd_new_run.py`** to always create the worktree. Remove the `is_self_modifying` gate around lines 83-110; keep the same code, just unconditional. For non-self-modifying targets, `workbench_subpath` returns `None` (the workbench isn't inside the target repo), so `run_dir_override` is `worktree_path / "agent-workbench-runs" / run_id` (or whatever path convention makes sense for a foreign target — the run dir doesn't need to be inside the workbench subpath when the workbench *is* the source-of-truth elsewhere). Pick the path convention; document it.
+- [ ] **Update `lib/cli/cmd_start.py`** to be a state-only transition. The `ready → building` step no longer calls `repos.create_worktree`; it verifies the worktree exists, populates `target.worktree.created: true` if not already, emits `BaseRefResolved` for parity with today's audit narrative, writes `build-context.md`, and transitions. The `WorktreeCreated` event moves from `ready → building` to `RunCreated`'s transition (or becomes a follow-on event of `RunCreated`).
+- [ ] **Update `lib/cli/cmd_abandon.py`** to always remove the worktree on abandon — no `is_self_modifying` branch. The lifecycle invariant becomes "if the run exists, the worktree exists; `/abandon` removes both."
+- [ ] **Update `schemas/transitions.yaml`** to move worktree-evidence keys (`worktree_path`, `worktree_name`, `branch_name`, `base_ref_sha`) from the `ready → building` transition's required evidence to `RunCreated`'s. Verify `lib/lifecycle.py:transition` still validates correctly.
+- [ ] **Update `agent-workbench-live/.claude/commands/new-run.md`** to remove the "**No worktree is created here.**" language and replace it with "`/new-run` creates the run record AND the worktree on `<repo>` at branch `agent/<slug>`. Subsequent stages run against that worktree."
+- [ ] **Update `agent-workbench-live/.claude/commands/start.md`** to describe `/start` as the state-only ready-gate — no worktree creation, just human approval to enter `building`.
+- [ ] **Update `docs/lifecycle.md` § draft, § shaping, § planning, § ready → building** to describe the uniform lifecycle. Drop the self-modifying carve-out paragraphs at lines 222 and 345-346. `WorktreeCreated` event moves to the `RunCreated` event's accompanying side effects.
+- [ ] **Update `agent-workbench-live/.claude/commands/shape.md` and `plan.md`** if they assume the master-side run dir. The slash commands need to know where the run dir lives — same `metadata.run_dir(cfg, run_id)` call works either way, but the working directory expectation may shift. Audit and update.
+- [ ] **Write `tests/test_self_modifying.py::test_non_self_modifying_creates_worktree_at_new_run`** (or split self-modifying out of the test class name now that the behavior is uniform — pick one). Synthetic foreign repo at `/tmp/foo/`; `new-run` against it; assert worktree was created at `<worktrees_dir>/foo/<YYYYMMDD>__<slug>/`, branch `agent/<slug>` exists, `target.worktree.created: true`, `base_ref_sha` populated, run dir lives inside the worktree.
+- [ ] **Audit `runs/` for pre-change runs** whose master-side run dir won't migrate cleanly. Decide: do those runs stay as historical artifacts (preserved status quo, just no migration), or does a one-shot script move them into newly-created worktrees? Pick "leave them alone" unless something forces migration; pre-existing runs are an archaeology problem, not a correctness one.
+- [ ] **Update `docs/lifecycle.md`'s evidence table** (lines 177-184) to reflect the new evidence-key layout (worktree fields move from `ready → building` to `RunCreated`).
+
+### Acceptance
+
+- After `agent-workbench new-run --repo-path /any/git/repo --idea-file foo.md` returns, the worktree exists at `<worktrees_dir>/<repo_name>/<worktree_slug>/`, branch `agent/<slug>` exists in the target repo, `target.worktree.created: true` and `target.worktree.path: <path>` are set in `metadata.yaml`, and `base_ref_sha` is populated with a concrete SHA — regardless of whether the target repo is the workbench itself or a foreign repo.
+- `/start` no longer calls `git worktree add`; it's purely a state transition with the human-approval gate.
+- The test `tests/test_self_modifying.py::test_new_run_creates_worktree_and_clean_master` keeps passing **and** a parallel test for the non-self-modifying case passes with the same shape.
+- `agent-workbench list` and `agent-workbench board` show consistent worktree paths for all post-change runs regardless of self-modifying status.
+- `agent-workbench abandon <run_id>` on a `draft`/`shaping`/`planning`/`ready` run removes the worktree and branch uniformly. No `is_self_modifying` branches remain in the codebase outside of where they're genuinely needed (e.g., `cmd_complete`'s post-merge dance).
+
+### Non-goals
+
+- **Changing the human-approval gate.** `/start` remains the human-approval gate to enter `building`. The user still has to say "yes, implement this plan." Only the side effect of `/start` (worktree creation) moves earlier.
+- **Migrating existing in-flight runs** whose worktrees don't exist yet. The change applies to runs created on/after the change; runs in pre-change states get cleaned up via `/start` (which still creates a worktree if `target.worktree.created` is false) or `/abandon`.
+- **Removing or reshaping `cmd_start._write_build_context_artifacts`.** `build-context.md` still gets written at the `ready → building` boundary; the only thing that changes is `cmd_start` no longer runs `git worktree add` immediately before it.
+- **Worktree-per-stage** (one worktree for shaping, another for planning, etc.). One worktree per run, period. The change is *when* it gets created, not *how many* there are.
+- **Touching `cmd_complete.py`'s self-modifying merge dance.** That code is for terminal-state reconciliation (see §1) and operates on already-existing worktrees; the change here affects only the front of the lifecycle.
+- **Cross-machine worktree consistency.** If `/new-run` is invoked on machine A and the worktree gets created at a path that doesn't exist on machine B, that's the same problem we have today — not in scope.
+
+### Origin
+
+Surfaced 2026-05-27 while inspecting two untracked paths in the workbench master (`agent-workbench-live/plan.md` and `agent-workbench-live/runs/2026-05-27-campaign-performance-summary-drs/`). The user asked: "I thought new runs were supposed to run entirely in their own worktrees?" Tracing through `cmd_new_run.py:75-110` and `docs/lifecycle.md` § draft + § ready→building confirmed the asymmetry: self-modifying runs get a worktree at `/new-run`, non-self-modifying runs don't get one until `/start`. The campaign-performance-summary-drs run targets `~/Klaviyo/Repos/app` (foreign repo) and therefore correctly has no worktree yet — but the artifacts it has accumulated through `ready` are sitting as untracked files in the workbench master rather than committed to its own branch. The expected mental model is "every run has a worktree from the moment it exists"; the actual behavior is "every run gets a worktree by `/start` time, but the path between `/new-run` and `/start` looks different depending on whether the target repo is the workbench itself."
+
+---
+
+## 3. Add a `/build` slash command — close the building-stage curated-entry enforcement gap
 
 `/shape`, `/plan`, `/validate`, `/followups` each have a slash command that wraps the corresponding stage's `--init` (curated-entry staging) and finalize (transition + evidence) steps. **Building is the only LLM-bearing stage with no slash command** — the building agent enters passively after `/start`, with no scripted prompt that says "read `build-context.md` first." That asymmetry has two costs that surfaced in the 2026-05-25 `generalize-stage-context-md` run:
 
@@ -121,11 +183,11 @@ agent-workbench build <run_id>          # finalize building: verify build.md, tr
 
 ### Non-goals
 
-- **Behavioral enforcement of the read-only-curated-file contract.** The slash command nudges the agent; it does not technically restrict which files the agent's `Read` tool can open. Stronger enforcement (per-stage tool-policy allowlist, subagent isolation) is §10's territory, not this.
+- **Behavioral enforcement of the read-only-curated-file contract.** The slash command nudges the agent; it does not technically restrict which files the agent's `Read` tool can open. Stronger enforcement (per-stage tool-policy allowlist, subagent isolation) is §11's territory, not this.
 - **Renaming, merging, or restructuring other slash commands.** This is purely additive.
-- **Building `plan-context.md`, `followups-context.md`, `shape-context.md`** — those are §4 (the renumbered "Generalize the `*-context.md` cross-stage contract" follow-up).
-- **Subagent-based building.** Routing the builder through an `Agent`-tool subagent fed only `build-context.md` would be a stronger enforcement story; that's a separate design conversation (would touch §9 publishing-stage subagent pattern).
-- **Tool-policy file at building stage.** §10 work; out of scope here.
+- **Building `plan-context.md`, `followups-context.md`, `shape-context.md`** — those are §5 (the renumbered "Generalize the `*-context.md` cross-stage contract" follow-up).
+- **Subagent-based building.** Routing the builder through an `Agent`-tool subagent fed only `build-context.md` would be a stronger enforcement story; that's a separate design conversation (would touch §10 publishing-stage subagent pattern).
+- **Tool-policy file at building stage.** §11 work; out of scope here.
 
 ### Origin
 
@@ -133,7 +195,7 @@ Surfaced 2026-05-27 in conversation immediately after `/complete`-ing the run th
 
 ---
 
-## 3. Investigate the handoff-rendering failure cluster (HUMAN_REVIEW.md + stop banner)
+## 4. Investigate the handoff-rendering failure cluster (HUMAN_REVIEW.md + stop banner)
 
 ### Symptom
 
@@ -205,14 +267,14 @@ Surfaced 2026-05-26 while inspecting two recent runs' HUMAN_REVIEW.md and stop-b
 
 ---
 
-## 4. Generalize the `*-context.md` cross-stage contract (cont'd — `plan-context.md`, `followups-context.md`, `shape-context.md`)
+## 5. Generalize the `*-context.md` cross-stage contract (cont'd — `plan-context.md`, `followups-context.md`, `shape-context.md`)
 
 The 2026-05-25 `generalize-stage-context-md` run shipped `build-context.md` (the highest-leverage of the four siblings) but explicitly deferred the other three to follow-up runs. This section tracks those follow-ups. The original framing from the 2026-05-25 brief still holds; only `build-context.md` and its wiring are removed from the task list.
 
 The leverage is twofold:
 
 1. **Cache footprint.** File reads in the master session stick in the prefix forever. Today the builder typically reads `brief.md` + `plan.md` + occasional `decisions.md` lookups; the reviewer (without the curated context) would read all of those plus the QA report plus the build summary. Each is a permanent prefix cost. One curated file per stage collapses that into a single read.
-2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§9 `publishing` stage) depends on this — `validate-context.md` and `build-context.md` are already shaped right, but `plan-context.md` would need to exist before the subagent pattern can extend to the planning stage.
+2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§10 `publishing` stage) depends on this — `validate-context.md` and `build-context.md` are already shaped right, but `plan-context.md` would need to exist before the subagent pattern can extend to the planning stage.
 
 ### What each remaining file contains
 
@@ -250,7 +312,7 @@ This one is thinnest — shaping has the least prior context to filter. The win 
 - [ ] Build `plan-context.md` next. Will require some new code: detecting repo languages and surfacing build/test commands from `agent-workbench.yaml` policies. Some of this overlap with `repo-map`-style work the planner does today; the goal is to make that deterministic and front-loaded.
 - [ ] Build `followups-context.md`. Likely thin — most of what it needs is already in the staged artifacts; the deterministic builder is mostly a filter + headline rollup.
 - [ ] Build `shape-context.md` last (or skip if the inlined-template gain doesn't justify the code).
-- [ ] For each, update the corresponding `.claude/commands/*.md` so step 1 reads `<stage>-context.md` rather than the prior artifacts directly. Mirror the `validate.md` step 2 language: "Do NOT re-read X if `<stage>-context.md` already covers what you need." For building, this is the new `/build` slash command (§2).
+- [ ] For each, update the corresponding `.claude/commands/*.md` so step 1 reads `<stage>-context.md` rather than the prior artifacts directly. Mirror the `validate.md` step 2 language: "Do NOT re-read X if `<stage>-context.md` already covers what you need." For building, this is the new `/build` slash command (§3).
 - [ ] Document the contract in `docs/lifecycle.md` — add a `*-context.md` row to each remaining stage's table, sibling to "Reads" and "Produces." (Building stage is already documented; the others follow.)
 - [ ] Each new `<stage>-context.md` builder gets unit tests that mirror `tests/test_build_context.py`'s shape (or `tests/test_validate_context_build.py`'s — both work) — synthetic prior artifacts → assert the generated context has the expected sections.
 
@@ -261,15 +323,15 @@ This one is thinnest — shaping has the least prior context to filter. The win 
 
 ### Non-goals
 
-Changing the artifact contents themselves (brief/plan/build/review keep their current sections); merging stages or changing the lifecycle; replacing template-driven artifact authoring with anything generative; building a `repo-map.md` artifact separate from `plan-context.md`'s repo-map section (keep it inline for now); shipping `/build` (that's §2's territory now).
+Changing the artifact contents themselves (brief/plan/build/review keep their current sections); merging stages or changing the lifecycle; replacing template-driven artifact authoring with anything generative; building a `repo-map.md` artifact separate from `plan-context.md`'s repo-map section (keep it inline for now); shipping `/build` (that's §3's territory now).
 
 ### Origin
 
-Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a proposed planner/implementer/reviewer/PR-writer system. The proposed system's "shared durable context, not many independent workers" framing matched what `validate-context.md` already does — but agent-workbench only built that pattern for the validate boundary. Generalizing is straightforward and the cache-discipline payoff is concrete. Build-context.md shipped 2026-05-25 (merge `c075b0c`); the remaining three siblings stay TODO. Renumbered to §4 on 2026-05-27 (originally §3 when `/build` slash command was promoted to §1; bumped again when the master-side metadata reconciliation TODO took §1).
+Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a proposed planner/implementer/reviewer/PR-writer system. The proposed system's "shared durable context, not many independent workers" framing matched what `validate-context.md` already does — but agent-workbench only built that pattern for the validate boundary. Generalizing is straightforward and the cache-discipline payoff is concrete. Build-context.md shipped 2026-05-25 (merge `c075b0c`); the remaining three siblings stay TODO. Renumbered to §5 on 2026-05-27 — originally §3 when `/build` was promoted to §1, then §4 once the master-side metadata reconciliation TODO took §1, then §5 once the worktree-at-draft TODO took §2.
 
 ---
 
-## 5. Canonicalize `repo_name` so the same repo always gets one worktree parent dir
+## 6. Canonicalize `repo_name` so the same repo always gets one worktree parent dir
 
 ### Symptom
 
@@ -314,7 +376,7 @@ Surfaced 2026-05-26 while auditing the worktree list in this repo. Two real work
 
 ---
 
-## 6. Schema-level validation for `metadata.yaml` on load
+## 7. Schema-level validation for `metadata.yaml` on load
 
 `lib/metadata.py:_validate` enforces top-level keys + the status enum only. `schemas/run-metadata.yaml` is descriptive — `metadata.load()` doesn't read it. Typos like `bse_ref` instead of `base_ref` load silently, surface later as missing-field crashes or wrong-data renders. As fields proliferate (`base_ref_sha`, `target.worktree.branch_name`, the `build:` block, the new `completion:` shape), the surface area for silent drift grows.
 
@@ -331,7 +393,7 @@ Surfaced 2026-05-26 while auditing the worktree list in this repo. Two real work
 
 ---
 
-## 7. Test-coverage gaps
+## 8. Test-coverage gaps
 
 Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Grouped because they all share the same shape: a code path that's verified by code-reading or by tmp-dir structural assertions, but doesn't have a runtime drive-and-assert.
 
@@ -349,7 +411,7 @@ Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Gr
 
 ---
 
-## 8. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
+## 9. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
 
 `lib/metrics/writer.record_run_metrics` writes `metrics.jsonl` at the validate / followups / abandon boundaries. The intent is to attribute token spend to the run. The open question: when a stage spawns a Claude Code Agent-tool subagent (an `Explore` for read-heavy lookup, a `Plan` for design, a `general-purpose` for fan-out), **is the subagent's token spend captured in `metrics.jsonl`, or is only the master session's spend recorded?**
 
@@ -379,7 +441,7 @@ Surfaced 2026-05-25 in a design conversation about subagent cost. The architectu
 
 ---
 
-## 9. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
+## 10. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
 
 Today the workbench is built for personal-repo, single-author work. `done` means "human accepted + locally merged to parent branch" — `cmd_complete` checks out the parent and runs `git merge --no-ff` directly. That model collapses two things that are separate in a team workflow: author sign-off and team sign-off. For team work the workbench needs to model the PR-review world as first-class lifecycle states, not a slash-command bolt-on after `done`.
 
@@ -415,7 +477,7 @@ any non-terminal --(/abandon)-----> abandoned
 
 **`publishing` — LLM-bearing, drafts the PR description**
 
-The single purpose of this stage is to produce a high-quality PR description before anything is pushed. It is the GitHub-shaped sibling of `/handoff`. Reuses TODO §2's curated-context pattern: `publishing --init` writes `publishing-context.md` deterministically from prior artifacts; the LLM session reads only that file.
+The single purpose of this stage is to produce a high-quality PR description before anything is pushed. It is the GitHub-shaped sibling of `/handoff`. Reuses TODO §3's curated-context pattern: `publishing --init` writes `publishing-context.md` deterministically from prior artifacts; the LLM session reads only that file.
 
 Reads (via `publishing-context.md`):
 - `brief.md` — original intent, acceptance criteria, non-goals
@@ -454,7 +516,7 @@ No background process. No agent activity. No `pr-sync` command. The board shows 
 
 **Re-entering `building` from `in_pr_review` (`change-request.md`)**
 
-When `/bounce` pulls PR comments, it writes `change-request.md` to the new building stage's directory. This is the curated entry point (analog of `*-context.md` from TODO §2). Shape:
+When `/bounce` pulls PR comments, it writes `change-request.md` to the new building stage's directory. This is the curated entry point (analog of `*-context.md` from TODO §3). Shape:
 
 ```markdown
 # Change request — PR #1234 (round N)
@@ -495,7 +557,7 @@ This preserves the workbench's "we don't talk to remotes for write operations on
 This will land across several runs. Discrete unit-of-work breakdown:
 
 - [ ] Update `schemas/transitions.yaml` with the new states (`publishing`, `in_pr_review`, `closed`) and their transition evidence requirements. `publishing → in_pr_review` needs `pr_number`, `pr_url`, `branch_pushed_sha`. `in_pr_review → done` needs `merge_sha`. `in_pr_review → closed` needs `closed_by`.
-- [ ] Add `completion.delivery`, `completion.pr_number`, `completion.pr_url`, `completion.merge_sha`, `completion.pr_orphaned` to `schemas/run-metadata.yaml`. (TODO §6 schema validation should land first or co-land to catch typos.) No new fields under `target` — the choice is made at terminal-command time.
+- [ ] Add `completion.delivery`, `completion.pr_number`, `completion.pr_url`, `completion.merge_sha`, `completion.pr_orphaned` to `schemas/run-metadata.yaml`. (TODO §7 schema validation should land first or co-land to catch typos.) No new fields under `target` — the choice is made at terminal-command time.
 - [ ] Build the `publishing` LLM-bearing slash command. `publishing --init` writes `publishing-context.md` deterministically from brief + plan + build + validate-context + review + HUMAN_REVIEW + diff + linked Linear ticket. The LLM session reads only `publishing-context.md` and writes `pr-draft.md` + `pr-meta.yaml`.
 - [ ] Build `cmd_publish_pr.py` — validates `pr-draft.md` non-empty; forks on `completion.pr_number` (create vs. edit vs. push-only). Captures `pr_number`/`pr_url` on creation. On `gh` failure, keeps run in `publishing` and emits structured error event for the STOP banner.
 - [ ] Update `cmd_complete.py` for `in_pr_review`-state runs: one-shot `gh pr view --json state,mergeCommitOid`, assert merged, record `merge_sha`, transition to `done`. Local-merge path (called from `human_review`) preserved unchanged.
@@ -535,11 +597,11 @@ Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash com
 
 ---
 
-## 10. Restrictive tool policy for the `publishing` stage only (relevant once §9 ships)
+## 11. Restrictive tool policy for the `publishing` stage only (relevant once §10 ships)
 
 Today the workbench's safety story is filesystem-via-worktrees + evidence-gated transitions. There's no per-run tool bounding because there's no need — `local_only: true` in `agent-workbench.yaml` means no remote calls, the worktree confines git operations to one branch, and the agent's shell tool is the agent's-harness problem.
 
-§9 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
+§10 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
 
 The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh repo delete`, `gh api` against an unrelated repo, or `git push --force` to an unrelated branch. Restricting that one stage is sufficient. Every other stage stays safe under the user's default Claude Code allowlist — `git` is worktree-bounded, test runners and file I/O are filesystem-bounded, none touch remotes, and the default allowlist doesn't include `gh` for them to misuse.
 
@@ -550,7 +612,7 @@ The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh rep
 Why this works:
 
 - **The threat surface is exactly one stage.** `publishing` is the only stage that legitimately needs `gh`. There's nothing for a per-stage policy to add for the others that the global allowlist isn't already doing — the default allowlist doesn't include `gh`, so non-publishing stages can't call it regardless.
-- **`in_pr_review` doesn't need a policy.** Per §9 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
+- **`in_pr_review` doesn't need a policy.** Per §10 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
 - **Symmetry with worktrees.** Worktrees are the filesystem bound; this is the remote bound. Both narrow and load-bearing, not blanket.
 
 ### What the `publishing` policy contains
@@ -593,8 +655,8 @@ This is **not** capability tokens (no crypto, no expiry, no issuance). Static fi
 
 ### Tasks
 
-- [ ] **Do nothing until §9 actually starts.** Sequential dependency. Pre-§9, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
-- [ ] **When §9 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
+- [ ] **Do nothing until §10 actually starts.** Sequential dependency. Pre-§10, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
+- [ ] **When §10 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
 - [ ] **Wire the hook.** Claude Code's settings.json PreToolUse hook reads `stages/7_publishing/tool-policy.yaml` when the `/publishing` command starts and applies the allowlist for that session. Spike on `gh pr view` first to confirm the hook shape end-to-end before encoding the full list.
 - [ ] **Add a `doctor` check.** `agent-workbench doctor` extends to scan a run's `events.jsonl` for any tool call emitted during `publishing` that isn't in that run's policy. Retrospective audit complements the preventative hook — if the hook misfires or a future harness ignores the file, doctor catches it.
 - [ ] **Document the contract.** `agent-workbench-live/AGENTS.md` § "Publishing stage rules" names the policy and explains why this stage is special. Note in `architecture.md` that the workbench's safety bounds are now (1) worktrees for filesystem, (2) `publishing`-stage policy for remote — and that every other stage inherits the harness default.
