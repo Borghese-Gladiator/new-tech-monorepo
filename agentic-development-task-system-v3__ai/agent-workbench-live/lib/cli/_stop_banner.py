@@ -174,7 +174,6 @@ def _build_human_review_body(cfg, run_id: str) -> list[str]:
     # --- Review ---
     human_review_path = (rd / "HUMAN_REVIEW.md").resolve()
     body.append("Review:")
-    body.append(f"  HUMAN_REVIEW.md: {human_review_path}")
     # Clickable URL on its own line, no indentation, so terminal emulators
     # that auto-link `file://` schemes pick it up without wrapping.
     body.append(f"file://{human_review_path}")
