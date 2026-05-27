@@ -108,25 +108,51 @@ def is_self_modifying(cfg: Config, meta: dict) -> bool:
 
 
 def _git_common_dir(start: pathlib.Path) -> pathlib.Path | None:
-    """Return ``git -C <start> rev-parse --git-common-dir`` resolved, or None."""
+    """Return ``git -C <start> rev-parse --git-common-dir`` resolved, or None.
+
+    Cached for the process lifetime keyed on the absolute starting path. The
+    git common dir of a worktree never changes once the worktree exists, and
+    the board called this once per snapshotted run before the cache landed —
+    ~150 subprocess invocations per refresh on a 3-worktree repo.
+    """
+    key = str(start)
+    cached = _GIT_COMMON_DIR_CACHE.get(key)
+    if cached is not None:
+        return cached[0]
     try:
         proc = subprocess.run(
             ["git", "-C", str(start), "rev-parse", "--git-common-dir"],
             capture_output=True, text=True, timeout=5, check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
+        _GIT_COMMON_DIR_CACHE[key] = (None,)
         return None
     if proc.returncode != 0:
+        _GIT_COMMON_DIR_CACHE[key] = (None,)
         return None
     raw = proc.stdout.strip()
     if not raw:
+        _GIT_COMMON_DIR_CACHE[key] = (None,)
         return None
     p = pathlib.Path(raw)
     if not p.is_absolute():
         p = (start / p).resolve()
     else:
         p = p.resolve()
+    _GIT_COMMON_DIR_CACHE[key] = (p,)
     return p
+
+
+# Cache for `_git_common_dir`. Value is a 1-tuple so we can distinguish "cached
+# None" from "not cached." See _git_common_dir for the contract.
+_GIT_COMMON_DIR_CACHE: dict[str, tuple[pathlib.Path | None]] = {}
+
+
+# Parsed-metadata cache keyed on (path, mtime_ns). The board calls
+# `_try_build_run` once per run per snapshot, and YAML parsing was the
+# dominant cost after the rest of PR1 landed. mtime is the freshness probe;
+# any save() through metadata.save bumps it.
+_METADATA_CACHE: dict[str, tuple[int, dict]] = {}
 
 
 def workbench_subpath(cfg: Config) -> pathlib.Path | None:
@@ -291,14 +317,28 @@ def _try_build_run(
     cfg: Config,
     worktree_hint: pathlib.Path | None = None,
 ) -> Run | None:
-    """Parse one run dir's metadata.yaml into a Run, or None if unreadable."""
+    """Parse one run dir's metadata.yaml into a Run, or None if unreadable.
+
+    Parsed metadata is cached on (path, mtime_ns) — the board calls this
+    once per run on every snapshot, and YAML parsing dominates after the
+    rest of PR1 lands.
+    """
     meta_path = run_dir / "metadata.yaml"
-    if not meta_path.exists():
-        return None
     try:
-        meta = yaml_io.loads(meta_path.read_text())
-    except Exception:
+        st = meta_path.stat()
+    except OSError:
         return None
+    cache_key = str(meta_path)
+    cached = _METADATA_CACHE.get(cache_key)
+    if cached is not None and cached[0] == st.st_mtime_ns:
+        meta = cached[1]
+    else:
+        try:
+            meta = yaml_io.loads(meta_path.read_text())
+        except Exception:
+            return None
+        if isinstance(meta, dict):
+            _METADATA_CACHE[cache_key] = (st.st_mtime_ns, meta)
     if not isinstance(meta, dict):
         return None
     run_id = meta.get("run_id")
@@ -413,6 +453,8 @@ def _list_workbench_worktrees(
 def reset_caches() -> None:
     """Clear in-process caches. Called by tests between scenarios."""
     _WORKTREE_CACHE.clear()
+    _GIT_COMMON_DIR_CACHE.clear()
+    _METADATA_CACHE.clear()
 
 
 def _git_main_repo_root(start: pathlib.Path) -> pathlib.Path | None:

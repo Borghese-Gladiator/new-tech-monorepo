@@ -94,8 +94,21 @@ def detect_layout(cfg: Config, run_id: str) -> str:
 
 # ---------- path helpers ----------
 
-def stage_dir(cfg: Config, run_id: str, stage: str) -> pathlib.Path:
-    return _resolve_stage_dir(_run_root(cfg, run_id) / "stages", stage)
+def stage_dir(
+    cfg: Config,
+    run_id: str,
+    stage: str,
+    *,
+    run_root: pathlib.Path | None = None,
+) -> pathlib.Path:
+    """Path of stages/<stage>/ for the given run.
+
+    Pass ``run_root`` to skip the metadata-driven re-resolution of where the
+    run lives on disk. The board's hot path uses this — it already holds a
+    resolved ``Run.run_dir`` and shouldn't pay the cost again.
+    """
+    root = run_root if run_root is not None else _run_root(cfg, run_id)
+    return _resolve_stage_dir(root / "stages", stage)
 
 
 def archive_dir(cfg: Config, run_id: str, stage: str) -> pathlib.Path:

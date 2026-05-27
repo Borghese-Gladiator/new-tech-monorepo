@@ -9,7 +9,7 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 
-from lib import metadata
+from lib import runs as runs_mod
 from lib.board import source
 from lib.board.source import (
     COLUMN_ORDER,
@@ -68,9 +68,18 @@ def build(
     stale_seconds = stale_threshold_seconds(cfg)
 
     grouped: dict[str, list[RunSnapshot]] = {s: [] for s in COLUMN_ORDER}
-    for rid in metadata.list_runs(cfg):
+    # Iterate `Run` objects directly so we can hand each pre-resolved
+    # (run_dir + parsed metadata) to load_run_snapshot. Calling
+    # metadata.list_runs + metadata.load would walk every worktree twice per
+    # run; the profile that motivated this change attributed ~10s of every
+    # 14s snapshot to that re-walk.
+    for run in runs_mod.iter_all_runs(cfg):
         snap = source.load_run_snapshot(
-            cfg, rid, now=now, stale_human_review_seconds=stale_seconds
+            cfg,
+            run.run_id,
+            now=now,
+            stale_human_review_seconds=stale_seconds,
+            pre_resolved=run,
         )
         if snap is None:
             continue

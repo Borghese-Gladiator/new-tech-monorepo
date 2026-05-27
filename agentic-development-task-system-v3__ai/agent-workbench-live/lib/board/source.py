@@ -31,6 +31,23 @@ SOURCE_WORKTREE = runs_mod.SOURCE_WORKTREE
 # tiny (tens of runs), so unbounded growth is a non-issue.
 _DIFF_CACHE: dict[tuple[str, str], tuple[int | None, int | None, int | None]] = {}
 
+# Mtime-keyed caches for repeated on-disk parses. Each entry stores
+# (st_mtime_ns, parsed_value); a stat() mismatch evicts and re-parses. These
+# exist because snapshot.build runs every 60s + on every watchdog event, and
+# the dominant cost left after PR1/step-2 is re-parsing files whose contents
+# haven't changed.
+_EVENTS_CACHE: dict[str, tuple[int, list[dict]]] = {}
+_AC_CACHE: dict[str, tuple[int, tuple[int | None, int | None, bool]]] = {}
+_METRICS_CACHE: dict[str, tuple[int, tuple[int, int, int, float, int | None]]] = {}
+
+
+def _reset_board_caches() -> None:
+    """Clear every board-side cache. Called by tests between scenarios."""
+    _DIFF_CACHE.clear()
+    _EVENTS_CACHE.clear()
+    _AC_CACHE.clear()
+    _METRICS_CACHE.clear()
+
 # How recently an event must have fired for the card to read "live".
 _LIVE_THRESHOLD_SECONDS = 60.0
 
@@ -230,21 +247,38 @@ def _event_detail(ev: dict) -> str:
 
 
 def _iter_events(events_path: pathlib.Path):
-    """Yield each event as a dict. Skips empty / malformed lines silently."""
-    if not events_path.exists():
+    """Yield each event as a dict. Skips empty / malformed lines silently.
+
+    Cached on (path, mtime_ns) — `snapshot.build` calls this for every run on
+    every tick, and events.jsonl only changes when a CLI command writes an
+    event. A single stat() per call to validate the cache entry is cheap.
+    """
+    try:
+        st = events_path.stat()
+    except OSError:
+        return
+    key = str(events_path)
+    cached = _EVENTS_CACHE.get(key)
+    if cached is not None and cached[0] == st.st_mtime_ns:
+        for ev in cached[1]:
+            yield ev
         return
     try:
         text = events_path.read_text()
     except OSError:
         return
+    parsed: list[dict] = []
     for line in text.splitlines():
         line = line.strip()
         if not line:
             continue
         try:
-            yield json.loads(line)
+            parsed.append(json.loads(line))
         except json.JSONDecodeError:
             continue
+    _EVENTS_CACHE[key] = (st.st_mtime_ns, parsed)
+    for ev in parsed:
+        yield ev
 
 
 _AC_HEADING_RE = re.compile(r"^\s*##\s+Acceptance criteria coverage\s*$", re.IGNORECASE)
@@ -258,9 +292,25 @@ def _parse_ac_coverage(build_md_path: pathlib.Path) -> tuple[int | None, int | N
     Returns ``(ac_total, ac_covered, table_missing)``. ``table_missing``
     is True when build.md exists but contains no AC section. Coverage =
     rows whose second cell does NOT contain "missing", "n/a", or "tbd".
+
+    Cached on (path, mtime_ns).
     """
-    if not build_md_path.exists():
+    try:
+        st = build_md_path.stat()
+    except OSError:
         return None, None, False
+    key = str(build_md_path)
+    cached = _AC_CACHE.get(key)
+    if cached is not None and cached[0] == st.st_mtime_ns:
+        return cached[1]
+    result = _parse_ac_coverage_uncached(build_md_path)
+    _AC_CACHE[key] = (st.st_mtime_ns, result)
+    return result
+
+
+def _parse_ac_coverage_uncached(
+    build_md_path: pathlib.Path,
+) -> tuple[int | None, int | None, bool]:
     try:
         text = build_md_path.read_text()
     except OSError:
@@ -275,7 +325,6 @@ def _parse_ac_coverage(build_md_path: pathlib.Path) -> tuple[int | None, int | N
     if section_start is None:
         return None, None, True
 
-    # Walk forward, collect | rows until the next ## heading.
     rows: list[str] = []
     for ln in lines[section_start:]:
         if _NEXT_HEADING_RE.match(ln):
@@ -286,12 +335,10 @@ def _parse_ac_coverage(build_md_path: pathlib.Path) -> tuple[int | None, int | N
     if not rows:
         return 0, 0, False
 
-    # Drop the header row + the separator row (---).
     data_rows = []
     for r in rows:
         if set(r.replace("|", "").strip()) <= {"-", ":", " "}:
             continue
-        # Header heuristic: first column looks like "AC" or "criterion".
         cells = [c.strip() for c in r.strip("|").split("|")]
         if cells and cells[0].lower() in {"ac", "criterion", "id"}:
             continue
@@ -443,16 +490,25 @@ def load_run_snapshot(
     now: dt.datetime,
     stale_human_review_seconds: int,
     recent_event_count: int = 3,
+    pre_resolved: "runs_mod.Run | None" = None,
 ) -> RunSnapshot | None:
     """Read one run off disk and return a frozen RunSnapshot.
 
     Returns None if metadata is missing or malformed — the board renders
     everything else; one bad run never breaks the view.
+
+    ``pre_resolved`` lets the caller skip the metadata-driven re-resolution
+    of where the run lives on disk. The board's hot path holds a resolved
+    ``Run`` already and passes it through; that avoids the per-run
+    ``find_run`` walk that was the dominant cost before this change.
     """
-    try:
-        meta = metadata.load(cfg, run_id)
-    except Exception:
-        return None
+    if pre_resolved is not None:
+        meta = pre_resolved.metadata
+    else:
+        try:
+            meta = metadata.load(cfg, run_id)
+        except Exception:
+            return None
 
     status = meta.get("status", "")
     target = meta.get("target") or {}
@@ -466,14 +522,18 @@ def load_run_snapshot(
     created_at = meta.get("created_at", "")
     updated_at = meta.get("updated_at", "")
 
-    rd = metadata.run_dir(cfg, run_id)
-    # TODO §1B1: derive source ("master" vs "worktree") from the resolved
-    # path so the card can show (archived) on master-side runs.
-    try:
-        rd.relative_to(cfg.runs_path)
-        source = runs_mod.SOURCE_MASTER
-    except ValueError:
-        source = runs_mod.SOURCE_WORKTREE
+    if pre_resolved is not None:
+        rd = pre_resolved.run_dir
+        source = pre_resolved.source
+    else:
+        rd = metadata.run_dir(cfg, run_id)
+        # TODO §1B1: derive source ("master" vs "worktree") from the resolved
+        # path so the card can show (archived) on master-side runs.
+        try:
+            rd.relative_to(cfg.runs_path)
+            source = runs_mod.SOURCE_MASTER
+        except ValueError:
+            source = runs_mod.SOURCE_WORKTREE
     events_path = rd / "events.jsonl"
 
     # Walk events to compute time-in-stage, recent activity, bounce count, error flag.
@@ -520,7 +580,9 @@ def load_run_snapshot(
     # Stage-aware: is the build.md present in stages/4_building/?
     build_md_path: pathlib.Path | None = None
     try:
-        build_md_path = lifecycle.stage_dir(cfg, run_id, "building") / "build.md"
+        build_md_path = lifecycle.stage_dir(
+            cfg, run_id, "building", run_root=rd,
+        ) / "build.md"
     except Exception:
         build_md_path = None
     if build_md_path is None or not build_md_path.exists():
@@ -695,7 +757,25 @@ def _quick_metrics_from_jsonl(path: pathlib.Path) -> tuple[int, int, int, float,
     Returns ``(total_tokens, approves, validate_attempts, cost_usd,
     largest_session_turns)``. Avoids the full summary recomputation so the
     board stays snappy.
+
+    Cached on (path, mtime_ns). metrics.jsonl is the largest hot-path file we
+    re-read on every snapshot (thousands of lines per active run); skipping
+    the parse when nothing's changed is a meaningful win.
     """
+    try:
+        st = path.stat()
+    except OSError:
+        return 0, 0, 0, 0.0, None
+    key = str(path)
+    cached = _METRICS_CACHE.get(key)
+    if cached is not None and cached[0] == st.st_mtime_ns:
+        return cached[1]
+    result = _quick_metrics_from_jsonl_uncached(path)
+    _METRICS_CACHE[key] = (st.st_mtime_ns, result)
+    return result
+
+
+def _quick_metrics_from_jsonl_uncached(path: pathlib.Path) -> tuple[int, int, int, float, int | None]:
     import json as _json
     total = 0
     appr = 0

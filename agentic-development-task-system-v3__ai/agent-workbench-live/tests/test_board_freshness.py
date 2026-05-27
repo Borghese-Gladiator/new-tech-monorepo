@@ -230,11 +230,15 @@ class TestRealWatchdogDelivery(FreshnessCase):
     """End-to-end with a REAL watchdog Observer (not mocked).
 
     Drives the production scheduling path (`_schedule_worktree_runs_dirs`),
-    writes a file into the watched worktree-side runs/ dir, and asserts that
-    the watchdog backend actually delivers an event that flows through
-    `_Handler.on_any_event` → `RunsChanged` post. We don't run the Textual
-    event loop; instead we replace `app.call_from_thread` with a recording
-    sink so we can observe the post without spinning Textual up.
+    writes a file into the watched worktree-side runs/ dir, and asserts the
+    watchdog backend delivers an event that flows through
+    `_Handler.on_any_event` → `_mark_fs_dirty`. We don't run the Textual
+    event loop; we replace `_mark_fs_dirty` with a recording sink instead.
+
+    NOTE: PR2 replaced the per-event `post_message` with a coalesced
+    `_mark_fs_dirty` flag drained by an interval timer. The wiring tested
+    here is `_Handler -> _mark_fs_dirty`; the debounce drain is tested in
+    test_handler_debounce.
     """
 
     def _make_real_app(self):
@@ -242,18 +246,13 @@ class TestRealWatchdogDelivery(FreshnessCase):
         app = AgentBoardApp(self.cfg, BoardOptions())
         app._observer = RealObserver()
         app._observer.daemon = True
-        # Replace the Textual cross-thread bridge with a thread-safe sink
-        # so we don't need a running App. The watchdog handler will call
-        # this from the Observer thread; .append is atomic on a list in
-        # CPython (GIL).
+        # Replace `_mark_fs_dirty` with a recording sink. The watchdog
+        # handler calls it from the Observer thread; `.append` is atomic on
+        # a list in CPython (GIL).
         recorded: list = []
-        app._recorded_posts = recorded  # for the test to read
-        app.call_from_thread = lambda fn, *args, **kwargs: recorded.append(
-            ("call", getattr(fn, "__name__", repr(fn)), args, kwargs)
-        )
-        # post_message would also be called by _Handler; replace it too as a
-        # safety net for any code path that bypasses call_from_thread.
-        app.post_message = lambda msg: recorded.append(("post", type(msg).__name__))
+        app._recorded_posts = recorded  # name kept for back-compat with the
+                                        # existing test bodies below
+        app._mark_fs_dirty = lambda: recorded.append(("dirty",))
         return app
 
     def test_real_watchdog_fires_handler_on_file_write(self) -> None:

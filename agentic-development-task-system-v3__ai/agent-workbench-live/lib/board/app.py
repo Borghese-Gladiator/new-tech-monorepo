@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import time
 from typing import Iterable
 
 from rich.text import Text
@@ -403,7 +404,12 @@ def _progress_bar(cur: int, mx: int, *, width: int = 10) -> str:
 # ---------- Textual widgets ----------
 
 class RunCard(Static):
-    """One card. Wraps a RunSnapshot in a fixed-width Static."""
+    """One card. Wraps a RunSnapshot in a fixed-width Static.
+
+    Mutable in place: `apply` updates the Text and severity classes so the
+    StatusColumn can reuse the same widget across refreshes (which preserves
+    scroll position + focus, the whole point of PR2).
+    """
 
     DEFAULT_CSS = """
     RunCard {
@@ -428,14 +434,26 @@ class RunCard(Static):
         workbench_root: str | None,
         show_paths: bool,
     ):
-        super().__init__(_card_text(
+        super().__init__()
+        self.apply(
+            run, compact=compact, workbench_root=workbench_root, show_paths=show_paths,
+        )
+
+    def apply(
+        self,
+        run: RunSnapshot,
+        *,
+        compact: bool,
+        workbench_root: str | None,
+        show_paths: bool,
+    ) -> None:
+        """Update text + severity classes in place."""
+        self.update(_card_text(
             run, compact=compact, workbench_root=workbench_root, show_paths=show_paths,
         ))
         sev = severity(run)
-        if sev == SEVERITY_BLOCKING:
-            self.add_class("-blocking")
-        elif sev == SEVERITY_WARNING:
-            self.add_class("-warning")
+        self.set_class(sev == SEVERITY_BLOCKING, "-blocking")
+        self.set_class(sev == SEVERITY_WARNING, "-warning")
 
 
 class StatusColumn(Vertical):
@@ -461,6 +479,10 @@ class StatusColumn(Vertical):
         self.status = status
         self._header = Static("", classes="column-header")
         self._body = ScrollableContainer()
+        # Mounted RunCards keyed on run_id, so we can update in place across
+        # refreshes instead of unmounting + remounting. Preserving widget
+        # identity is what preserves the user's scroll position + focus.
+        self._cards: dict[str, RunCard] = {}
 
     def compose(self) -> ComposeResult:
         yield self._header
@@ -495,14 +517,70 @@ class StatusColumn(Vertical):
             header.append(f"\n{sub}", style="dim italic")
         self._header.update(header)
 
-        self._body.remove_children()
-        for r in runs:
-            self._body.mount(RunCard(
-                r,
-                compact=compact,
-                workbench_root=workbench_root,
-                show_paths=show_paths,
-            ))
+        # Diff against the previous mount. Order in `runs` is authoritative.
+        incoming_ids = [r.run_id for r in runs]
+        incoming_set = set(incoming_ids)
+
+        # 1. Remove cards whose run vanished.
+        for run_id in list(self._cards.keys()):
+            if run_id not in incoming_set:
+                self._cards.pop(run_id).remove()
+
+        # 2. Update existing / mount new cards. Mount in order so newcomers
+        #    land at the correct DOM position (avoids most move_child churn).
+        for idx, r in enumerate(runs):
+            existing = self._cards.get(r.run_id)
+            if existing is not None:
+                existing.apply(
+                    r,
+                    compact=compact,
+                    workbench_root=workbench_root,
+                    show_paths=show_paths,
+                )
+            else:
+                card = RunCard(
+                    r,
+                    compact=compact,
+                    workbench_root=workbench_root,
+                    show_paths=show_paths,
+                )
+                self._cards[r.run_id] = card
+                # Mount at the correct index. before= takes the sibling that
+                # should follow the new card; we find it by looking at the
+                # next incoming id that already has a mounted card.
+                anchor = self._find_anchor(incoming_ids, idx)
+                if anchor is None:
+                    self._body.mount(card)
+                else:
+                    self._body.mount(card, before=anchor)
+
+        # 3. Fix any out-of-order existing cards.
+        body_children = list(self._body.children)
+        for desired_idx, run_id in enumerate(incoming_ids):
+            card = self._cards.get(run_id)
+            if card is None:
+                continue
+            try:
+                actual_idx = body_children.index(card)
+            except ValueError:
+                continue
+            if actual_idx != desired_idx:
+                self._body.move_child(card, before=desired_idx)
+                body_children = list(self._body.children)
+
+    def _find_anchor(
+        self, incoming_ids: list[str], from_idx: int,
+    ) -> "RunCard | None":
+        """First already-mounted card at index > from_idx, or None.
+
+        Used as the `before=` anchor when mounting a new card so it lands at
+        the right slot without needing a follow-up move_child.
+        """
+        for j in range(from_idx + 1, len(incoming_ids)):
+            sibling = self._cards.get(incoming_ids[j])
+            if sibling is not None and sibling.is_mounted:
+                return sibling
+        return None
 
 
 # ---------- Watchdog -> Textual bridge ----------
@@ -511,23 +589,34 @@ class RunsChanged(Message):
     """Posted by the watchdog thread when something under runs/ changed."""
 
 
+# Quiet window (seconds) — every event resets the clock; a single refresh
+# fires once activity has stopped for this long. A single metadata.save
+# fires 2+ events (tmp create + rename), and metrics.jsonl appends fire one
+# event per line, so coalescing is mandatory to keep the UI usable.
+_FS_DEBOUNCE_SECONDS = 0.15
+
+
 class _Handler(FileSystemEventHandler):
     def __init__(self, app: "AgentBoardApp"):
         self._app = app
 
     def on_any_event(self, event):  # noqa: D401
-        # Filter noise: ignore .tmp atomic rename suffixes (the metadata
-        # writer renames .tmp -> .yaml, which fires both events; we only
-        # care about the final one).
         path = getattr(event, "src_path", "") or ""
+        # Filter noise:
+        #  - .tmp suffix from atomic-rename writes; the rename event covers it.
+        #  - dot-prefixed basenames (vim swapfiles, macOS .DS_Store, fsevents
+        #    droppings).
+        #  - anything under archive/, which the board never renders.
         if path.endswith(".tmp"):
             return
-        # Post a Textual message back to the app's thread.
-        try:
-            self._app.call_from_thread(self._app.post_message, RunsChanged())
-        except Exception:
-            # App may be shutting down; ignore.
-            pass
+        basename = path.rsplit("/", 1)[-1]
+        if basename.startswith("."):
+            return
+        if "/archive/" in path:
+            return
+        # Mark the app dirty; the periodic drain posts a single RunsChanged
+        # once events go quiet for _FS_DEBOUNCE_SECONDS. See AgentBoardApp.
+        self._app._mark_fs_dirty()
 
 
 # ---------- The app ----------
@@ -544,8 +633,11 @@ class AgentBoardApp(App):
     """Full-screen TUI rendering the Agent Workbench board.
 
     The board is read-only beyond `q`. Re-render is driven by:
-      - watchdog events on runs/
-      - a 1Hz fallback timer (also drives the age ticker)
+      - watchdog events on runs/, coalesced through a 150ms quiet-window
+        debounce so a metadata-save burst (tmp create + rename + metrics
+        append) fires one refresh, not three
+      - a 60s safety-net timer for age-ticker accuracy. format_age rounds to
+        minutes, so anything faster is pure waste.
     """
 
     CSS = """
@@ -572,6 +664,11 @@ class AgentBoardApp(App):
         # (master's runs/ + every existing worktree-side runs dir) and
         # extended by the periodic re-scan when new worktrees appear.
         self._watched_paths: set[str] = set()
+        # FS-event debounce state. _fs_dirty_at is the monotonic time of the
+        # latest filesystem event we observed; the periodic drain compares
+        # it against now() and fires one RunsChanged once the quiet window
+        # elapses. 0 = clean.
+        self._fs_dirty_at: float = 0.0
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -585,8 +682,13 @@ class AgentBoardApp(App):
     def on_mount(self) -> None:
         # Initial render.
         self._refresh()
-        # 1 Hz fallback timer for liveness + age tickers.
-        self.set_interval(1.0, self._refresh)
+        # Safety-net timer: format_age floors to minutes (see snapshot.format_age)
+        # so a 60s tick is enough to keep age tickers honest. The debounced
+        # watchdog handler covers everything that actually changes faster.
+        self.set_interval(60.0, self._refresh)
+        # Drain accumulated FS events every 100ms. Cheap: one comparison per
+        # tick when idle, one post_message + state-clear when firing.
+        self.set_interval(0.1, self._drain_fs_events)
         # Watchdog observer for low-latency response to file changes.
         # Master's runs/ + every existing worktree-side runs/ get a separate
         # schedule on a single Observer instance. The periodic re-scan below
@@ -672,6 +774,24 @@ class AgentBoardApp(App):
     def on_runs_changed(self, _: RunsChanged) -> None:
         self._refresh()
 
+    def _mark_fs_dirty(self) -> None:
+        """Called from the watchdog thread on every filtered FS event.
+
+        Just records `now`; the drain timer on the UI thread is what actually
+        triggers a refresh once activity stops for the quiet window.
+        """
+        self._fs_dirty_at = time.monotonic()
+
+    def _drain_fs_events(self) -> None:
+        """Fire one refresh once FS events have been quiet for the debounce window."""
+        dirty_at = self._fs_dirty_at
+        if dirty_at == 0.0:
+            return
+        if (time.monotonic() - dirty_at) < _FS_DEBOUNCE_SECONDS:
+            return
+        self._fs_dirty_at = 0.0
+        self._refresh()
+
     def _refresh(self) -> None:
         snap = snapshot_mod.build(
             self._cfg,
@@ -695,10 +815,12 @@ class AgentBoardApp(App):
             col.display = (status in visible_statuses) or bool(runs)
 
         # Update the header subtitle with timestamp + total runs.
+        # Minute-resolution clock: format_age floors to minutes, so a finer
+        # subtitle clock would tick faster than the data it summarizes.
         self.title = "Agent Workbench"
         self.sub_title = (
             f"{snap.total_runs} run(s) · "
-            f"watch + 1Hz · {snap.now.strftime('%H:%M:%S')}"
+            f"watch · {snap.now.strftime('%H:%M')}"
         )
 
 
