@@ -291,11 +291,22 @@ def _walk_worktrees(cfg: Config) -> Iterator[Run]:
             )
             if run is None:
                 continue
-            # Skip terminal-state runs from worktrees: those are just merged
-            # history checked out in the worktree, NOT live work. The
-            # master-side copy is the canonical archive.
+            # Skip terminal-state runs from worktrees: those are usually just
+            # merged history checked out in the worktree, NOT live work. The
+            # master-side copy is meant to be the canonical archive.
+            #
+            # Carve-out: if the master-side metadata is stale (status doesn't
+            # match the worktree's terminal status), prefer the worktree hit.
+            # This closes the `list` vs `board` disagreement when
+            # cmd_complete's master-side write fails to land in the merge
+            # commit (the bug fixed by TODO §1, Y scope). Without this carve-
+            # out, `board` shows the stale `human_review` while `list` shows
+            # `done`.
             if run.status in ("done", "abandoned"):
-                continue
+                master_status = _master_side_status(cfg, run.run_id)
+                if master_status == run.status or master_status is None:
+                    continue
+                # Master disagrees and exists — worktree is the recent truth.
             # Skip runs whose recorded worktree path doesn't match this
             # worktree — same reason: those entries are merged-history
             # artifacts that happen to be checked out here, not work being
@@ -308,6 +319,30 @@ def _walk_worktrees(cfg: Config) -> Iterator[Run]:
                 except OSError:
                     pass
             yield run
+
+
+def _master_side_status(cfg: Config, run_id: str) -> str | None:
+    """Return the status recorded in the *master-side* metadata.yaml, or None.
+
+    Used by `_walk_worktrees` to detect the stale-master case (worktree says
+    `done` / `abandoned` but master is still `human_review`). Reads
+    `cfg.runs_path / run_id / "metadata.yaml"` directly via yaml_io to avoid
+    `metadata.load`'s worktree-resolution logic, which would re-route to the
+    worktree copy and defeat the comparison.
+    """
+    meta_path = cfg.runs_path / run_id / "metadata.yaml"
+    try:
+        text = meta_path.read_text()
+    except OSError:
+        return None
+    try:
+        data = yaml_io.loads(text)
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    status = data.get("status")
+    return status if isinstance(status, str) else None
 
 
 def _try_build_run(
