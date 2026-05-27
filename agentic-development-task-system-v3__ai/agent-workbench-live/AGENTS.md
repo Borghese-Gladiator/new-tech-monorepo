@@ -25,7 +25,7 @@ Any non-terminal state can also go to `abandoned`. `human_review` can bounce bac
 
 ## How to drive the workbench
 
-When you see a `STOP.` banner in CLI stdout, your session ends — the run has landed in a state the agent does not drive (`ready`, `human_review`, or terminal). Do not invoke the listed next commands; those are the human's call.
+When you see a `STOP.` banner in CLI stdout for `human_review` or a terminal state (`done`, `abandoned`), your session ends — those are the states the agent does not drive. The `ready` banner is informational only: `ready` is a transient state that the agent passes through by auto-chaining `/plan -> /start`, so do not stop on it. For the agent-stopping banners, do not invoke the listed next commands; those are the human's call.
 
 Use the CLI (`agent-workbench <subcommand>`) or the matching slash command in Claude Code. Slash commands wrap the CLI for the LLM-bearing steps. The full command → state map lives in `../docs/lifecycle.md` § "Command-to-state map".
 

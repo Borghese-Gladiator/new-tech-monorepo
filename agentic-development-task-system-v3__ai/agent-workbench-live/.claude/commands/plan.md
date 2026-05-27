@@ -67,16 +67,23 @@ That:
 
 ## Next step
 
-Stop here. This is a real human approval gate — `ready -> building` requires `--approved-by` evidence that only the user can supply.
+Auto-chain: immediately invoke `/start $RUN_ID` once `planning -> ready` has been recorded by the CLI. The CLI still emits a `STOP.` banner on the `planning -> ready` transition for audit purposes, but `ready` is a transient state that the agent passes through — it is no longer an agent-stopping gate. The next (and only) human gate is `human_review`, owned by `/complete`, `/bounce`, and `/abandon`.
 
-Tell the user:
+Before invoking `/start`, briefly tell the user:
 
 - The `run_id` and that planning is complete.
 - The path to `plan.md`.
 - A one-paragraph summary of the proposed changes and the top risks.
-- The single recommended next command: `/start $RUN_ID`.
+- That you are now invoking `/start $RUN_ID` to create the worktree and begin implementation.
 
-Do not invoke `/start` automatically.
+Then invoke `/start $RUN_ID`. `/start` will obtain `--approved-by` from the current user automatically (no prompt needed on the auto-chain path).
+
+### Stop conditions (do NOT auto-chain)
+
+Stop and hand control back to the user only if:
+
+- The user explicitly told you to stop after `/plan` ("just plan it", "stop after plan", "don't start yet", etc.).
+- The CLI returned a warning or non-zero status from `agent-workbench plan`.
 
 ## Reference
 

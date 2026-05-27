@@ -1,5 +1,5 @@
 ---
-description: Approve an Agent Workbench run in the ready state and create the branch + worktree. Use when the user has reviewed the plan and wants implementation to begin.
+description: Create the branch + worktree for an Agent Workbench run in the ready state. Normally auto-chained from /plan; can also be invoked manually after the user reviewed the plan.
 ---
 
 # /start
@@ -11,10 +11,10 @@ Thin wrapper around `agent-workbench start`. Transitions `ready -> building`.
 - Run is in state `ready`.
 - `brief.md`, `plan.md`, `preflight.md`, `assumptions.md`, `decisions.md` all exist and are non-empty.
 
-## What you need from the user
+## Invocation paths
 
-- The `run_id`.
-- `--approved-by <name>` — who's approving (defaults to current user if you ask).
+- **Auto-chained from `/plan`** (default). The agent invokes `/start` immediately after `planning -> ready`. Use `$USER` for `--approved-by`; do not prompt — the user already approved by letting the chain run.
+- **Manual** (the user typed `/start <run_id>`). Same command; still pass `--approved-by "$USER"` unless the user explicitly specified a different approver.
 
 ## Run
 

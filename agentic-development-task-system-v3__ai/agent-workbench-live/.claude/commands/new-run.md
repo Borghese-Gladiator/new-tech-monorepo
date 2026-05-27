@@ -69,7 +69,7 @@ Do not pass `--scope-kind`, `--base-ref`, or `--repo-name`. Let CLI defaults app
 - Never ask the user for `--worktree-name`. Derive it.
 - Never read code in the target repo at this step. `/new-run` is code-blind.
 - Never edit `metadata.yaml` directly.
-- Never chain into `/start` automatically. `/start` is a human approval gate.
+- Never invoke `/start` from `/new-run` directly — `/start` is auto-chained from `/plan`, not from `/new-run`. The chain is `/new-run -> /shape -> /plan -> /start`.
 
 ## Examples
 
@@ -87,7 +87,7 @@ Agent reads the heading from `poker-idea.md`, derives slug, runs the file form, 
 
 ## Next step
 
-Auto-chain: immediately invoke `/shape <run_id>` unless one of the stop conditions below is true. The agent only stops at the two real human gates (`ready` and `human_review`), not between autonomous stages.
+Auto-chain: immediately invoke `/shape <run_id>` unless one of the stop conditions below is true. The agent only stops at the single human gate (`human_review`), not between autonomous stages. `ready` is a transient state the agent passes through by auto-chaining `/plan -> /start`.
 
 ### Stop conditions (do NOT auto-chain)
 

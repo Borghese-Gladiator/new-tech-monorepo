@@ -57,7 +57,7 @@ That verifies the brief is non-empty and transitions `shaping -> planning`.
 
 ## Next step
 
-Auto-chain: immediately invoke `/plan $RUN_ID` once `shaping -> planning` has been recorded by the CLI. Do not stop here — the next human gate is `ready -> building`, which is owned by `/start`.
+Auto-chain: immediately invoke `/plan $RUN_ID` once `shaping -> planning` has been recorded by the CLI. Do not stop here. `/plan` itself auto-chains into `/start`, so the agent flows straight through `planning -> ready -> building` without stopping. The next (and only) human gate is `human_review`.
 
 ## Reference
 
