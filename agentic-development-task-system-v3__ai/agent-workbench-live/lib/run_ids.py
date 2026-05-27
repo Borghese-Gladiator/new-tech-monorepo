@@ -5,6 +5,11 @@ The templates live in agent-workbench.yaml.defaults, but the rules here are simp
 - worktree_name := <slug>  (unless caller overrides)
 - worktree dir  := <YYYYMMDD>__<worktree_name>  (TODO §1, derived from run_id)
 - branch_name   := <branch_prefix>/<worktree_name>
+- repo_name     := slugified basename of the git **toplevel** (canonicalized
+                   by the caller via `git rev-parse --show-toplevel`), not the
+                   path the user typed. `derive_repo_name` itself is a pure
+                   slugify — the toplevel-canonicalization is done at the
+                   caller (cmd_new_run.py). `--repo-name` overrides this.
 """
 from __future__ import annotations
 

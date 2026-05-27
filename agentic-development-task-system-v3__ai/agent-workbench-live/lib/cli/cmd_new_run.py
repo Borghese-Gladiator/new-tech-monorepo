@@ -11,6 +11,23 @@ from lib.cli._common import actor_from_env, fail, load_config
 HELP = "Create a new run from a raw idea."
 
 
+def _canonical_repo_basename(repo_path: pathlib.Path, repo_mode: str) -> str:
+    """Basename used as input to derive_repo_name.
+
+    For an existing git repo we resolve to `git rev-parse --show-toplevel` so
+    that any subpath of the same repo derives the same `repo_name` (and lands
+    worktrees under the same second-level dir). For the new-repo bootstrap
+    flow (no git repo yet) or any path not inside a git repo, fall back to
+    `repo_path.name` — the legacy behavior.
+    """
+    if repo_mode != "existing":
+        return repo_path.name
+    toplevel = repos.show_toplevel(repo_path)
+    if toplevel is None:
+        return repo_path.name
+    return toplevel.name
+
+
 def register(p) -> None:
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--repo-path", type=pathlib.Path, help="Path to an existing git repo.")
@@ -51,7 +68,12 @@ def run(args) -> int:
         worktree_name = run_ids.slugify(args.worktree_name)
     except run_ids.NamingError as e:
         return fail(f"invalid --worktree-name: {e}", 2)
-    repo_name = args.repo_name or run_ids.derive_repo_name(repo_path.name)
+    if args.repo_name:
+        repo_name = args.repo_name
+    else:
+        repo_name = run_ids.derive_repo_name(
+            _canonical_repo_basename(repo_path, repo_mode)
+        )
     branch_name = run_ids.make_branch_name(cfg, worktree_name)
 
     # Run ID.

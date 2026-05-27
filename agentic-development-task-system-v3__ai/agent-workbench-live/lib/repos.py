@@ -45,6 +45,26 @@ def is_git_repo(repo_path: pathlib.Path) -> bool:
     return r.returncode == 0 and r.stdout.strip() == "true"
 
 
+def show_toplevel(repo_path: pathlib.Path) -> pathlib.Path | None:
+    """Return `git -C <repo_path> rev-parse --show-toplevel` resolved, or None.
+
+    Used to canonicalize an arbitrary subpath of a git repo to the repo's
+    actual root, so naming downstream (e.g. derive_repo_name) is independent
+    of which subpath the caller happened to pass. Returns None on any failure
+    (path missing, not a git repo, git error) so callers can fall back to the
+    old basename behavior.
+    """
+    if not repo_path.exists():
+        return None
+    r = _git(repo_path, "rev-parse", "--show-toplevel")
+    if r.returncode != 0:
+        return None
+    raw = r.stdout.strip()
+    if not raw:
+        return None
+    return pathlib.Path(raw).resolve()
+
+
 def ref_exists(repo_path: pathlib.Path, ref: str) -> bool:
     r = _git(repo_path, "rev-parse", "--verify", "--quiet", ref)
     return r.returncode == 0
