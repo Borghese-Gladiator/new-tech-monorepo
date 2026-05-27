@@ -1,6 +1,66 @@
 # TODO
 
-## 1. Add a `/build` slash command — close the building-stage curated-entry enforcement gap
+## 1. Reconcile master-side `metadata.yaml` after `cmd_complete` — kill the stale-`human_review` ghosts
+
+### Symptom
+
+`agent-workbench list` and `agent-workbench board` disagree on the status of runs that have already been merged and marked `done`. For self-modifying runs whose worktree is still on disk, the *worktree-side* `runs/<id>/metadata.yaml` carries the correct post-merge `status: done`, but the *master-side* `runs/<id>/metadata.yaml` is still frozen at `status: human_review` — `cmd_complete` updates only the worktree copy. Both copies coexist because the run dir is a tracked file inside each worktree's checkout.
+
+Concrete pair observed 2026-05-27, both already merged into master:
+
+| Run | master copy | worktree copy | `list` shows | `board` shows |
+|---|---|---|---|---|
+| `2026-05-25-generalize-stage-context-md` | `human_review` (stale) | `done` (post-merge) | `done` | `human_review` |
+| `2026-05-26-board-freshness-across-worktrees` | `human_review` (stale) | `done` (post-merge) | `done` | `human_review` |
+
+Both `list` and `board` traverse the same `iter_all_runs` enumerator, but they apply opposite preferences when the same run resolves to two on-disk copies:
+
+- **`list` (`lib/cli/cmd_list_runs.py:18-20`)** takes the deduplicated run IDs, then re-reads metadata via `metadata.load(cfg, rid)`. `metadata.run_dir` resolves to the worktree copy whenever both exist and the worktree is live (`lib/metadata.py:60-90` → `lib/runs.py:175-198`). The worktree copy says `done`, so `list` prints `done`.
+- **`board` (`lib/board/snapshot.py:76-92`)** uses the `Run` objects from `iter_all_runs` directly. `_walk_worktrees` (`lib/runs.py:278-310`) filters out any *worktree* hit whose status is `done` / `abandoned` — treating them as "merged history that happens to be checked out here, NOT live work." The worktree hit is discarded, the master hit (still `human_review`) survives, board shows `human_review`.
+
+The board's filter is right on its own terms; the bug is upstream — the master-side metadata should never be `human_review` for a run that has been completed. Right now the only thing that flips master's copy to `done` is the merge commit itself (the worktree's `done` write is the file that gets merged onto master). For self-modifying runs `cmd_complete` (commit `77a5a13`) does a `git merge --no-ff` followed by an immediate `git worktree remove` + `git branch -D`, but the worktree-side `metadata.yaml` write happened *before* the merge — so master ends up with whichever status the worktree had at the moment of the merge SHA, which for the observed runs was a pre-`done` state.
+
+### Confirmed root cause
+
+`lib/cli/cmd_complete.py`'s self-modifying path writes the worktree-side `metadata.yaml` first (sets `status: done`, populates `completion.accepted_by` / `completion.completion_ref` / `completion.completed_at`), then merges. The merge commit *should* carry that updated file onto master. For the two observed runs, it didn't — likely the worktree-side write landed in a later commit on the branch that wasn't part of the merge ref, or the merge was a fast-forward that picked up an older tree. Either way, master's copy is stale and the workbench has no reconciliation path: nothing in the lifecycle ever rewrites `runs/<id>/metadata.yaml` from master's side after the merge.
+
+Three runs on disk currently sit in this inconsistent state — the two above plus `2026-05-25-each-worktree-owns-its-own-run-dir` and `2026-05-25-lifecycle-papercuts-lock-ready-banner` for which the underlying changes are already merged but the master-side `metadata.yaml` is still `human_review` (these surfaced when comparing `git log --oneline master | grep "Merge branch 'agent/"` against the four-strong `human_review` column in the board).
+
+### Tasks
+
+- [ ] **Decide the canonical fix point.** Two candidates:
+  - (a) `cmd_complete.py` writes the post-merge `metadata.yaml` directly into the *master* checkout after the merge succeeds (e.g. an extra `git add runs/<id>/metadata.yaml` + amend, or a follow-up commit `metadata: backfill done status for <run_id>`). This guarantees master's copy matches worktree's `done`.
+  - (b) `_walk_worktrees`'s "drop terminal-state worktree hits" filter is loosened to "drop terminal-state worktree hits *only if the master copy is also terminal*; otherwise prefer the worktree copy and emit a warning." Cheaper, but leaves the on-disk inconsistency in place.
+  - (c) Master-side `metadata.yaml` becomes purely derived (e.g. write a `STATUS.txt` or `.status` sentinel at `cmd_complete` time and have the renderer prefer it). Largest change.
+  - Pick (a) unless friction surfaces — it keeps `metadata.yaml` the single source of truth and avoids divergence between enumerators.
+- [ ] **Write a one-shot reconciliation script** (`tools/reconcile_master_metadata.py` or a `doctor --fix-stale-done` mode) that walks `runs/<id>/metadata.yaml` on master, detects any run whose status is `human_review` / `building` / `validating` / `followups` but whose branch is already merged into the current `HEAD`, and rewrites the master-side metadata to `done` with `completion.accepted_by`, `completion.completion_ref` (the merge SHA), and `completion.completed_at` populated from the merge commit's author + date. Dry-run by default; `--write` to apply.
+- [ ] **Backfill the four observed stale runs.** Run the reconciliation against `2026-05-25-generalize-stage-context-md`, `2026-05-26-board-freshness-across-worktrees`, `2026-05-25-each-worktree-owns-its-own-run-dir`, `2026-05-25-lifecycle-papercuts-lock-ready-banner`. Verify `list` and `board` agree afterwards.
+- [ ] **Add a `doctor` check** that flags any run whose master-side status is non-terminal but whose branch is already merged into the workbench's root branch (or whose worktree has been removed). One-line warning per offending run with the merge SHA. Doctor doesn't auto-fix — the reconciliation script does.
+- [ ] **Unit tests for the chosen fix.** If (a): a test that drives `cmd_complete` end-to-end on a self-modifying synthetic workbench and asserts that after the merge, `git show master:runs/<id>/metadata.yaml` reports `status: done`. If (b): a test where the worktree copy is `done` and the master copy is `human_review` and `iter_all_runs` yields the `done` hit (the opposite of today's behavior). Place under `tests/test_runs.py` or a new `tests/test_self_modifying_complete.py`.
+- [ ] **Document the invariant** in `lib/runs.py`'s `_walk_worktrees` and `lib/cli/cmd_complete.py` module docstrings: "After `/complete` returns successfully, the master-side `runs/<id>/metadata.yaml` MUST carry `status: done` plus a populated `completion` block. The worktree-side copy is allowed to vanish (the worktree is removed by `cmd_complete`); the master copy is the canonical archive."
+
+### Acceptance
+
+- After `/complete` succeeds on a self-modifying run, `git show master:runs/<id>/metadata.yaml | grep status` reports `status: done`. Verified by the new unit test.
+- `agent-workbench list` and `agent-workbench board --static --status human_review` agree on which runs are actually in `human_review` — no ghost runs from stale master-side metadata. Verified by spot-checking the column counts before and after the backfill.
+- `agent-workbench doctor` flags any run whose master-side metadata is non-terminal but whose branch is already merged into the workbench root branch. (Until the reconciliation script runs, doctor surfaces the four observed offenders; after backfill, doctor is silent.)
+- The four pre-existing stale runs are reconciled — their master-side `metadata.yaml` reports `status: done` with the correct `completion.completion_ref` SHA from the original merge commit.
+
+### Non-goals
+
+- **Removing the worktree-side metadata write.** `cmd_complete` still updates the worktree copy first; the fix is to ensure master ends up consistent, not to relocate the write.
+- **Backfilling runs whose worktrees are already gone *and* whose master copy is correct.** The 15 `done` runs from earlier weeks are fine — only runs where master and reality disagree are in scope.
+- **Reconciling abandoned-state runs.** Same shape of bug could exist for `cmd_abandon`; if it does, file as a separate TODO. Don't expand scope here.
+- **Refactoring `_walk_worktrees`'s filter** beyond what option (b) above would require if it's the chosen path. The filter logic is intentional ("worktree copies of terminal runs are just merged history checked out here") — keep it.
+- **Cross-machine reconciliation.** If a run was `/complete`-d on a different machine and the local checkout never saw the post-merge state, that's a sync issue, not a workbench-correctness issue.
+
+### Origin
+
+Surfaced 2026-05-27 while answering "what's the current status of tasks inside agent-workbench-live?" `agent-workbench list` and the board disagreed: list showed two runs as `done` that the board placed in `human_review`. Tracing through `lib/runs.py:iter_all_runs` + `_walk_worktrees` + `lib/metadata.py:run_dir` revealed that both enumerators correctly resolve the collision, but in opposite directions, and that the underlying problem is master-side `metadata.yaml` being a pre-`done` snapshot for self-modifying runs whose worktree completed the lifecycle locally. The board's "drop terminal-state worktree hits" filter is correct on its own terms; the bug is that master should never have been left in `human_review` after `cmd_complete` returned. Four runs in the current repo demonstrate the issue; the reconciliation script + future `cmd_complete` fix close it.
+
+---
+
+## 2. Add a `/build` slash command — close the building-stage curated-entry enforcement gap
 
 `/shape`, `/plan`, `/validate`, `/followups` each have a slash command that wraps the corresponding stage's `--init` (curated-entry staging) and finalize (transition + evidence) steps. **Building is the only LLM-bearing stage with no slash command** — the building agent enters passively after `/start`, with no scripted prompt that says "read `build-context.md` first." That asymmetry has two costs that surfaced in the 2026-05-25 `generalize-stage-context-md` run:
 
@@ -61,11 +121,11 @@ agent-workbench build <run_id>          # finalize building: verify build.md, tr
 
 ### Non-goals
 
-- **Behavioral enforcement of the read-only-curated-file contract.** The slash command nudges the agent; it does not technically restrict which files the agent's `Read` tool can open. Stronger enforcement (per-stage tool-policy allowlist, subagent isolation) is §9's territory, not this.
+- **Behavioral enforcement of the read-only-curated-file contract.** The slash command nudges the agent; it does not technically restrict which files the agent's `Read` tool can open. Stronger enforcement (per-stage tool-policy allowlist, subagent isolation) is §10's territory, not this.
 - **Renaming, merging, or restructuring other slash commands.** This is purely additive.
-- **Building `plan-context.md`, `followups-context.md`, `shape-context.md`** — those are §3 (the renumbered "Generalize the `*-context.md` cross-stage contract" follow-up).
-- **Subagent-based building.** Routing the builder through an `Agent`-tool subagent fed only `build-context.md` would be a stronger enforcement story; that's a separate design conversation (would touch §8 publishing-stage subagent pattern).
-- **Tool-policy file at building stage.** §9 work; out of scope here.
+- **Building `plan-context.md`, `followups-context.md`, `shape-context.md`** — those are §4 (the renumbered "Generalize the `*-context.md` cross-stage contract" follow-up).
+- **Subagent-based building.** Routing the builder through an `Agent`-tool subagent fed only `build-context.md` would be a stronger enforcement story; that's a separate design conversation (would touch §9 publishing-stage subagent pattern).
+- **Tool-policy file at building stage.** §10 work; out of scope here.
 
 ### Origin
 
@@ -73,7 +133,7 @@ Surfaced 2026-05-27 in conversation immediately after `/complete`-ing the run th
 
 ---
 
-## 2. Investigate the handoff-rendering failure cluster (HUMAN_REVIEW.md + stop banner)
+## 3. Investigate the handoff-rendering failure cluster (HUMAN_REVIEW.md + stop banner)
 
 ### Symptom
 
@@ -145,14 +205,14 @@ Surfaced 2026-05-26 while inspecting two recent runs' HUMAN_REVIEW.md and stop-b
 
 ---
 
-## 3. Generalize the `*-context.md` cross-stage contract (cont'd — `plan-context.md`, `followups-context.md`, `shape-context.md`)
+## 4. Generalize the `*-context.md` cross-stage contract (cont'd — `plan-context.md`, `followups-context.md`, `shape-context.md`)
 
 The 2026-05-25 `generalize-stage-context-md` run shipped `build-context.md` (the highest-leverage of the four siblings) but explicitly deferred the other three to follow-up runs. This section tracks those follow-ups. The original framing from the 2026-05-25 brief still holds; only `build-context.md` and its wiring are removed from the task list.
 
 The leverage is twofold:
 
 1. **Cache footprint.** File reads in the master session stick in the prefix forever. Today the builder typically reads `brief.md` + `plan.md` + occasional `decisions.md` lookups; the reviewer (without the curated context) would read all of those plus the QA report plus the build summary. Each is a permanent prefix cost. One curated file per stage collapses that into a single read.
-2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§8 `publishing` stage) depends on this — `validate-context.md` and `build-context.md` are already shaped right, but `plan-context.md` would need to exist before the subagent pattern can extend to the planning stage.
+2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§9 `publishing` stage) depends on this — `validate-context.md` and `build-context.md` are already shaped right, but `plan-context.md` would need to exist before the subagent pattern can extend to the planning stage.
 
 ### What each remaining file contains
 
@@ -190,7 +250,7 @@ This one is thinnest — shaping has the least prior context to filter. The win 
 - [ ] Build `plan-context.md` next. Will require some new code: detecting repo languages and surfacing build/test commands from `agent-workbench.yaml` policies. Some of this overlap with `repo-map`-style work the planner does today; the goal is to make that deterministic and front-loaded.
 - [ ] Build `followups-context.md`. Likely thin — most of what it needs is already in the staged artifacts; the deterministic builder is mostly a filter + headline rollup.
 - [ ] Build `shape-context.md` last (or skip if the inlined-template gain doesn't justify the code).
-- [ ] For each, update the corresponding `.claude/commands/*.md` so step 1 reads `<stage>-context.md` rather than the prior artifacts directly. Mirror the `validate.md` step 2 language: "Do NOT re-read X if `<stage>-context.md` already covers what you need." For building, this is the new `/build` slash command (§1).
+- [ ] For each, update the corresponding `.claude/commands/*.md` so step 1 reads `<stage>-context.md` rather than the prior artifacts directly. Mirror the `validate.md` step 2 language: "Do NOT re-read X if `<stage>-context.md` already covers what you need." For building, this is the new `/build` slash command (§2).
 - [ ] Document the contract in `docs/lifecycle.md` — add a `*-context.md` row to each remaining stage's table, sibling to "Reads" and "Produces." (Building stage is already documented; the others follow.)
 - [ ] Each new `<stage>-context.md` builder gets unit tests that mirror `tests/test_build_context.py`'s shape (or `tests/test_validate_context_build.py`'s — both work) — synthetic prior artifacts → assert the generated context has the expected sections.
 
@@ -201,15 +261,15 @@ This one is thinnest — shaping has the least prior context to filter. The win 
 
 ### Non-goals
 
-Changing the artifact contents themselves (brief/plan/build/review keep their current sections); merging stages or changing the lifecycle; replacing template-driven artifact authoring with anything generative; building a `repo-map.md` artifact separate from `plan-context.md`'s repo-map section (keep it inline for now); shipping `/build` (that's §1's territory now).
+Changing the artifact contents themselves (brief/plan/build/review keep their current sections); merging stages or changing the lifecycle; replacing template-driven artifact authoring with anything generative; building a `repo-map.md` artifact separate from `plan-context.md`'s repo-map section (keep it inline for now); shipping `/build` (that's §2's territory now).
 
 ### Origin
 
-Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a proposed planner/implementer/reviewer/PR-writer system. The proposed system's "shared durable context, not many independent workers" framing matched what `validate-context.md` already does — but agent-workbench only built that pattern for the validate boundary. Generalizing is straightforward and the cache-discipline payoff is concrete. Build-context.md shipped 2026-05-25 (merge `c075b0c`); the remaining three siblings stay TODO. Renumbered to §3 on 2026-05-27 when `/build` slash command was promoted to §1.
+Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a proposed planner/implementer/reviewer/PR-writer system. The proposed system's "shared durable context, not many independent workers" framing matched what `validate-context.md` already does — but agent-workbench only built that pattern for the validate boundary. Generalizing is straightforward and the cache-discipline payoff is concrete. Build-context.md shipped 2026-05-25 (merge `c075b0c`); the remaining three siblings stay TODO. Renumbered to §4 on 2026-05-27 (originally §3 when `/build` slash command was promoted to §1; bumped again when the master-side metadata reconciliation TODO took §1).
 
 ---
 
-## 4. Canonicalize `repo_name` so the same repo always gets one worktree parent dir
+## 5. Canonicalize `repo_name` so the same repo always gets one worktree parent dir
 
 ### Symptom
 
@@ -254,7 +314,7 @@ Surfaced 2026-05-26 while auditing the worktree list in this repo. Two real work
 
 ---
 
-## 5. Schema-level validation for `metadata.yaml` on load
+## 6. Schema-level validation for `metadata.yaml` on load
 
 `lib/metadata.py:_validate` enforces top-level keys + the status enum only. `schemas/run-metadata.yaml` is descriptive — `metadata.load()` doesn't read it. Typos like `bse_ref` instead of `base_ref` load silently, surface later as missing-field crashes or wrong-data renders. As fields proliferate (`base_ref_sha`, `target.worktree.branch_name`, the `build:` block, the new `completion:` shape), the surface area for silent drift grows.
 
@@ -271,7 +331,7 @@ Surfaced 2026-05-26 while auditing the worktree list in this repo. Two real work
 
 ---
 
-## 6. Test-coverage gaps
+## 7. Test-coverage gaps
 
 Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Grouped because they all share the same shape: a code path that's verified by code-reading or by tmp-dir structural assertions, but doesn't have a runtime drive-and-assert.
 
@@ -289,7 +349,7 @@ Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Gr
 
 ---
 
-## 7. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
+## 8. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
 
 `lib/metrics/writer.record_run_metrics` writes `metrics.jsonl` at the validate / followups / abandon boundaries. The intent is to attribute token spend to the run. The open question: when a stage spawns a Claude Code Agent-tool subagent (an `Explore` for read-heavy lookup, a `Plan` for design, a `general-purpose` for fan-out), **is the subagent's token spend captured in `metrics.jsonl`, or is only the master session's spend recorded?**
 
@@ -319,7 +379,7 @@ Surfaced 2026-05-25 in a design conversation about subagent cost. The architectu
 
 ---
 
-## 8. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
+## 9. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
 
 Today the workbench is built for personal-repo, single-author work. `done` means "human accepted + locally merged to parent branch" — `cmd_complete` checks out the parent and runs `git merge --no-ff` directly. That model collapses two things that are separate in a team workflow: author sign-off and team sign-off. For team work the workbench needs to model the PR-review world as first-class lifecycle states, not a slash-command bolt-on after `done`.
 
@@ -355,7 +415,7 @@ any non-terminal --(/abandon)-----> abandoned
 
 **`publishing` — LLM-bearing, drafts the PR description**
 
-The single purpose of this stage is to produce a high-quality PR description before anything is pushed. It is the GitHub-shaped sibling of `/handoff`. Reuses TODO §1's curated-context pattern: `publishing --init` writes `publishing-context.md` deterministically from prior artifacts; the LLM session reads only that file.
+The single purpose of this stage is to produce a high-quality PR description before anything is pushed. It is the GitHub-shaped sibling of `/handoff`. Reuses TODO §2's curated-context pattern: `publishing --init` writes `publishing-context.md` deterministically from prior artifacts; the LLM session reads only that file.
 
 Reads (via `publishing-context.md`):
 - `brief.md` — original intent, acceptance criteria, non-goals
@@ -394,7 +454,7 @@ No background process. No agent activity. No `pr-sync` command. The board shows 
 
 **Re-entering `building` from `in_pr_review` (`change-request.md`)**
 
-When `/bounce` pulls PR comments, it writes `change-request.md` to the new building stage's directory. This is the curated entry point (analog of `*-context.md` from TODO §1). Shape:
+When `/bounce` pulls PR comments, it writes `change-request.md` to the new building stage's directory. This is the curated entry point (analog of `*-context.md` from TODO §2). Shape:
 
 ```markdown
 # Change request — PR #1234 (round N)
@@ -435,7 +495,7 @@ This preserves the workbench's "we don't talk to remotes for write operations on
 This will land across several runs. Discrete unit-of-work breakdown:
 
 - [ ] Update `schemas/transitions.yaml` with the new states (`publishing`, `in_pr_review`, `closed`) and their transition evidence requirements. `publishing → in_pr_review` needs `pr_number`, `pr_url`, `branch_pushed_sha`. `in_pr_review → done` needs `merge_sha`. `in_pr_review → closed` needs `closed_by`.
-- [ ] Add `completion.delivery`, `completion.pr_number`, `completion.pr_url`, `completion.merge_sha`, `completion.pr_orphaned` to `schemas/run-metadata.yaml`. (TODO §5 schema validation should land first or co-land to catch typos.) No new fields under `target` — the choice is made at terminal-command time.
+- [ ] Add `completion.delivery`, `completion.pr_number`, `completion.pr_url`, `completion.merge_sha`, `completion.pr_orphaned` to `schemas/run-metadata.yaml`. (TODO §6 schema validation should land first or co-land to catch typos.) No new fields under `target` — the choice is made at terminal-command time.
 - [ ] Build the `publishing` LLM-bearing slash command. `publishing --init` writes `publishing-context.md` deterministically from brief + plan + build + validate-context + review + HUMAN_REVIEW + diff + linked Linear ticket. The LLM session reads only `publishing-context.md` and writes `pr-draft.md` + `pr-meta.yaml`.
 - [ ] Build `cmd_publish_pr.py` — validates `pr-draft.md` non-empty; forks on `completion.pr_number` (create vs. edit vs. push-only). Captures `pr_number`/`pr_url` on creation. On `gh` failure, keeps run in `publishing` and emits structured error event for the STOP banner.
 - [ ] Update `cmd_complete.py` for `in_pr_review`-state runs: one-shot `gh pr view --json state,mergeCommitOid`, assert merged, record `merge_sha`, transition to `done`. Local-merge path (called from `human_review`) preserved unchanged.
@@ -475,11 +535,11 @@ Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash com
 
 ---
 
-## 9. Restrictive tool policy for the `publishing` stage only (relevant once §8 ships)
+## 10. Restrictive tool policy for the `publishing` stage only (relevant once §9 ships)
 
 Today the workbench's safety story is filesystem-via-worktrees + evidence-gated transitions. There's no per-run tool bounding because there's no need — `local_only: true` in `agent-workbench.yaml` means no remote calls, the worktree confines git operations to one branch, and the agent's shell tool is the agent's-harness problem.
 
-§8 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
+§9 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
 
 The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh repo delete`, `gh api` against an unrelated repo, or `git push --force` to an unrelated branch. Restricting that one stage is sufficient. Every other stage stays safe under the user's default Claude Code allowlist — `git` is worktree-bounded, test runners and file I/O are filesystem-bounded, none touch remotes, and the default allowlist doesn't include `gh` for them to misuse.
 
@@ -490,7 +550,7 @@ The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh rep
 Why this works:
 
 - **The threat surface is exactly one stage.** `publishing` is the only stage that legitimately needs `gh`. There's nothing for a per-stage policy to add for the others that the global allowlist isn't already doing — the default allowlist doesn't include `gh`, so non-publishing stages can't call it regardless.
-- **`in_pr_review` doesn't need a policy.** Per §8 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
+- **`in_pr_review` doesn't need a policy.** Per §9 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
 - **Symmetry with worktrees.** Worktrees are the filesystem bound; this is the remote bound. Both narrow and load-bearing, not blanket.
 
 ### What the `publishing` policy contains
@@ -533,8 +593,8 @@ This is **not** capability tokens (no crypto, no expiry, no issuance). Static fi
 
 ### Tasks
 
-- [ ] **Do nothing until §8 actually starts.** Sequential dependency. Pre-§8, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
-- [ ] **When §8 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
+- [ ] **Do nothing until §9 actually starts.** Sequential dependency. Pre-§9, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
+- [ ] **When §9 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
 - [ ] **Wire the hook.** Claude Code's settings.json PreToolUse hook reads `stages/7_publishing/tool-policy.yaml` when the `/publishing` command starts and applies the allowlist for that session. Spike on `gh pr view` first to confirm the hook shape end-to-end before encoding the full list.
 - [ ] **Add a `doctor` check.** `agent-workbench doctor` extends to scan a run's `events.jsonl` for any tool call emitted during `publishing` that isn't in that run's policy. Retrospective audit complements the preventative hook — if the hook misfires or a future harness ignores the file, doctor catches it.
 - [ ] **Document the contract.** `agent-workbench-live/AGENTS.md` § "Publishing stage rules" names the policy and explains why this stage is special. Note in `architecture.md` that the workbench's safety bounds are now (1) worktrees for filesystem, (2) `publishing`-stage policy for remote — and that every other stage inherits the harness default.
