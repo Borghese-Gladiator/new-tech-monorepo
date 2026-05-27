@@ -183,11 +183,11 @@ agent-workbench build <run_id>          # finalize building: verify build.md, tr
 
 ### Non-goals
 
-- **Behavioral enforcement of the read-only-curated-file contract.** The slash command nudges the agent; it does not technically restrict which files the agent's `Read` tool can open. Stronger enforcement (per-stage tool-policy allowlist, subagent isolation) is §11's territory, not this.
+- **Behavioral enforcement of the read-only-curated-file contract.** The slash command nudges the agent; it does not technically restrict which files the agent's `Read` tool can open. Stronger enforcement (per-stage tool-policy allowlist, subagent isolation) is §10's territory, not this.
 - **Renaming, merging, or restructuring other slash commands.** This is purely additive.
 - **Building `plan-context.md`, `followups-context.md`, `shape-context.md`** — those are §5 (the renumbered "Generalize the `*-context.md` cross-stage contract" follow-up).
-- **Subagent-based building.** Routing the builder through an `Agent`-tool subagent fed only `build-context.md` would be a stronger enforcement story; that's a separate design conversation (would touch §10 publishing-stage subagent pattern).
-- **Tool-policy file at building stage.** §11 work; out of scope here.
+- **Subagent-based building.** Routing the builder through an `Agent`-tool subagent fed only `build-context.md` would be a stronger enforcement story; that's a separate design conversation (would touch §9 publishing-stage subagent pattern).
+- **Tool-policy file at building stage.** §10 work; out of scope here.
 
 ### Origin
 
@@ -274,7 +274,7 @@ The 2026-05-25 `generalize-stage-context-md` run shipped `build-context.md` (the
 The leverage is twofold:
 
 1. **Cache footprint.** File reads in the master session stick in the prefix forever. Today the builder typically reads `brief.md` + `plan.md` + occasional `decisions.md` lookups; the reviewer (without the curated context) would read all of those plus the QA report plus the build summary. Each is a permanent prefix cost. One curated file per stage collapses that into a single read.
-2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§10 `publishing` stage) depends on this — `validate-context.md` and `build-context.md` are already shaped right, but `plan-context.md` would need to exist before the subagent pattern can extend to the planning stage.
+2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§9 `publishing` stage) depends on this — `validate-context.md` and `build-context.md` are already shaped right, but `plan-context.md` would need to exist before the subagent pattern can extend to the planning stage.
 
 ### What each remaining file contains
 
@@ -376,24 +376,7 @@ Surfaced 2026-05-26 while auditing the worktree list in this repo. Two real work
 
 ---
 
-## 7. Schema-level validation for `metadata.yaml` on load
-
-`lib/metadata.py:_validate` enforces top-level keys + the status enum only. `schemas/run-metadata.yaml` is descriptive — `metadata.load()` doesn't read it. Typos like `bse_ref` instead of `base_ref` load silently, surface later as missing-field crashes or wrong-data renders. As fields proliferate (`base_ref_sha`, `target.worktree.branch_name`, the `build:` block, the new `completion:` shape), the surface area for silent drift grows.
-
-- [ ] Add a lightweight YAML-schema validator (or hand-roll typed accessors that raise on missing-or-mistyped) that walks `target.repo`, `target.worktree`, `validation`, `completion`, `build` and enforces field types + enum values on load.
-- [ ] Surface mismatches as warnings by default; error behind a strict mode toggled in `agent-workbench.yaml`'s policies block.
-- [ ] Keep `artifacts` and `scope` un-validated for this pass — they're free-form by design.
-- [ ] Update `schemas/run-metadata.yaml` to be load-bearing rather than descriptive; document the field-type contract in `lib/metadata.py`'s module docstring.
-
-### Acceptance
-
-- A `metadata.yaml` with a typo'd top-level key under `target.repo` produces a warning at load time and an error under strict mode.
-- Existing `runs/` directories load without warnings (no false positives on real data).
-- `tests/test_metadata.py` covers at least: missing required field, mistyped scalar, enum violation, additive backward compat (unknown extra key tolerated under default mode).
-
----
-
-## 8. Test-coverage gaps
+## 7. Test-coverage gaps
 
 Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Grouped because they all share the same shape: a code path that's verified by code-reading or by tmp-dir structural assertions, but doesn't have a runtime drive-and-assert.
 
@@ -411,7 +394,7 @@ Six gaps that have shown up twice or more across follow-ups since 2026-05-24. Gr
 
 ---
 
-## 9. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
+## 8. Subagent cost measurement — verify `metrics.jsonl` captures subagent token spend
 
 `lib/metrics/writer.record_run_metrics` writes `metrics.jsonl` at the validate / followups / abandon boundaries. The intent is to attribute token spend to the run. The open question: when a stage spawns a Claude Code Agent-tool subagent (an `Explore` for read-heavy lookup, a `Plan` for design, a `general-purpose` for fan-out), **is the subagent's token spend captured in `metrics.jsonl`, or is only the master session's spend recorded?**
 
@@ -441,7 +424,7 @@ Surfaced 2026-05-25 in a design conversation about subagent cost. The architectu
 
 ---
 
-## 10. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
+## 9. GitHub PR delivery: `publishing` stage + minimal lifecycle fork
 
 Today the workbench is built for personal-repo, single-author work. `done` means "human accepted + locally merged to parent branch" — `cmd_complete` checks out the parent and runs `git merge --no-ff` directly. That model collapses two things that are separate in a team workflow: author sign-off and team sign-off. For team work the workbench needs to model the PR-review world as first-class lifecycle states, not a slash-command bolt-on after `done`.
 
@@ -557,7 +540,7 @@ This preserves the workbench's "we don't talk to remotes for write operations on
 This will land across several runs. Discrete unit-of-work breakdown:
 
 - [ ] Update `schemas/transitions.yaml` with the new states (`publishing`, `in_pr_review`, `closed`) and their transition evidence requirements. `publishing → in_pr_review` needs `pr_number`, `pr_url`, `branch_pushed_sha`. `in_pr_review → done` needs `merge_sha`. `in_pr_review → closed` needs `closed_by`.
-- [ ] Add `completion.delivery`, `completion.pr_number`, `completion.pr_url`, `completion.merge_sha`, `completion.pr_orphaned` to `schemas/run-metadata.yaml`. (TODO §7 schema validation should land first or co-land to catch typos.) No new fields under `target` — the choice is made at terminal-command time.
+- [ ] Add `completion.delivery`, `completion.pr_number`, `completion.pr_url`, `completion.merge_sha`, `completion.pr_orphaned` to `schemas/run-metadata.yaml`. (`schemas/run-metadata.yaml` is now load-bearing per `lib/metadata.py`; add the fields to the schema so typos are caught.) No new fields under `target` — the choice is made at terminal-command time.
 - [ ] Build the `publishing` LLM-bearing slash command. `publishing --init` writes `publishing-context.md` deterministically from brief + plan + build + validate-context + review + HUMAN_REVIEW + diff + linked Linear ticket. The LLM session reads only `publishing-context.md` and writes `pr-draft.md` + `pr-meta.yaml`.
 - [ ] Build `cmd_publish_pr.py` — validates `pr-draft.md` non-empty; forks on `completion.pr_number` (create vs. edit vs. push-only). Captures `pr_number`/`pr_url` on creation. On `gh` failure, keeps run in `publishing` and emits structured error event for the STOP banner.
 - [ ] Update `cmd_complete.py` for `in_pr_review`-state runs: one-shot `gh pr view --json state,mergeCommitOid`, assert merged, record `merge_sha`, transition to `done`. Local-merge path (called from `human_review`) preserved unchanged.
@@ -593,15 +576,15 @@ This will land across several runs. Discrete unit-of-work breakdown:
 
 ### Origin
 
-Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash command in a prior turn. Refined 2026-05-26: the original §7 had a per-run `target.delivery` field set at `new-run` time, an automated `pr-sync` poller, an adversarial-review subagent inside `publishing`, and `/abandon` prompting to close PRs. All four were cut. The delivery choice belongs at the terminal boundary, not the run's identity. There is no polling because re-reading the PR on GitHub is the human's job; the workbench only fetches comments when the human explicitly bounces. The adversarial pass was redundant with `/validate`'s standard review. And the workbench never writes PR state it wasn't explicitly asked to write — closing a PR on the user's behalf is exactly the kind of unsolicited remote action the architecture refuses.
+Surfaced 2026-05-25 by the user after I sketched a too-thin `/publish` slash command in a prior turn. Refined 2026-05-26: an earlier draft of this section had a per-run `target.delivery` field set at `new-run` time, an automated `pr-sync` poller, an adversarial-review subagent inside `publishing`, and `/abandon` prompting to close PRs. All four were cut. The delivery choice belongs at the terminal boundary, not the run's identity. There is no polling because re-reading the PR on GitHub is the human's job; the workbench only fetches comments when the human explicitly bounces. The adversarial pass was redundant with `/validate`'s standard review. And the workbench never writes PR state it wasn't explicitly asked to write — closing a PR on the user's behalf is exactly the kind of unsolicited remote action the architecture refuses.
 
 ---
 
-## 11. Restrictive tool policy for the `publishing` stage only (relevant once §10 ships)
+## 10. Restrictive tool policy for the `publishing` stage only (relevant once §9 ships)
 
 Today the workbench's safety story is filesystem-via-worktrees + evidence-gated transitions. There's no per-run tool bounding because there's no need — `local_only: true` in `agent-workbench.yaml` means no remote calls, the worktree confines git operations to one branch, and the agent's shell tool is the agent's-harness problem.
 
-§10 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
+§9 punctures that **for one stage**. `cmd_publish_pr.py` runs `gh pr create` (pushes the branch, creates a PR against a real GitHub repo). `cmd_pr_sync.py` runs `gh pr view --json …` and `gh api repos/<owner>/<repo>/pulls/<n>/comments`. The architecture statement "Talk to GitHub or any remote API → Agent Workbench does NOT do this" becomes false during `publishing`. Blast radius for that stage grew from "the worktree" to "the user's GitHub credentials + every repo they can write to."
 
 The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh repo delete`, `gh api` against an unrelated repo, or `git push --force` to an unrelated branch. Restricting that one stage is sufficient. Every other stage stays safe under the user's default Claude Code allowlist — `git` is worktree-bounded, test runners and file I/O are filesystem-bounded, none touch remotes, and the default allowlist doesn't include `gh` for them to misuse.
 
@@ -612,7 +595,7 @@ The narrow threat: an agent inside `publishing` could run `gh pr merge`, `gh rep
 Why this works:
 
 - **The threat surface is exactly one stage.** `publishing` is the only stage that legitimately needs `gh`. There's nothing for a per-stage policy to add for the others that the global allowlist isn't already doing — the default allowlist doesn't include `gh`, so non-publishing stages can't call it regardless.
-- **`in_pr_review` doesn't need a policy.** Per §10 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
+- **`in_pr_review` doesn't need a policy.** Per §9 it's a passive wait state — no agent activity. `cmd_pr_sync.py` is invoked by the human (or cron), not by an LLM session. The workbench's CLI code is trusted code, not agent-emitted shell.
 - **Symmetry with worktrees.** Worktrees are the filesystem bound; this is the remote bound. Both narrow and load-bearing, not blanket.
 
 ### What the `publishing` policy contains
@@ -655,8 +638,8 @@ This is **not** capability tokens (no crypto, no expiry, no issuance). Static fi
 
 ### Tasks
 
-- [ ] **Do nothing until §10 actually starts.** Sequential dependency. Pre-§10, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
-- [ ] **When §10 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
+- [ ] **Do nothing until §9 actually starts.** Sequential dependency. Pre-§9, no stage has a remote-mutating tool surface, so there's nothing to restrict. Adding policy infrastructure now would be premature.
+- [ ] **When §9 starts: spec the policy file.** Settle the exact `shell_allowlist` for `publishing` once `cmd_publish_pr.py` is landing — the allowlist follows the commands the implementation actually needs, not the other way around. Document the contract (`shell_allowlist`, `shell_denylist_explicit`, templated `<owner>/<repo>`/`<branch>`) in `schemas/tool-policy.yaml`.
 - [ ] **Wire the hook.** Claude Code's settings.json PreToolUse hook reads `stages/7_publishing/tool-policy.yaml` when the `/publishing` command starts and applies the allowlist for that session. Spike on `gh pr view` first to confirm the hook shape end-to-end before encoding the full list.
 - [ ] **Add a `doctor` check.** `agent-workbench doctor` extends to scan a run's `events.jsonl` for any tool call emitted during `publishing` that isn't in that run's policy. Retrospective audit complements the preventative hook — if the hook misfires or a future harness ignores the file, doctor catches it.
 - [ ] **Document the contract.** `agent-workbench-live/AGENTS.md` § "Publishing stage rules" names the policy and explains why this stage is special. Note in `architecture.md` that the workbench's safety bounds are now (1) worktrees for filesystem, (2) `publishing`-stage policy for remote — and that every other stage inherits the harness default.
@@ -679,7 +662,7 @@ Surfaced 2026-05-25 in a discussion of agent-workbench's safety mechanisms. The 
 
 ---
 
-## 12. Cross-run dependencies — `depends_on` + upstream artifact reads for coordinated multi-run work
+## 11. Cross-run dependencies — `depends_on` + upstream artifact reads for coordinated multi-run work
 
 ### Symptom
 
@@ -708,7 +691,7 @@ The reader (planner, builder, etc.) gets the same curated-context discipline as 
 
 ### Tasks
 
-- [ ] **Schema work in `schemas/run-metadata.yaml`** — add `target.depends_on` as an optional list. Define the `{run_id, kind, scope?}` shape; specify which `kind` values are valid against which upstream states. Update §7's schema validator if that lands first.
+- [ ] **Schema work in `schemas/run-metadata.yaml`** — add `target.depends_on` as an optional list. Define the `{run_id, kind, scope?}` shape; specify which `kind` values are valid against which upstream states. The schema is now load-bearing (consumed by `lib/metadata.py:_validate_against_schema`), so add the new structure there to keep typos caught.
 - [ ] **`lib/cli/cmd_new_run.py`** — accept `--depends-on <run_id>[:kind]` (repeatable). Resolve via `metadata.load`, validate upstream state vs. requested kind, write into metadata. Emit a `DependencyRecorded` event per dependency for the audit trail.
 - [ ] **`lib/dependencies.py` (new module)** — helpers: `resolve_upstream(cfg, run_id) -> list[UpstreamRun]`, `validate_kind_against_state(upstream_state, requested_kind) -> None | error`, `extract_upstream_artifacts(upstream_run, kind) -> UpstreamSnapshot`. Keep the I/O paths centralized so the context builders (next task) don't reimplement them.
 - [ ] **Extend `lib/build_context.py`** — add an "Upstream dependencies" section that iterates `target.depends_on` and inlines per-kind summaries. Skip silently (with a comment) if the list is empty; today's runs are unaffected.
@@ -724,7 +707,7 @@ The reader (planner, builder, etc.) gets the same curated-context discipline as 
 
 - `agent-workbench new-run --repo-path <frontend-repo> --idea-file foo.md --depends-on <backend-run-id>:plan` succeeds when the backend run is in `planning`/`ready`/later; fails with a clear error when the kind is incompatible (e.g. `:build` against a backend run still in `shaping`).
 - The frontend run's `plan-context.md` (when §5's plan-context ships) and `build-context.md` carry an "Upstream dependencies" section with concrete per-kind excerpts from the backend run. Without `--depends-on`, neither file has the section — today's behavior preserved.
-- `runs/<frontend-run-id>/metadata.yaml` carries `target.depends_on: [{run_id: <backend-run-id>, kind: plan}]`. The schema validator (§7) accepts it.
+- `runs/<frontend-run-id>/metadata.yaml` carries `target.depends_on: [{run_id: <backend-run-id>, kind: plan}]`. The schema validator (`lib/metadata.py`) accepts it.
 - `agent-workbench abandon <backend-run-id>` while a downstream `<frontend-run-id>` is in-flight prints a warning that the downstream exists, names it, and continues. No hard block — the downstream has the upstream's frozen artifacts and can finish.
 - An E2E test demonstrates the full flow on synthetic repos; would fail under today's behavior if the dependency-consuming code path were reverted.
 

@@ -27,6 +27,11 @@ policies:
   store_global_repo_registry: false
   mutate_original_checkout: false
   monorepo_default_for_new_repos: true
+  # warn (default): metadata.load() prints schema violations to stderr but
+  # still returns the data. strict: violations raise MetadataError and the
+  # CLI exits non-zero. Unknown extra keys are silent under warn (additive
+  # backcompat) and a violation under strict.
+  metadata_validation: warn
 
 questions:
   allowed_states:
