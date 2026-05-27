@@ -1,15 +1,86 @@
 # TODO
 
-## 1. Generalize the `*-context.md` cross-stage contract
+## 1. Add a `/build` slash command — close the building-stage curated-entry enforcement gap
 
-Today `validate-context.md` is the only stage-boundary curated entry point — it's written deterministically by `validate --init` from prior artifacts (brief, plan, build, qa) so the reviewer reads one file instead of four. The pattern works (it's load-bearing for cache discipline; see the pass-1 dogfood's 121.8M `cache_read` tokens) and should be generalized to every LLM-bearing stage. Each `--init` step writes a `<stage>-context.md` containing exactly what the next stage needs, filtered from prior artifacts, with anchors pointing back to the full versions when the agent wants to go deeper.
+`/shape`, `/plan`, `/validate`, `/followups` each have a slash command that wraps the corresponding stage's `--init` (curated-entry staging) and finalize (transition + evidence) steps. **Building is the only LLM-bearing stage with no slash command** — the building agent enters passively after `/start`, with no scripted prompt that says "read `build-context.md` first." That asymmetry has two costs that surfaced in the 2026-05-25 `generalize-stage-context-md` run:
+
+1. **No deterministic enforcement point** for the `build-context.md` curated-entry contract. The rule "read `build-context.md` first; do NOT re-read `brief.md` / `plan.md` separately if it already covers what you need" lives in `AGENTS.md` § Session discipline and in `docs/lifecycle.md` § building. The `/validate` slash command, by contrast, embeds the same rule in its Step 2 — impossible to miss because every validate session reads its own slash-command body. The building stage's contract is currently convention-strength only; an agent that ignores it pays a cache cost but no enforcement triggers.
+2. **No symmetric `--init` step for building.** Today `build-context.md` is written as a side effect of `cmd_start.py`'s `ready → building` transition. That conflates the worktree-creation step with the curated-context-staging step. A `/build --init` would let `build-context.md` be regenerated on demand — closing F-004 from the 2026-05-25 rebuild (bounce rebuilds don't go through `cmd_start.run`, so `_write_build_context_artifacts` never fires; the rebuild agent has no `build-context.md` and falls back to reading `change-request.md` instead, which is the right curated file for a bounce but is produced by a different code path).
+
+### Background
+
+The 2026-05-25 run that shipped `build-context.md` already laid most of the infrastructure (`lib/build_context.py` + `cmd_start._write_build_context_artifacts`), but explicitly out-of-scope'd the `/build` slash command. The decision then was DR-002: "There is no `/build` slash command at all (subagent investigation confirmed). The building stage is entered passively by the agent operating inside the worktree after `/start`. So `/start` is the only deterministic write point upstream of building." That call was correct at landing time — adding a new slash command would have scope-crept the run. Now that build-context.md exists and the asymmetry is real, the slash command is the natural follow-up.
+
+### Proposed shape
+
+Mirror `/validate.md`'s shape (it's the most analogous LLM-bearing-stage slash command — has both `--init` curated-context staging and a finalize):
+
+```
+agent-workbench build <run_id> --init   # re-renders build-context.md from current artifacts
+agent-workbench build <run_id>          # finalize building: verify build.md, transition building -> validating
+```
+
+**`/build --init`:**
+- Idempotent.
+- Re-renders `build-context.md` by calling the existing `cmd_start._write_build_context_artifacts` (or its extracted public form — see below). No transition (the run is already in `building`).
+- Use cases: fresh entry into the building stage (regenerate after a manual brief/plan edit); after a `/bounce` (closes F-004); recovery from a stale curated file.
+- Failure mode: same convenience-artifact swallow as today — never blocks; emits a warning to stderr if the helper fails.
+
+**`/build` (default mode):**
+- Verifies `build.md` exists and is non-empty (today's `validate --init` enforces this; the new flow shifts the gate one step earlier).
+- Sets `build.iterations` and `build.exit_reason` evidence in metadata (today `validate --init` defaults them if not set; the new flow has the builder set them explicitly).
+- Emits `BuildingFinalized` (or whatever event ID fits) and transitions `building → validating`.
+- The existing `validate --init` retains its current `building → validating` transition logic for backward compat, but documents that `/build` is the preferred path.
+
+**`.claude/commands/build.md`:**
+- Step 1: invoke `agent-workbench build <run_id> --init` (if status is `building`).
+- Step 2: **"Read `runs/$RUN_ID/stages/4_building/build-context.md`. Do NOT re-read `brief.md`, `plan.md`, or `templates/build.md` separately if `build-context.md` already covers what you need."** (Exact mirror of `validate.md` step 2's language.)
+- Step 3: implement the change in the worktree.
+- Step 4: write `build.md` per the template (Implementation summary, Files changed, Acceptance criteria coverage, Deviations from plan, Known issues, Commands run, Documentation touched).
+- Step 5: finalize via `agent-workbench build <run_id>` — transitions to `validating`.
+
+### Tasks
+
+- [ ] **Decide the relationship to `cmd_start._write_build_context_artifacts`.** Two options: (a) extract it to a public `lib.build_context.materialize_for_run(cfg, run_id, staged)` and have both `cmd_start.py` and the new `cmd_build.py` call it; (b) call the existing private helper from `cmd_start.py` via a small wrapper. Option (a) is cleaner and matches DR-002's stance on deterministic write points; option (b) is smaller. Pick (a) unless friction surfaces.
+- [ ] **Build `lib/cli/cmd_build.py`.** Two modes (`--init` and default). Mode dispatch mirrors `cmd_followups.py`'s shape. Default mode validates evidence + transitions.
+- [ ] **Update `schemas/transitions.yaml`** if `validate --init` no longer drives the `building → validating` transition exclusively (it must still work, but `/build` becomes the canonical path). Decide whether the evidence keys move (`implementation_summary_path` / `diff_summary_path` / `build_iterations` / `build_exit_reason` — today required by `validate --init`).
+- [ ] **Update `cmd_validate.py` `--init`** so it's a no-op transition when the run is already in `validating` (idempotent), or remove its building → validating transition path entirely if `/build` covers it. Decide based on what backward compat costs vs. cleanliness.
+- [ ] **Write `.claude/commands/build.md`** with the Step 2 language mirroring `validate.md`'s.
+- [ ] **Wire `/build --init` into `cmd_bounce.py`.** A bounce that returns to `building` should regenerate `build-context.md` automatically (or the rebuild's first `/build --init` does it). Pick one; document.
+- [ ] **Update `docs/lifecycle.md` § building** to point at the new slash command; update `agent-workbench-live/AGENTS.md` § Session discipline.
+- [ ] **Update `tests/test_e2e.py::TestE2EHappyPath::test_happy_path`** to drive through `/build --init` and `/build` finalize as new steps; assert the build-context.md regenerates on a bounce rebuild via `/build --init` (the F-004 close).
+- [ ] **Unit tests for `cmd_build.py`** mirroring `tests/test_cmd_*` patterns: --init mode, default mode, status guards, evidence verification.
+
+### Acceptance
+
+- Every LLM-bearing stage has a slash command that prompts the agent to read its curated entry first. `/build` exists and is symmetric with `/shape` / `/plan` / `/validate` / `/followups`.
+- A bounce rebuild can regenerate `build-context.md` via `/build --init` without re-running `/start` (closes F-004 from the 2026-05-25 `generalize-stage-context-md` run).
+- `tests/test_e2e.py::TestE2EHappyPath::test_happy_path` drives through `/build --init` and `/build` finalize; passes deterministically.
+- `validate --init` no longer needs to default `build_iterations` / `build_exit_reason` — `/build` finalize sets them explicitly. (Or `validate --init` keeps the defaulting for backward compat with pre-`/build` runs; pick one.)
+- The Step 2 language in `.claude/commands/build.md` is identical in spirit to `validate.md`'s "Do NOT re-read X if `<stage>-context.md` already covers what you need."
+
+### Non-goals
+
+- **Behavioral enforcement of the read-only-curated-file contract.** The slash command nudges the agent; it does not technically restrict which files the agent's `Read` tool can open. Stronger enforcement (per-stage tool-policy allowlist, subagent isolation) is §8's territory, not this.
+- **Renaming, merging, or restructuring other slash commands.** This is purely additive.
+- **Building `plan-context.md`, `followups-context.md`, `shape-context.md`** — those are §13 (the renumbered "Generalize the `*-context.md` cross-stage contract" follow-up).
+- **Subagent-based building.** Routing the builder through an `Agent`-tool subagent fed only `build-context.md` would be a stronger enforcement story; that's a separate design conversation (would touch §7 publishing-stage subagent pattern).
+- **Tool-policy file at building stage.** §8 work; out of scope here.
+
+### Origin
+
+Surfaced 2026-05-27 in conversation immediately after `/complete`-ing the run that landed `build-context.md` (2026-05-25-generalize-stage-context-md). The asymmetry — every other LLM-bearing stage has a slash command except building — became visible the moment build-context.md existed, because the question "how does the building agent know to read it first?" had no satisfying answer at the code-execution level. The contract today is at convention-strength only (documented in AGENTS.md + lifecycle.md + the now-shipped build-context.md's own Rules block), not at instruction-presentation-strength like `/validate.md` step 2. F-004 from the same run's review.md flagged the bounce-rebuild gap separately; both close together with the `/build --init` mode.
+
+## 13. Generalize the `*-context.md` cross-stage contract (cont'd — `plan-context.md`, `followups-context.md`, `shape-context.md`)
+
+The 2026-05-25 `generalize-stage-context-md` run shipped `build-context.md` (the highest-leverage of the four siblings) but explicitly deferred the other three to follow-up runs. This section tracks those follow-ups. The original framing from the 2026-05-25 brief still holds; only `build-context.md` and its wiring are removed from the task list.
 
 The leverage is twofold:
 
 1. **Cache footprint.** File reads in the master session stick in the prefix forever. Today the builder typically reads `brief.md` + `plan.md` + occasional `decisions.md` lookups; the reviewer (without the curated context) would read all of those plus the QA report plus the build summary. Each is a permanent prefix cost. One curated file per stage collapses that into a single read.
-2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§7 `publishing` stage) depends on this — `validate-context.md` is already shaped right, but `build-context.md` and `plan-context.md` would need to exist before the subagent pattern can extend to those stages.
+2. **Subagent-readiness.** A self-contained `<stage>-context.md` is the natural input for an Agent-tool subagent — the master spawns the subagent with that one file as context, the subagent's reads don't pollute the master's prefix, the master gets back structured findings. This is the same pattern the existing `Explore` rule uses; the cross-stage contract makes it the default shape for every LLM-bearing stage. The pre-PR adversarial reviewer (§7 `publishing` stage) depends on this — `validate-context.md` and `build-context.md` are already shaped right, but `plan-context.md` would need to exist before the subagent pattern can extend to the planning stage.
 
-### What each file contains
+### What each remaining file contains
 
 **`shape-context.md`** (written by `shape --init`)
 - Original raw idea (verbatim from `raw-idea.md`)
@@ -26,17 +97,9 @@ This one is thinnest — shaping has the least prior context to filter. The win 
 - `plan.md` template skeleton with section descriptions
 - Rules reminder: may read code, may not ask questions, record assumptions
 
-**`build-context.md`** (written by `start` or on `building` entry — needs a decision on which)
-- Brief's Acceptance criteria + Non-goals (the scope-creep anchors)
-- Plan's Proposed changes + Files likely to change + Test plan + Definition of done
-- Filtered Decisions & assumptions from `plan.md#decisions--assumptions`
-- Worktree path, branch name, base ref SHA (already in metadata, surfaced inline for the agent)
-- `build.md` template skeleton
-- Rules reminder: stay bounded by brief, record deviations in `build.md`
+**`build-context.md`** — shipped 2026-05-25 in run `2026-05-25-generalize-stage-context-md` (merge commit `c075b0c`). Lifts brief's Acceptance criteria + Non-goals, plan's Proposed changes + Files likely to change + Test plan + Definition of done, all DR/ASM blocks, worktree metadata, and the build.md template skeleton.
 
-Highest leverage of the five. Today the builder typically re-reads brief and plan back-to-back at the start of the session, then dives into the worktree. `build-context.md` collapses those two reads into one curated file.
-
-**`validate-context.md`** — already exists. This is the design template.
+**`validate-context.md`** — already existed before 2026-05-25. This is the design template.
 
 **`followups-context.md`** (written by `followups --init`)
 - Brief's Non-goals (frequent source of follow-up candidates)
@@ -49,26 +112,26 @@ Highest leverage of the five. Today the builder typically re-reads brief and pla
 
 ### Tasks
 
-- [ ] Build `build-context.md` first — highest leverage, lowest risk. Mirror `validate-context.md`'s deterministic-Python shape. Decide whether it's written by `start` (at the `ready → building` boundary) or on first `/build` invocation; `start` is cleaner because the file is ready before the LLM session begins.
+- [x] Build `build-context.md` first — highest leverage, lowest risk. **Shipped 2026-05-25** in run `2026-05-25-generalize-stage-context-md` (merge `c075b0c`).
 - [ ] Build `plan-context.md` next. Will require some new code: detecting repo languages and surfacing build/test commands from `agent-workbench.yaml` policies. Some of this overlap with `repo-map`-style work the planner does today; the goal is to make that deterministic and front-loaded.
 - [ ] Build `followups-context.md`. Likely thin — most of what it needs is already in the staged artifacts; the deterministic builder is mostly a filter + headline rollup.
 - [ ] Build `shape-context.md` last (or skip if the inlined-template gain doesn't justify the code).
-- [ ] For each, update the corresponding `.claude/commands/*.md` so step 1 reads `<stage>-context.md` rather than the prior artifacts directly. Mirror the `validate.md` step 2 language: "Do NOT re-read X if `<stage>-context.md` already covers what you need."
-- [ ] Document the contract in `docs/lifecycle.md` — add a `*-context.md` row to each stage's table, sibling to "Reads" and "Produces."
-- [ ] Each new `<stage>-context.md` builder gets unit tests that mirror `tests/test_validate_context.py`'s shape — synthetic prior artifacts → assert the generated context has the expected sections + anchor links.
+- [ ] For each, update the corresponding `.claude/commands/*.md` so step 1 reads `<stage>-context.md` rather than the prior artifacts directly. Mirror the `validate.md` step 2 language: "Do NOT re-read X if `<stage>-context.md` already covers what you need." For building, this is the new `/build` slash command (§1).
+- [ ] Document the contract in `docs/lifecycle.md` — add a `*-context.md` row to each remaining stage's table, sibling to "Reads" and "Produces." (Building stage is already documented; the others follow.)
+- [ ] Each new `<stage>-context.md` builder gets unit tests that mirror `tests/test_build_context.py`'s shape (or `tests/test_validate_context_build.py`'s — both work) — synthetic prior artifacts → assert the generated context has the expected sections.
 
 ### Acceptance
 
-- Every LLM-bearing stage (`shape`, `plan`, `build`, `validate`, `followups`) has a `<stage>-context.md` generated by `--init` before the agent reads anything.
+- Every LLM-bearing stage (`shape`, `plan`, `build`, `validate`, `followups`) has a `<stage>-context.md` generated by `--init` before the agent reads anything. Building is done; three remain.
 - A spot-check of three runs after the change shows the master session's prefix during each stage growing primarily from the curated file plus the worktree code the agent actively edits — not from re-reads of prior artifacts.
 
 ### Non-goals
 
-Changing the artifact contents themselves (brief/plan/build/review keep their current sections); merging stages or changing the lifecycle; replacing template-driven artifact authoring with anything generative; building a `repo-map.md` artifact separate from `plan-context.md`'s repo-map section (keep it inline for now).
+Changing the artifact contents themselves (brief/plan/build/review keep their current sections); merging stages or changing the lifecycle; replacing template-driven artifact authoring with anything generative; building a `repo-map.md` artifact separate from `plan-context.md`'s repo-map section (keep it inline for now); shipping `/build` (that's §1's territory now).
 
 ### Origin
 
-Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a proposed planner/implementer/reviewer/PR-writer system. The proposed system's "shared durable context, not many independent workers" framing matched what `validate-context.md` already does — but agent-workbench only built that pattern for the validate boundary. Generalizing is straightforward and the cache-discipline payoff is concrete (the proposal had no analog of this; agent-workbench's existing `validate-context.md` is strictly stronger and worth replicating across stages).
+Surfaced 2026-05-25 in a design conversation comparing agent-workbench to a proposed planner/implementer/reviewer/PR-writer system. The proposed system's "shared durable context, not many independent workers" framing matched what `validate-context.md` already does — but agent-workbench only built that pattern for the validate boundary. Generalizing is straightforward and the cache-discipline payoff is concrete. Build-context.md shipped 2026-05-25 (merge `c075b0c`); the remaining three siblings stay TODO. Renumbered to §13 on 2026-05-27 when `/build` slash command was promoted to §1.
 
 ## 4. Schema-level validation for `metadata.yaml` on load
 
