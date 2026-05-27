@@ -153,6 +153,9 @@ def init_staged_layout(cfg: Config, run_id: str) -> None:
 _STAGE_OUTPUTS: dict[str, list[tuple[str, str, str, str]]] = {
     "draft": [
         ("raw_idea_path", "raw-idea.md", "draft", "raw-idea.md"),
+        # answers.md is optional (only present when /draft asked questions).
+        # The mover is a no-op when the source file doesn't exist.
+        ("answers_path", "answers.md", "draft", "answers.md"),
     ],
     "shaping": [
         ("brief_path", "brief.md", "shaping", "brief.md"),

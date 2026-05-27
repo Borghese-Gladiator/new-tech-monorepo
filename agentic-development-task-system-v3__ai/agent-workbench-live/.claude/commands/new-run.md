@@ -4,7 +4,7 @@ description: Create a new Agent Workbench run from a repo path and an idea. Work
 
 # /new-run
 
-Creates a run record in state `draft`. **No worktree is created here.** The `git worktree add` happens later in `/start`, after `/shape` and `/plan`.
+Creates a run record in state `draft`. **No worktree is created here.** The `git worktree add` happens later in `/start`, after `/draft`, `/shape`, and `/plan`.
 
 ## Required input from the user
 
@@ -62,14 +62,14 @@ Do not pass `--scope-kind`, `--base-ref`, or `--repo-name`. Let CLI defaults app
 
 - Print the `run_id` the CLI returned.
 - State explicitly: **"No worktree has been created yet. The worktree is created by `/start`."**
-- Suggest the next step: `/shape <run_id>`.
+- Suggest the next step: `/draft <run_id>`.
 
 ## What you never do
 
 - Never ask the user for `--worktree-name`. Derive it.
 - Never read code in the target repo at this step. `/new-run` is code-blind.
 - Never edit `metadata.yaml` directly.
-- Never invoke `/start` from `/new-run` directly — `/start` is auto-chained from `/plan`, not from `/new-run`. The chain is `/new-run -> /shape -> /plan -> /start`.
+- Never invoke `/start` from `/new-run` directly — `/start` is auto-chained from `/plan`, not from `/new-run`. The chain is `/new-run -> /draft -> /shape -> /plan -> /start`.
 
 ## Examples
 
@@ -77,7 +77,7 @@ Do not pass `--scope-kind`, `--base-ref`, or `--repo-name`. Let CLI defaults app
 
 > User: `/new-run /Users/me/code/repo` — idea: Build a multiplayer poker game with WebSocket sync.
 
-Agent derives slug `multiplayer-poker`, runs the stdin form, prints the `run_id`, says "no worktree yet; next: `/shape <run_id>`".
+Agent derives slug `multiplayer-poker`, runs the stdin form, prints the `run_id`, says "no worktree yet; next: `/draft <run_id>`".
 
 **File-based idea:**
 
@@ -87,13 +87,12 @@ Agent reads the heading from `poker-idea.md`, derives slug, runs the file form, 
 
 ## Next step
 
-Auto-chain: immediately invoke `/shape <run_id>` unless one of the stop conditions below is true. The agent only stops at the single human gate (`human_review`), not between autonomous stages. `ready` is a transient state the agent passes through by auto-chaining `/plan -> /start`.
+Auto-chain: immediately invoke `/draft <run_id>` unless one of the stop conditions below is true. The agent only stops at the single human gate (`human_review`), not between autonomous stages. `ready` is a transient state the agent passes through by auto-chaining `/plan -> /start`. Clarifying questions, if any, are asked inside `/draft` — not here.
 
 ### Stop conditions (do NOT auto-chain)
 
 Stop and tell the user the `run_id` and recommended next command if any of these is true:
 
-- The idea is ambiguous enough that `draft` needs to ask a clarifying question (per `docs/lifecycle.md` § `draft`). Ask the question, write `answers.md`, then resume the chain.
 - The CLI returned a warning or non-zero status.
 - The user explicitly told you to stop after `/new-run` ("just create the run", "stop after new-run", etc.).
 

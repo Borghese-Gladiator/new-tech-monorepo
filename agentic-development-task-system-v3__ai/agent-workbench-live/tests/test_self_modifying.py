@@ -177,9 +177,12 @@ class TestSelfModifyingBaseRefResolvedEvent(unittest.TestCase):
             msg=f"BaseRefResolved must not fire at /new-run; got {len(base_ref_events)}",
         )
 
-        # Drive shape -> plan -> start. The two LLM-bearing slash commands
-        # need stub artifacts; for this test we just need real files of any
-        # non-empty content because /start re-verifies them.
+        # Drive draft -> shape -> plan -> start. The two LLM-bearing slash
+        # commands need stub artifacts; for this test we just need real files
+        # of any non-empty content because /start re-verifies them.
+        # /draft transitions draft -> shaping (no clarifications needed here).
+        r = _cli(self.tmp, "draft", run_id)
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
         # shape --init stages brief.md as a copy of the template.
         r = _cli(self.tmp, "shape", run_id, "--init")
         self.assertEqual(r.returncode, 0, msg=r.stderr)

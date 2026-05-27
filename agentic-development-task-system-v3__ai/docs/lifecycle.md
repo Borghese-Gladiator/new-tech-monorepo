@@ -73,7 +73,7 @@ These are the `_ANCHORED_EVIDENCE` aliases in `lib/lifecycle.py`. The planner no
 
 | Closing stage | Source at run root | Destination | Evidence key |
 |---|---|---|---|
-| `draft`       | `raw-idea.md`        | `stages/1_draft/raw-idea.md`             | `raw_idea_path` |
+| `draft`       | `raw-idea.md`, `answers.md` (optional) | `stages/1_draft/{raw-idea,answers}.md`   | `raw_idea_path`, `answers_path` (optional) |
 | `shaping`     | `brief.md`           | `stages/2_shaping/brief.md`              | `brief_path` |
 | `planning`    | `plan.md`            | `stages/3_planning/plan.md`              | `plan_path` (+ anchored aliases) |
 | `building`    | `build.md`           | `stages/4_building/build.md`             | `implementation_summary_path` (+ `diff_summary_path` via anchor) |
@@ -155,12 +155,12 @@ human_review -> building
 
 ### Slash-command auto-chain
 
-The Claude slash commands auto-chain `/new-run → /shape → /plan` so the agent only stops at the two real human gates:
+The Claude slash commands auto-chain `/new-run → /draft → /shape → /plan` so the agent only stops at the two real human gates:
 
 1. `ready` — the user must run `/start` to supply `--approved-by` evidence.
 2. `human_review` — the user picks `/complete`, `/bounce`, or `/abandon`.
 
-`draft` may still pause to ask clarifying questions (per the `draft` stage rules); that pause is a question, not an approval gate. The state machine itself is unchanged — this is a convention enforced at the slash-command layer only.
+`/draft` may pause inside the chain to ask clarifying questions via `AskUserQuestion` (per the `draft` stage rules); that pause is a question, not an approval gate. `/draft` is the **only** stage that asks questions — `/shape` and `/plan` convert unknowns into Assumptions/Decisions instead. The state machine itself is unchanged — this is a convention enforced at the slash-command layer only.
 
 Abandon flow (wildcard):
 
@@ -216,14 +216,16 @@ The artifacts listed under **Produces** are required to advance to the next stat
 
 **Rules**
 
-- The only state in which the agent may ask the human clarifying questions.
-- Good questions materially change scope, target repo, behavior, or acceptance criteria.
-- Bad questions can be resolved by existing repo conventions or by recording a reasonable assumption.
+- The only state in which the agent may ask the human clarifying questions. The `/draft` slash command (LLM-bearing) reads `raw-idea.md`, decides whether material intent ambiguity exists, and either captures clarifications in `answers.md` via `AskUserQuestion` or skips writing the file entirely.
+- Good questions materially change goal, target repo, user-facing behavior, or acceptance criteria.
+- Bad questions can be resolved by existing repo conventions or by recording a reasonable assumption — defer those to `/shape` or `/plan`.
 - For self-modifying runs (workbench is inside the target repo), `new-run` creates the worktree at draft time so subsequent stages (shaping, planning, ready) work inside the worktree. Abandoning a draft removes a real worktree (TODO §1A1).
 
 **To exit → `shaping`**
 
 - `raw_idea_path` must point at a non-empty `raw-idea.md`.
+- `answers_path` is **optional** evidence. Present iff `/draft` wrote a non-empty `answers.md`; absent when the raw idea was unambiguous.
+- The `agent-workbench draft <run_id>` CLI command (default mode) performs the transition. `/new-run` no longer auto-chains directly to `/shape`; it auto-chains to `/draft`, which then auto-chains to `/shape`.
 
 ---
 
@@ -238,8 +240,8 @@ The artifacts listed under **Produces** are required to advance to the next stat
 
 **Reads**
 
-- `raw-idea.md`
-- `answers.md` *(if present)*
+- `stages/1_draft/raw-idea.md` (moved there on `draft → shaping`)
+- `stages/1_draft/answers.md` *(if `/draft` asked questions)*
 
 **Produces**
 

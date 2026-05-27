@@ -24,6 +24,7 @@ def workbench_root() -> pathlib.Path:
 
 SUBCOMMANDS = [
     "new_run",
+    "draft",
     "shape",
     "plan",
     "start",

@@ -516,6 +516,7 @@ class TestSnapshotRender(unittest.TestCase):
         return run_id, self.tmp / "runs" / run_id
 
     def _drive_happy(self, fixture: pathlib.Path, run_id: str) -> None:
+        cli(self.tmp, "draft", run_id, stub_fixture=fixture)
         cli(self.tmp, "shape", run_id, "--init", stub_fixture=fixture)
         cli(self.tmp, "shape", run_id, stub_fixture=fixture)
         cli(self.tmp, "plan", run_id, "--init", stub_fixture=fixture)
@@ -556,6 +557,7 @@ class TestSnapshotRender(unittest.TestCase):
         fix2 = FIXTURES / "bounce_pass2"
         run_id, run_dir = self._new_run(fix1, slug="bounce-snap")
         # Pass 1.
+        cli(self.tmp, "draft", run_id, stub_fixture=fix1)
         cli(self.tmp, "shape", run_id, "--init", stub_fixture=fix1)
         cli(self.tmp, "shape", run_id, stub_fixture=fix1)
         cli(self.tmp, "plan", run_id, "--init", stub_fixture=fix1)
@@ -611,6 +613,7 @@ class TestTransitionStdoutHasAbsolutePath(unittest.TestCase):
         run_id = r.stdout.strip()
         run_dir = self.tmp / "runs" / run_id
 
+        cli(self.tmp, "draft", run_id, stub_fixture=fixture)
         cli(self.tmp, "shape", run_id, "--init", stub_fixture=fixture)
         cli(self.tmp, "shape", run_id, stub_fixture=fixture)
         cli(self.tmp, "plan", run_id, "--init", stub_fixture=fixture)

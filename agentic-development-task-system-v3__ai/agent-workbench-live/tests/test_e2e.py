@@ -146,7 +146,9 @@ class TestE2EHappyPath(E2ECase):
         fixture = FIXTURES / "happy"
         run_id, run_dir, repo = self._new_run(fixture, slug="happy-smoke")
 
-        # shape --init + finalize, both with stub-LLM on.
+        # draft (no clarifications), then shape --init + finalize with stub-LLM on.
+        r = cli(self.tmp, "draft", run_id, stub_fixture=fixture)
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
         r = cli(self.tmp, "shape", run_id, "--init", stub_fixture=fixture)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertTrue((run_dir / "brief.md").exists())
@@ -426,6 +428,7 @@ class TestE2EBounceLoop(E2ECase):
         # CLI doesn't fail validate on a request_changes review — that's
         # an upstream policy question, not a state-machine gate). We
         # finalize through to human_review so we can then exercise bounce.
+        cli(self.tmp, "draft", run_id, stub_fixture=fix1)
         cli(self.tmp, "shape", run_id, "--init", stub_fixture=fix1)
         cli(self.tmp, "shape", run_id, stub_fixture=fix1)
         cli(self.tmp, "plan", run_id, "--init", stub_fixture=fix1)
@@ -502,6 +505,7 @@ class TestE2EAbandon(E2ECase):
     def test_abandon_at_shaping(self):
         fixture = FIXTURES / "happy"
         run_id, run_dir, _ = self._new_run(fixture, slug="abandon-shaping")
+        cli(self.tmp, "draft", run_id, stub_fixture=fixture)
         cli(self.tmp, "shape", run_id, "--init", stub_fixture=fixture)
 
         r = cli(self.tmp, "abandon", run_id,
@@ -520,6 +524,7 @@ class TestE2EAbandon(E2ECase):
     def test_abandon_at_building(self):
         fixture = FIXTURES / "happy"
         run_id, run_dir, _ = self._new_run(fixture, slug="abandon-building")
+        cli(self.tmp, "draft", run_id, stub_fixture=fixture)
         cli(self.tmp, "shape", run_id, "--init", stub_fixture=fixture)
         cli(self.tmp, "shape", run_id, stub_fixture=fixture)
         cli(self.tmp, "plan", run_id, "--init", stub_fixture=fixture)
@@ -560,6 +565,7 @@ class TestE2ECompleteMerge(E2ECase):
     def _drive_to_human_review(self, slug: str) -> tuple[str, pathlib.Path, pathlib.Path]:
         fixture = FIXTURES / "happy"
         run_id, run_dir, repo = self._new_run(fixture, slug=slug)
+        cli(self.tmp, "draft", run_id, stub_fixture=fixture)
         cli(self.tmp, "shape", run_id, "--init", stub_fixture=fixture)
         cli(self.tmp, "shape", run_id, stub_fixture=fixture)
         cli(self.tmp, "plan", run_id, "--init", stub_fixture=fixture)

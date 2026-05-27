@@ -84,10 +84,14 @@ class TestHappyPath(IntegrationCase):
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("status:     draft", r.stdout)
 
-        # shape --init: draft -> shaping
-        r = cli(self.tmp, "shape", run_id, "--init")
+        # draft: draft -> shaping (no clarifications needed for this fixture)
+        r = cli(self.tmp, "draft", run_id)
         self.assertEqual(r.returncode, 0, msg=r.stderr)
         self.assertIn("draft -> shaping", r.stdout)
+
+        # shape --init: stages templates/brief.md (status stays at shaping)
+        r = cli(self.tmp, "shape", run_id, "--init")
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
 
         # Fill brief (staged layout: file lives at run root until shape closes
         # the stage, then is moved into stages/2_shaping/). Include a
@@ -297,6 +301,7 @@ class TestBounceLoop(IntegrationCase):
         run_id = r.stdout.strip()
         run_dir = self.tmp / "runs" / run_id
 
+        cli(self.tmp, "draft", run_id)
         cli(self.tmp, "shape", run_id, "--init")
         (run_dir / "brief.md").write_text("# Brief\nB.\n")
         cli(self.tmp, "shape", run_id)
@@ -421,9 +426,13 @@ class TestBounceLoop(IntegrationCase):
 
 class TestAbandon(IntegrationCase):
     def test_abandon_at_various_states(self):
+        def _to_shaping(rid, rd):
+            cli(self.tmp, "draft", rid)
+            cli(self.tmp, "shape", rid, "--init")
+
         for label, prepare in [
             ("draft", lambda rid, rd: None),
-            ("shaping", lambda rid, rd: cli(self.tmp, "shape", rid, "--init")),
+            ("shaping", _to_shaping),
         ]:
             repo = self._repo()
             idea = self.tmp / f"idea-{label}.md"
