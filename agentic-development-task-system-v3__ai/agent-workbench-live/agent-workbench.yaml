@@ -79,6 +79,15 @@ board:
   # Flag any run that has been in human_review for at least this many hours
   # as stale on `agent-workbench board`. See TODO §1.
   stale_human_review_hours: 24
+  # TTL on the `_WORKTREE_CACHE` in lib/runs.py. Short-lived CLI calls
+  # (< 1s lifetime) never hit expiry and pay git cost once. The long-running
+  # `agent-workbench board` ticks see new worktrees within this many seconds.
+  # See lib/runs.py module docstring for the contract.
+  worktree_cache_ttl_seconds: 2.0
+  # How often the board re-scans the worktree set to schedule watchdog
+  # observers on worktrees created mid-session. Lower = faster pickup of new
+  # worktrees, higher = less cost per tick. See lib/board/app.py:on_mount.
+  watch_rescan_seconds: 5.0
 
 # Pass-2 (B5): when a run's largest session exceeds this turn count,
 # `validate --init` prints a fresh-session handoff block urging the operator

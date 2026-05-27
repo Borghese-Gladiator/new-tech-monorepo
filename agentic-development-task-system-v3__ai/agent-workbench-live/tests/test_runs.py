@@ -214,5 +214,127 @@ class TestListRunsUnion(unittest.TestCase):
         self.assertIn("r-wt", ids)
 
 
+class TestWorktreeCacheTTL(unittest.TestCase):
+    """`_WORKTREE_CACHE` honours a short TTL so the long-running board picks
+    up worktrees created after startup.
+
+    These tests monkey-patch `subprocess.run` to count git invocations rather
+    than relying on real `git worktree list`, so the assertions stay
+    deterministic regardless of how many worktrees the test environment has.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="aw-ttl-test-"))
+        _init_repo(self.tmp)
+        shutil.copy(ROOT / "agent-workbench.yaml", self.tmp / "agent-workbench.yaml")
+        shutil.copytree(ROOT / "schemas", self.tmp / "schemas")
+        self.cfg = config.load(self.tmp)
+        reset_caches()
+
+    def tearDown(self) -> None:
+        reset_caches()
+        cleanup(self.tmp)
+
+    def _patch_clock_and_git(self, clock, git_calls):
+        """Patch runs_mod.time.monotonic and runs_mod.subprocess.run."""
+        original_monotonic = runs_mod.time.monotonic
+        original_run = runs_mod.subprocess.run
+
+        def fake_monotonic():
+            return clock["now"]
+
+        def fake_run(cmd, **kwargs):
+            git_calls.append(cmd)
+            # Minimal `git worktree list --porcelain` reply: just the main
+            # repo, no other worktrees. Matches what _flush would parse.
+            class _R:
+                returncode = 0
+                stdout = f"worktree {self.tmp}\n\n"
+                stderr = ""
+            return _R()
+
+        runs_mod.time.monotonic = fake_monotonic
+        runs_mod.subprocess.run = fake_run
+        self.addCleanup(lambda: setattr(runs_mod.time, "monotonic", original_monotonic))
+        self.addCleanup(lambda: setattr(runs_mod.subprocess, "run", original_run))
+
+    def test_cache_hit_within_ttl_invokes_git_once(self) -> None:
+        clock = {"now": 100.0}
+        git_calls: list = []
+        self._patch_clock_and_git(clock, git_calls)
+        # Two calls within TTL — only one git invocation expected.
+        runs_mod._list_workbench_worktrees(self.cfg, ttl=2.0)
+        clock["now"] += 1.0  # within TTL
+        runs_mod._list_workbench_worktrees(self.cfg, ttl=2.0)
+        self.assertEqual(len(git_calls), 1)
+
+    def test_cache_miss_past_ttl_invokes_git_again(self) -> None:
+        clock = {"now": 100.0}
+        git_calls: list = []
+        self._patch_clock_and_git(clock, git_calls)
+        runs_mod._list_workbench_worktrees(self.cfg, ttl=2.0)
+        clock["now"] += 2.5  # past TTL
+        runs_mod._list_workbench_worktrees(self.cfg, ttl=2.0)
+        self.assertEqual(len(git_calls), 2)
+
+    def test_config_supplies_ttl(self) -> None:
+        # When ttl kwarg is None, the cfg-supplied value is used.
+        # We mutate cfg.raw to set worktree_cache_ttl_seconds = 0.05.
+        self.cfg.raw.setdefault("board", {})["worktree_cache_ttl_seconds"] = 0.05
+        clock = {"now": 100.0}
+        git_calls: list = []
+        self._patch_clock_and_git(clock, git_calls)
+        runs_mod._list_workbench_worktrees(self.cfg)
+        clock["now"] += 0.1  # past the configured TTL
+        runs_mod._list_workbench_worktrees(self.cfg)
+        self.assertEqual(len(git_calls), 2)
+
+    def test_zero_or_negative_ttl_clamped_to_minimum(self) -> None:
+        """A configured TTL of 0 (or negative) would defeat the cache's purpose
+        and is forbidden by the module docstring. _resolve_worktree_cache_ttl
+        clamps to a small positive floor so the cache still bounds git calls.
+        """
+        # Direct call.
+        self.assertGreaterEqual(
+            runs_mod._resolve_worktree_cache_ttl(self.cfg, 0.0),
+            runs_mod._WORKTREE_CACHE_TTL_MIN_SECONDS,
+        )
+        self.assertGreaterEqual(
+            runs_mod._resolve_worktree_cache_ttl(self.cfg, -1.5),
+            runs_mod._WORKTREE_CACHE_TTL_MIN_SECONDS,
+        )
+        # Via cfg.raw.
+        self.cfg.raw.setdefault("board", {})["worktree_cache_ttl_seconds"] = 0
+        self.assertGreaterEqual(
+            runs_mod._resolve_worktree_cache_ttl(self.cfg, None),
+            runs_mod._WORKTREE_CACHE_TTL_MIN_SECONDS,
+        )
+
+    def test_failure_path_caches_empty_for_ttl(self) -> None:
+        """Subprocess failures still populate the cache so a single transient
+        git error doesn't make us hammer git for the rest of the window.
+        """
+        original_run = runs_mod.subprocess.run
+        original_monotonic = runs_mod.time.monotonic
+        clock = {"now": 100.0}
+        git_calls: list = []
+
+        def fake_run(cmd, **kwargs):
+            git_calls.append(cmd)
+            raise OSError("synthetic git failure")
+
+        runs_mod.time.monotonic = lambda: clock["now"]
+        runs_mod.subprocess.run = fake_run
+        self.addCleanup(lambda: setattr(runs_mod.subprocess, "run", original_run))
+        self.addCleanup(lambda: setattr(runs_mod.time, "monotonic", original_monotonic))
+
+        result1 = runs_mod._list_workbench_worktrees(self.cfg, ttl=2.0)
+        clock["now"] += 1.0  # within TTL
+        result2 = runs_mod._list_workbench_worktrees(self.cfg, ttl=2.0)
+        self.assertEqual(result1, ())
+        self.assertEqual(result2, ())
+        self.assertEqual(len(git_calls), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
