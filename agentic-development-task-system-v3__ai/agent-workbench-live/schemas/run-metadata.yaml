@@ -1,236 +1,183 @@
 schema_version: 1
 kind: run_metadata_schema
 
-required_top_level_fields:
-  - schema_version
-  - run_id
-  - status
-  - created_at
-  - updated_at
-  - target
-  - scope
-  - artifacts
-  - validation
-  - completion
+# Load-bearing schema for runs/<run_id>/metadata.yaml.
+# Consumed by lib/metadata.py:_validate_against_schema. Edit here, not in code.
+#
+# Field shape:
+#   type:      str | int | bool | dict | list | null  (single or list-of for unions)
+#   required:  true | false (default: false)
+#   enum:      list of allowed scalar values
+#   eq:        single value the field must equal
+#   keys:      dict of nested field name -> field shape (only meaningful when type contains dict)
+#   free_form: true skips deep validation under this key (top-level presence + dict type still checked)
+#
+# Two blocks are intentionally free_form per TODO §7:
+#   - scope: scope.kind/summary vary; CLI validates scope_kind on write.
+#   - artifacts: per-stage subset varies; presence is enforced by stage commands, not here.
 
-status:
-  enum:
-    - draft
-    - shaping
-    - planning
-    - ready
-    - building
-    - validating
-    - human_review
-    - done
-    - abandoned
-
-scope:
-  kind:
-    enum:
-      - implementation
-      - bootstrap
-      - roadmap
-      - research
-      - repair
-  description: Classifies the run without changing the lifecycle.
-
-target:
-  repo:
-    required:
-      - mode
-      - path
-      - name
-      - base_ref
-    fields:
-      mode:
-        enum:
-          - existing
-          - new
-      path:
-        type: absolute_path
-        description: User-provided repo path. Agent Workbench does not use a repo registry as source of truth.
-      name:
-        type: string
-        description: Defaults to basename of repo path unless overridden.
-      base_ref:
-        type: string
-        default: HEAD
-      base_ref_sha:
-        type:
-          - string
-          - null
-        description: 40-char SHA the symbolic base_ref resolved to at /start time. Optional for backward compatibility — older runs use a lazy resolver in lib/metrics/lines.py.
-      fingerprint:
-        type:
-          - string
-          - null
-        description: Optional repo identity such as initial HEAD SHA or git remote URL hash.
-      created_by_run:
-        type:
-          - string
-          - null
-        description: Set when mode is new and this run created the repo.
-
-  worktree:
-    required:
-      - name
-      - branch_name
-      - created
-    fields:
-      name:
-        type: string
-        description: Human-supplied or slug-generated worktree name.
-      path:
-        type:
-          - absolute_path
-          - null
-        description: Populated at ready -> building.
-      branch_name:
-        type: string
-        example: agent/add-login-form
-      created:
-        type: boolean
-        default: false
-      base_ref:
-        type: string
-        default: HEAD
-      initial_commit_sha:
-        type:
-          - string
-          - null
-
-artifacts:
-  description: Relative paths inside runs/<run_id>/ unless otherwise noted.
-  required:
-    - raw_idea
-    - assumptions
-    - decisions
-    - audit
-  fields:
-    raw_idea: raw-idea.md
-    answers: null
-    brief: null
-    plan: null
-    preflight: null
-    assumptions: assumptions.md
-    decisions: decisions.md
-    implementation_summary: null
-    diff_summary: null
-    review_report: null
-    qa_report: null
-    audit: audit.md
-    handoff: null
-
-validation:
-  required:
-    - required
-    - review_completed
-    - qa_completed
-    - qa_recorded
-  fields:
-    required:
-      type: boolean
-      default: true
-    review_completed:
-      type: boolean
-      default: false
-    qa_completed:
-      type: boolean
-      default: false
-    qa_recorded:
-      type: boolean
-      default: false
-    tests_passed:
-      type:
-        - boolean
-        - null
-      default: null
-    known_issues_count:
-      type: integer
-      default: 0
-
-completion:
-  required:
-    - accepted_by
-    - completion_ref
-  fields:
-    accepted_by:
-      type:
-        - string
-        - null
-      default: null
-    completion_ref:
-      type:
-        - string
-        - null
-      description: For V1, usually local-branch:<branch_name> or accepted-local-worktree:<path>.
-    completed_at:
-      type:
-        - string
-        - null
-    abandoned_reason:
-      type:
-        - string
-        - null
-
-locks:
-  run_lock_path: .lock
-  one_mutating_command_per_run: true
-
-template:
-  schema_version: 1
-  run_id: "2026-05-18-add-login-form"
-  status: draft
-  created_at: "2026-05-18T10:00:00-04:00"
-  updated_at: "2026-05-18T10:00:00-04:00"
-
-  target:
-    repo:
-      mode: existing
-      path: /Users/me/code/random-existing-repo
-      name: random-existing-repo
-      base_ref: HEAD
-      base_ref_sha: null
-      fingerprint: null
-      created_by_run: null
-    worktree:
-      name: add-login-form
-      path: null
-      branch_name: agent/add-login-form
-      created: false
-      base_ref: HEAD
-      initial_commit_sha: null
-
-  scope:
-    kind: implementation
-    summary: Add a login form to the existing app.
-
-  artifacts:
-    raw_idea: raw-idea.md
-    answers: null
-    brief: null
-    plan: null
-    preflight: null
-    assumptions: assumptions.md
-    decisions: decisions.md
-    implementation_summary: null
-    diff_summary: null
-    review_report: null
-    qa_report: null
-    audit: audit.md
-    handoff: null
-
-  validation:
+schema:
+  schema_version:
+    type: int
     required: true
-    review_completed: false
-    qa_completed: false
-    qa_recorded: false
-    tests_passed: null
-    known_issues_count: 0
-
+    eq: 1
+  run_id:
+    type: str
+    required: true
+  status:
+    type: str
+    required: true
+    enum:
+      - draft
+      - shaping
+      - planning
+      - ready
+      - building
+      - validating
+      - followups
+      - human_review
+      - done
+      - abandoned
+  created_at:
+    type: str
+    required: true
+  updated_at:
+    type: str
+    required: true
+  target:
+    type: dict
+    required: true
+    keys:
+      repo:
+        type: dict
+        required: true
+        keys:
+          mode:
+            type: str
+            required: true
+            enum:
+              - existing
+              - new
+          path:
+            type: str
+            required: true
+          name:
+            type: str
+            required: true
+          base_ref:
+            type: str
+            required: true
+          base_ref_sha:
+            type:
+              - str
+              - "null"
+            required: false
+          fingerprint:
+            type:
+              - str
+              - "null"
+            required: false
+          created_by_run:
+            type:
+              - str
+              - "null"
+            required: false
+      worktree:
+        type: dict
+        required: true
+        keys:
+          name:
+            type: str
+            required: true
+          path:
+            type:
+              - str
+              - "null"
+            required: false
+          branch_name:
+            type: str
+            required: true
+          created:
+            type: bool
+            required: true
+          base_ref:
+            type: str
+            required: true
+          initial_commit_sha:
+            type:
+              - str
+              - "null"
+            required: false
+  scope:
+    type: dict
+    required: true
+    free_form: true
+  artifacts:
+    type: dict
+    required: true
+    free_form: true
+  validation:
+    type: dict
+    required: true
+    keys:
+      required:
+        type: bool
+        required: true
+      review_completed:
+        type: bool
+        required: true
+      qa_completed:
+        type: bool
+        required: true
+      qa_recorded:
+        type: bool
+        required: true
+      tests_passed:
+        type:
+          - bool
+          - "null"
+        required: false
+      known_issues_count:
+        type: int
+        required: true
   completion:
-    accepted_by: null
-    completion_ref: null
-    completed_at: null
-    abandoned_reason: null
+    type: dict
+    required: true
+    keys:
+      accepted_by:
+        type:
+          - str
+          - "null"
+        required: false
+      completion_ref:
+        type:
+          - str
+          - "null"
+        required: false
+      completed_at:
+        type:
+          - str
+          - "null"
+        required: false
+      abandoned_reason:
+        type:
+          - str
+          - "null"
+        required: false
+  build:
+    type: dict
+    required: false
+    keys:
+      iterations:
+        type:
+          - int
+          - "null"
+        required: false
+      exit_reason:
+        type:
+          - str
+          - "null"
+        required: false
+      max_iterations:
+        type: int
+        required: false
