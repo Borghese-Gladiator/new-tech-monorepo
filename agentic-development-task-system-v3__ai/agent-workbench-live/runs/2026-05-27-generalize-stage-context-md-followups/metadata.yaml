@@ -1,8 +1,8 @@
 schema_version: 1
 run_id: "2026-05-27-generalize-stage-context-md-followups"
-status: building
+status: human_review
 created_at: "2026-05-27T15:09:20-04:00"
-updated_at: "2026-05-27T17:22:10-04:00"
+updated_at: "2026-05-27T17:42:38-04:00"
 target:
   repo:
     mode: existing
