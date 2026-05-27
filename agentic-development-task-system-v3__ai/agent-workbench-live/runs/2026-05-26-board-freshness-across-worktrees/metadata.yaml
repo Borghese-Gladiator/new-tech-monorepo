@@ -1,6 +1,6 @@
 schema_version: 1
 run_id: "2026-05-26-board-freshness-across-worktrees"
-status: human_review
+status: done
 created_at: "2026-05-26T18:40:53-04:00"
 updated_at: "2026-05-27T00:06:39-04:00"
 target:
@@ -45,9 +45,9 @@ validation:
   tests_passed: true
   known_issues_count: 0
 completion:
-  accepted_by: null
-  completion_ref: null
-  completed_at: null
+  accepted_by: reconciliation
+  completion_ref: merge:36d4b39cddae79162beed45278582634f3b57ed6
+  completed_at: "2026-05-27T00:37:16-04:00"
   abandoned_reason: null
 build:
   iterations: 1

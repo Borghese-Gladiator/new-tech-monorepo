@@ -156,6 +156,83 @@ class TestRunsEnumeration(unittest.TestCase):
         self.assertEqual(ids, ["r-1", "r-2", "r-m"])
 
 
+class TestWalkWorktreesStaleMasterCarveOut(unittest.TestCase):
+    """`_walk_worktrees` should yield terminal-state worktree hits when the
+    master-side metadata is stale (TODO §1 Y scope, 2026-05-27).
+
+    When master and worktree both say `done`, the worktree hit is just merged
+    history and should be skipped. When master is still `human_review` but
+    the worktree has progressed to `done`, the worktree is the more recent
+    truth and must surface in `iter_all_runs` (otherwise `board` shows a
+    stale-`human_review` ghost while `list` shows `done`).
+    """
+
+    def setUp(self) -> None:
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="aw-stale-master-"))
+        _init_repo(self.tmp)
+        shutil.copy(ROOT / "agent-workbench.yaml", self.tmp / "agent-workbench.yaml")
+        shutil.copytree(ROOT / "schemas", self.tmp / "schemas")
+        self.wt = self.tmp / "wt"
+        _add_worktree(self.tmp, "agent/wt-stale", self.wt)
+        self.cfg = config.load(self.tmp)
+        reset_caches()
+
+    def tearDown(self) -> None:
+        reset_caches()
+        cleanup(self.tmp)
+
+    def _seed_collision(self, run_id: str, *, master_status: str,
+                        worktree_status: str) -> None:
+        """Create the same run in both master and worktree with different statuses."""
+        sub = runs_mod.workbench_subpath(self.cfg)
+        master_dir = self.cfg.runs_path / run_id
+        wt_dir = self.wt / sub / "runs" / run_id
+        _seed_run(master_dir, run_id, worktree_path=str(self.wt),
+                  status=master_status)
+        _seed_run(wt_dir, run_id, worktree_path=str(self.wt),
+                  status=worktree_status)
+        runs_mod.reset_caches()
+
+    def test_walk_worktrees_prefers_terminal_worktree_when_master_stale(self) -> None:
+        """Master says human_review, worktree says done → worktree wins."""
+        self._seed_collision("r-stale", master_status="human_review",
+                             worktree_status="done")
+        runs = list(runs_mod._walk_worktrees(self.cfg))
+        ids = [r.run_id for r in runs]
+        self.assertIn("r-stale", ids,
+                      "stale-master carve-out: worktree's done should surface "
+                      "when master disagrees")
+        kept = next(r for r in runs if r.run_id == "r-stale")
+        self.assertEqual(kept.status, "done")
+        self.assertEqual(kept.source, runs_mod.SOURCE_WORKTREE)
+
+    def test_walk_worktrees_skips_terminal_worktree_when_master_agrees(self) -> None:
+        """Both copies say done → worktree hit is just history, skip it."""
+        self._seed_collision("r-clean", master_status="done",
+                             worktree_status="done")
+        runs = list(runs_mod._walk_worktrees(self.cfg))
+        ids = [r.run_id for r in runs]
+        self.assertNotIn("r-clean", ids,
+                         "common case: worktree's done hit should be skipped "
+                         "when master also says done (it's just merged "
+                         "history checked out here)")
+
+    def test_walk_worktrees_skips_when_master_file_missing(self) -> None:
+        """No master-side metadata file at all → skip the worktree hit.
+
+        Matches today's terminal-state-skip behavior. The carve-out only
+        kicks in when master *exists* and *disagrees*.
+        """
+        sub = runs_mod.workbench_subpath(self.cfg)
+        wt_dir = self.wt / sub / "runs" / "r-no-master"
+        _seed_run(wt_dir, "r-no-master", worktree_path=str(self.wt),
+                  status="done")
+        runs_mod.reset_caches()
+        runs = list(runs_mod._walk_worktrees(self.cfg))
+        ids = [r.run_id for r in runs]
+        self.assertNotIn("r-no-master", ids)
+
+
 class TestIsSelfModifying(unittest.TestCase):
     """Self-modifying detection: workbench inside the target repo."""
 

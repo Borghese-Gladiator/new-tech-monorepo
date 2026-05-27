@@ -1,6 +1,6 @@
 schema_version: 1
 run_id: "2026-05-25-generalize-stage-context-md"
-status: human_review
+status: done
 created_at: "2026-05-25T23:09:38-04:00"
 updated_at: "2026-05-26T18:54:24-04:00"
 target:
@@ -45,9 +45,9 @@ validation:
   tests_passed: true
   known_issues_count: 0
 completion:
-  accepted_by: null
-  completion_ref: null
-  completed_at: null
+  accepted_by: reconciliation
+  completion_ref: merge:c075b0c44c5a5509e0313282ce953d22292ee164
+  completed_at: "2026-05-27T00:50:48-04:00"
   abandoned_reason: null
 build:
   iterations: 1
